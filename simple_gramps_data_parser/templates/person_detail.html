@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+
+{% block heading %}
+    Person: {{ obj.name }}
+{% endblock %}
+
+{% block content %}
+
+<dl class="dl-horizontal">
+    <dt>Родители</dt>
+    {% for family in obj.get_parent_families() %}
+        <dd>
+            <a href="{{ url_for('person_detail', obj_id=family.father.id) }}">{{ family.father or '?'}}</a>,
+            <a href="{{ url_for('person_detail', obj_id=family.mother.id) }}">{{ family.mother or '?'}}</a>
+        </dd>
+    {% endfor %}
+
+    <dt>Семья</dt>
+    {% for family in obj.get_families() %}
+        <dd>
+            <a href="{{ url_for('family_detail', obj_id=family.id) }}">{{ family.id }}</a>
+            (Партнёр
+            {% if family.father.id != obj.id %}
+                <a href="{{ url_for('person_detail', obj_id=family.father.id) }}">
+                    {{ family.father }}
+                </a>
+            {% endif %}
+            {% if family.mother.id != obj.id %}
+                <a href="{{ url_for('person_detail', obj_id=family.mother.id) }}">
+                    {{ family.mother }}
+                </a>
+            {% endif %}
+            ).
+            Дети:
+            <ul>
+            {% for child in family.children %}
+                <li>
+                    <a href="{{ url_for('person_detail', obj_id=child.id) }}">{{ child }}</a>
+                </li>
+            {% endfor %}
+            </ul>
+        </dd>
+    {% endfor %}
+</dl>
+
+<h2>Events</h2>
+
+<ul>
+{% for event in obj.events %}
+    <li>
+        <a href="{{ url_for('event_detail', obj_id=event.id) }}">{{ event.id }}</a>
+        {{ event.date }}
+        <em>{{ event.type }}</em>
+        {{ event.summary }}
+    </li>
+{% endfor %}
+</ul>
+
+<h2>Debug</h2>
+<dl>
+{% for key in obj._data %}
+    <dt><code>{{ key }}</code></dt>
+    <dd><code>{{ obj._data[key]|pprint }}</code></dd>
+{% endfor %}
+</dl>
+
+{% endblock %}

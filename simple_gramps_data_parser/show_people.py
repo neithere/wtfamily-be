@@ -90,10 +90,10 @@ def _format_name(name_node):
         primary = ' '.join(primary_surnames),
         patronymic = ' '.join(patronymic),
         nonpatronymic = ' '.join(nonpatronymic),
-    ).replace(' ()', '')
+    ).replace(' ()', '').strip()
 
 
-def main(path):
+def _parse_gramps_file(path):
     def _postprocessor(path, key, value):
         # simplify data by ignoring dict order
         if isinstance(value, OrderedDict):
@@ -102,7 +102,12 @@ def main(path):
 
     with open(path) as f:
         tree = xmltodict.parse(f.read(), postprocessor=_postprocessor)
-    db = tree['database']
+    return tree['database']
+
+
+def main(path):
+    db = _parse_gramps_file(path)
+
     people = db['people']['person']
     events = db['events']['event']
     families = db['families']['family']

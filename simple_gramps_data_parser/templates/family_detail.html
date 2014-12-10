@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+
+{% block heading %}
+    Family {{ obj.id }}
+{% endblock %}
+
+{% block content %}
+
+<dl class="dl-horizontal">
+    <dt>Father</dt>
+    <dd><a href="{{ url_for('person_detail', obj_id=obj.father.id) }}">{{ obj.father }}</a></dd>
+    <dt>Mother</dt>
+    <dd><a href="{{ url_for('person_detail', obj_id=obj.mother.id) }}">{{ obj.mother }}</a></dd>
+</dl>
+
+<h2>Children</h2>
+
+<ul>
+{% for child in obj.children %}
+    <li><a href="{{ url_for('person_detail', obj_id=child.id) }}">{{ child }}</a></li>
+{% endfor %}
+</ul>
+
+<h2>Events</h2>
+
+<ul>
+{% for event in obj.events %}
+    <li><a href="{{ url_for('event_detail', obj_id=event.id) }}">{{ event }}</a></li>
+{% endfor %}
+</ul>
+
+<h2>Debug</h2>
+<dl class="dl-horizontal">
+{% for key in obj._data %}
+    <dt><code>{{ key }}</code></dt>
+    <dd><code>{{ obj._data[key]|pprint }}</code></dd>
+{% endfor %}
+</dl>
+
+{% endblock %}

@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+
+{% block heading %}
+    Events
+{% endblock %}
+
+{% block content %}
+
+<ul>
+{% for obj in object_list %}
+    <li>
+        <a href="{{ url_for('event_detail', obj_id=obj.id) }}">{{ obj }}</a>
+        <code>{{ obj._data|pprint }}</code>
+    </li>
+{% endfor %}
+</ul>
+
+{% endblock %}
