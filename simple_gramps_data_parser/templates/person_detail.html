@@ -1,12 +1,18 @@
 {% extends 'base.html' %}
 
 {% block heading %}
-    Person: {{ obj.name }}
+    {{ obj.name }}
 {% endblock %}
 
 {% block content %}
 
 <dl class="dl-horizontal">
+    {% if obj.names|length > 1 %}
+        <dt>Варианты имён</dt>
+        {% for name in obj.names %}
+        <dd>{{ name }}</dd>
+        {% endfor %}
+    {% endif %}
     <dt>Родители</dt>
     {% for family in obj.get_parent_families() %}
         <dd>
@@ -49,7 +55,7 @@
 {% for event in obj.events %}
     <li>
         <a href="{{ url_for('event_detail', obj_id=event.id) }}">{{ event.id }}</a>
-        {{ event.date }}
+        <strong>{{ event.date }}</strong>
         <em>{{ event.type }}</em>
         {{ event.summary }}
     </li>

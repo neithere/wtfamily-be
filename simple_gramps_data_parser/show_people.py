@@ -35,6 +35,12 @@ def TEST__etree(path):
         print(x)
 
 
+def _format_names(name_node):
+    if not isinstance(name_node, list):
+        name_node = [name_node]
+    return [_format_name(n) for n in name_node]
+
+
 def _format_name(name_node):
     template = '{primary} ({nonpatronymic}), {first} {patronymic}'
 
@@ -42,10 +48,6 @@ def _format_name(name_node):
     #import pprint
     #pprint.pprint(name_node)
     #print('---')
-
-    if isinstance(name_node, list):
-        # XXX this is naïve; we better filter out the `{'@alt': '1', ...}` ones
-        name_node = name_node[0]
 
     first = name_node.get('first', '?')
     primary_surnames = []
@@ -118,13 +120,13 @@ def main(path):
 
     for person in people:
         #print('')
-        name = _format_name(person['name'])
+        name = ' AKA '.join(_format_names(person['name']))
         #print('------------------')
         print(person['@id'], person['gender'], name)
         #pprint.pprint(person)
         if 'childof' in person:
             parents = _find_people(db, 'parentin', person['childof'])
-            print('  Parents:', ' + '.join(_format_name(p['name']) for p in parents))
+            print('  Parents:', ' + '.join(_format_names(p['name'])[0] for p in parents))
         if 'eventref' in person:
             for event in _find_events(db, person['eventref']):
                 #pprint.pprint(event)

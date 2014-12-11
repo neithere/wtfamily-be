@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+
+{% block heading %}
+    Places
+{% endblock %}
+
+{% block content %}
+
+<ul>
+{% for obj in object_list %}
+    <li>
+        <a href="{{ url_for('place_detail', obj_id=obj.id) }}">{{ obj }}</a>
+        {# <code>{{ obj._data|pprint }}</code> #}
+    </li>
+{% endfor %}
+</ul>
+
+{% endblock %}
+

@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+
+{% block heading %}
+  {{ obj.title }}
+{% endblock %}
+
+{% block content %}
+
+<dl class="dl-horizontal">
+  <dt>Другие названия</dt>
+    <dd>{{ obj.alt_name|join(', ') }}</dd>
+
+  {% if obj.parent_places %}
+    <dt>В составе мест</dt>
+    {% for p in obj.parent_places %}
+      <dd><a href="{{ url_for('place_detail', obj_id=p.id) }}">{{ p }}</a></dd>
+    {% endfor %}
+  {% endif %}
+
+  {% if obj.nested_places %}
+    <dt>Содержит</dt>
+    {% for p in obj.nested_places %}
+      <dd><a href="{{ url_for('place_detail', obj_id=p.id) }}">{{ p }}</a></dd>
+    {% endfor %}
+  {% endif %}
+</dl>
+
+<h2>Events</h2>
+
+TODO
+
+<h2>Debug</h2>
+<dl class="dl-horizontal">
+{% for key in obj._data %}
+    <dt><code>{{ key }}</code></dt>
+    <dd><code>{{ obj._data[key]|pprint }}</code></dd>
+{% endfor %}
+</dl>
+
+{% endblock %}
+

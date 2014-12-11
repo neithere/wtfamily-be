@@ -163,7 +163,11 @@ class Person(Entity):
 
     @property
     def name(self):
-        return _dbi._format_name(self._data['name'])
+        return _dbi._format_names(self._data['name'])[0]
+
+    @property
+    def names(self):
+        return _dbi._format_names(self._data['name'])
 
     @property
     def events(self):
@@ -228,6 +232,23 @@ class Place(Entity):
     @property
     def title(self):
         return self._data.get('ptitle')
+
+    @property
+    def alt_name(self):
+        return self._data.get('alt_name', [])
+
+    @property
+    def parent_places(self):
+        try:
+            hlinks = _extract_hlinks(self._data['placeref'])
+        except KeyError:
+            return
+        return Place.find({'@handle': hlinks})
+
+    @property
+    def nested_places(self):
+        handle = self._data['@handle']
+        return Place.find({'placeref': {'@hlink': handle}})
 
 
 def _extract_hlinks(ref):
