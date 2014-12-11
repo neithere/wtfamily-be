@@ -10,6 +10,8 @@ import show_people as _dbi
 
 GRAMPS_XML_PATH = 'data.gramps'
 
+EVENT_TYPE_BIRTH = 'Birth'
+
 
 app = Flask(__name__)
 
@@ -92,15 +94,15 @@ class Entity:
         if cls.sort_key:
             items = sorted(items, key=cls.sort_key)
         for p in items:
-            if conditions:
-                for k, v in conditions.items():
-                    if not isinstance(v, list):
-                        v = [v]
-                    if k in p and p[k] in v:
-                        yield cls(p)
-                        break
-            else:
+            if not conditions:
                 yield cls(p)
+                continue
+            for k, v in conditions.items():
+                if not isinstance(v, list):
+                    v = [v]
+                if k in p and p[k] in v:
+                    yield cls(p)
+                    break
 
     @classmethod
     def find_one(cls, conditions=None):
@@ -110,6 +112,10 @@ class Entity:
     @property
     def id(self):
         return self._data['@id']
+
+    @property
+    def handle(self):
+        return self._data['@handle']
 
 
 class Family(Entity):
@@ -157,6 +163,15 @@ class Person(Entity):
     category_pl = 'people'
     category_sg = 'person'
 
+    @classmethod
+    def find_by_event_ref(cls, hlink):
+        for person in cls.find():
+            refs = person._data.get('eventref')
+            if not refs:
+                continue
+            if hlink in _extract_hlinks(refs):
+                yield person
+
     def __repr__(self):
         #return 'Person {} {}'.format(self.name, self._data)
         return '{}'.format(self.name)
@@ -177,6 +192,15 @@ class Person(Entity):
             return []
         return Event.find({'@handle': hlinks})
 
+    @property
+    def attributes(self):
+        try:
+            attribs = self._data['attribute']
+        except KeyError:
+            return []
+        attribs = _dbi._ensure_list(attribs)
+        return attribs
+
     def get_parent_families(self):
         try:
             hlinks = _extract_hlinks(self._data['childof'])
@@ -191,11 +215,20 @@ class Person(Entity):
             return []
         return Family.find({'@handle': hlinks})
 
+    @property
+    def birth(self):
+        for event in self.events:
+            if event.type == EVENT_TYPE_BIRTH:
+                return event.date
+
 
 class Event(Entity):
     category_pl = 'events'
     category_sg = 'event'
-    sort_key = lambda item: item.get('dateval', {}).get('@val', '')
+    sort_key = lambda item: (
+        item.get('dateval', {}).get('@val', '') or
+        item.get('daterange', {}).get('@start', '')
+    )
 
     def __repr__(self):
         #return 'Event {}'.format(self._data)
@@ -207,7 +240,7 @@ class Event(Entity):
 
     @property
     def date(self):
-        return _dbi._format_dateval(self._data.get('dateval'))
+        return _format_date(self._data)
 
     @property
     def summary(self):
@@ -220,6 +253,10 @@ class Event(Entity):
         except KeyError:
             return
         return Place.find_one({'@handle': hlinks})
+
+    @property
+    def people(self):
+        return Person.find_by_event_ref(self.handle)
 
 
 class Place(Entity):
@@ -235,7 +272,7 @@ class Place(Entity):
 
     @property
     def alt_name(self):
-        return self._data.get('alt_name', [])
+        return _dbi._ensure_list(self._data.get('alt_name', []))
 
     @property
     def parent_places(self):
@@ -247,8 +284,25 @@ class Place(Entity):
 
     @property
     def nested_places(self):
-        handle = self._data['@handle']
-        return Place.find({'placeref': {'@hlink': handle}})
+        print( {'placeref': {'@hlink': self.handle}})
+        for place in Place.find():
+            if 'placeref' not in place._data:
+                continue
+            if self.handle in _extract_hlinks(place._data.get('placeref', [])):
+                yield place
+
+    @property
+    def events(self):
+        hlinks = []
+        nested_to_see = [self]
+        while nested_to_see:
+            place = nested_to_see.pop()
+            hlinks.append(place.handle)
+            nested_to_see.extend(place.nested_places)
+
+        for event in Event.find():
+            if event.place and event.place.handle in hlinks:
+                yield event
 
 
 def _extract_hlinks(ref):
@@ -263,6 +317,27 @@ def _extract_hlinks(ref):
     assert isinstance(ref, list)
 
     return [x['@hlink'] for x in ref]
+
+
+def _format_date(obj_data):
+    if 'dateval' in obj_data:
+        node = obj_data['dateval']
+        val = node['@val']
+    elif 'daterange' in obj_data:
+        node = obj_data['daterange']
+        val = '{}—{}'.format(
+            node.get('@start'),
+            node.get('@stop'),
+        )
+    else:
+        return '?'
+
+    vals = [
+        node.get('@quality'),
+        node.get('@type'),
+        val,
+    ]
+    return ' '.join([x for x in vals if x])
 
 
 if __name__ == '__main__':

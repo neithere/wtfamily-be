@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 from collections import OrderedDict
+import gzip
 import pprint
 
 import argh
@@ -42,7 +43,8 @@ def _format_names(name_node):
 
 
 def _format_name(name_node):
-    template = '{primary} ({nonpatronymic}), {first} {patronymic}'
+    #template = '{primary} ({nonpatronymic}), {first} {patronymic}'
+    template = '{first} {patronymic} {primary} ({nonpatronymic})'
 
     #print('---')
     #import pprint
@@ -95,15 +97,15 @@ def _format_name(name_node):
     ).replace(' ()', '').strip()
 
 
-def _parse_gramps_file(path):
+def _parse_gramps_file(path, ):
     def _postprocessor(path, key, value):
         # simplify data by ignoring dict order
         if isinstance(value, OrderedDict):
             value = dict(value)
         return key, value
 
-    with open(path) as f:
-        tree = xmltodict.parse(f.read(), postprocessor=_postprocessor)
+    with gzip.GzipFile(path) as f:
+        tree = xmltodict.parse(f, postprocessor=_postprocessor)
     return tree['database']
 
 
@@ -180,10 +182,20 @@ def _ensure_list(item):
 def _format_dateval(dateval):
     if not dateval:
         return
+    if '@val' in dateval:
+        val = dateval['@val']
+    elif 'daterange' in dateval:
+        assert 0, dateval
+        val = '{}—{}'.format(
+            dateval['daterange'].get('@start'),
+            dateval['daterange'].get('@stop')
+        )
+    else:
+        val = '?'
     vals = [
         dateval.get('@quality'),
         dateval.get('@type'),
-        dateval.get('@val'),
+        val,
     ]
     return ' '.join([x for x in vals if x])
 

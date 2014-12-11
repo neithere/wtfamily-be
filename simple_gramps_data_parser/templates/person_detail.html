@@ -16,8 +16,31 @@
     <dt>Родители</dt>
     {% for family in obj.get_parent_families() %}
         <dd>
-            <a href="{{ url_for('person_detail', obj_id=family.father.id) }}">{{ family.father or '?'}}</a>,
+            <a href="{{ url_for('family_detail', obj_id=family.id) }}">{{ family.id }}</a>
+            —
+            <a href="{{ url_for('person_detail', obj_id=family.father.id) }}">{{ family.father or '?'}}</a>
+            {% if family.father.birth %}
+                {{ family.father.birth }}
+            {% endif %}
+            и
             <a href="{{ url_for('person_detail', obj_id=family.mother.id) }}">{{ family.mother or '?'}}</a>
+            {% if family.mother.birth %}
+                {{ family.mother.birth }}
+            {% endif %}
+            <ul>
+            {% for child in family.children %}
+                <li>
+                    {% if child.id == obj.id %}
+                        {{ child }}
+                    {% else %}
+                        <a href="{{ url_for('person_detail', obj_id=child.id) }}">{{ child }}</a>
+                        {% if child.birth %}
+                            {{ child.birth }}
+                        {% endif %}
+                    {% endif %}
+                </li>
+            {% endfor %}
+            </ul>
         </dd>
     {% endfor %}
 
@@ -25,19 +48,23 @@
     {% for family in obj.get_families() %}
         <dd>
             <a href="{{ url_for('family_detail', obj_id=family.id) }}">{{ family.id }}</a>
-            (Партнёр
+            —
             {% if family.father.id != obj.id %}
                 <a href="{{ url_for('person_detail', obj_id=family.father.id) }}">
-                    {{ family.father }}
+                    {{ family.father or '?' }}
                 </a>
+                {% if family.father.birth %}
+                    {{ family.father.birth }}
+                {% endif %}
             {% endif %}
             {% if family.mother.id != obj.id %}
                 <a href="{{ url_for('person_detail', obj_id=family.mother.id) }}">
-                    {{ family.mother }}
+                    {{ family.mother or '?' }}
                 </a>
+                {% if family.mother.birth %}
+                    {{ family.mother.birth }}
+                {% endif %}
             {% endif %}
-            ).
-            Дети:
             <ul>
             {% for child in family.children %}
                 <li>
@@ -46,6 +73,13 @@
             {% endfor %}
             </ul>
         </dd>
+    {% else %}
+        <dd>—</dd>
+    {% endfor %}
+
+    {% for attr in obj.attributes %}
+        <dt>{{ attr['@type'] }}</dt>
+        <dd>{{ attr['@value'] }}</dd>
     {% endfor %}
 </dl>
 
@@ -53,17 +87,32 @@
 
 <ul>
 {% for event in obj.events %}
-    <li>
-        <a href="{{ url_for('event_detail', obj_id=event.id) }}">{{ event.id }}</a>
-        <strong>{{ event.date }}</strong>
-        <em>{{ event.type }}</em>
-        {{ event.summary }}
-    </li>
+  <li>
+      <a href="{{ url_for('event_detail', obj_id=event.id) }}">{{ event.id }}</a>
+      <strong>{{ event.date or '(when?)' }}</strong>
+      <em>{{ event.type }}</em>
+      {{ event.summary }}
+      —
+
+      {% if event.place %}
+        <a href="{{ url_for('place_detail', obj_id=event.place.id) }}">{{ event.place }}</a>
+      {% else %}
+        (where?)
+      {% endif %}
+
+      <ul>
+      {% for p in event.people %}
+        {% if p.id != obj.id %}
+          <li><a href="{{ url_for('person_detail', obj_id=p.id) }}">{{ p }}</a></li>
+        {% endif %}
+      {% endfor %}
+      </ul>
+  </li>
 {% endfor %}
 </ul>
 
 <h2>Debug</h2>
-<dl>
+<dl class="dl-horizontal">
 {% for key in obj._data %}
     <dt><code>{{ key }}</code></dt>
     <dd><code>{{ obj._data[key]|pprint }}</code></dd>

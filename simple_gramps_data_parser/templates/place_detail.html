@@ -27,7 +27,21 @@
 
 <h2>Events</h2>
 
-TODO
+<ul>
+{% for event in obj.events %}
+  <li>
+      <a href="{{ url_for('event_detail', obj_id=event.id) }}">{{ event.id }}</a>
+      {{ event.date or '(when?)' }}
+      <em>{{ event.type }}</em>
+      {{ event.summary }}
+      <ul>
+      {% for p in event.people %}
+        <li><a href="{{ url_for('person_detail', obj_id=p.id) }}">{{ p }}</a></li>
+      {% endfor %}
+      </ul>
+  </li>
+{% endfor %}
+</ul>
 
 <h2>Debug</h2>
 <dl class="dl-horizontal">

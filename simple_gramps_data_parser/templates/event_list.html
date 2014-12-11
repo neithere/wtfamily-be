@@ -6,11 +6,46 @@
 
 {% block content %}
 
+<table class="table-striped">
+  <tr>
+    <th>ID</th>
+    <th>Date</th>
+    <th>Place</th>
+    <th>Type</th>
+    <th>People</th>
+    <th>Summary</th>
+  </tr>
+{% for obj in object_list %}
+  <tr>
+    <td>
+      <a href="{{ url_for('event_detail', obj_id=obj.id) }}">{{ obj.id }}</a>
+    </td>
+    <td>
+      {{ obj.date }}
+    </td>
+    <td>
+      <a href="{{ url_for('place_detail', obj_id=obj.place.id) }}">{{ obj.place }}</a>
+    </td>
+    <td>
+      {{ obj.type }}
+    </td>
+    <td>
+      {% for p in obj.people %}
+        <a href="{{ url_for('person_detail', obj_id=p.id) }}">{{ p }}</a>{% if not loop.last %}, {% endif %}
+      {% endfor %}
+    </td>
+    <td>
+      {{ obj.summary }}
+    </td>
+  </tr>
+{% endfor %}
+</table>
+
 <ul>
 {% for obj in object_list %}
     <li>
         <a href="{{ url_for('event_detail', obj_id=obj.id) }}">{{ obj }}</a>
-        <code>{{ obj._data|pprint }}</code>
+        {#<code>{{ obj._data|pprint }}</code>#}
     </li>
 {% endfor %}
 </ul>
