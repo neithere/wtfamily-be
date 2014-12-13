@@ -6,13 +6,45 @@
 
 {% block content %}
 
-<ul>
+<dl class="dl-horizontal">
 {% for obj in object_list %}
-    <li>
-        <a href="{{ url_for('family_detail', obj_id=obj.id) }}">{{ obj }}</a>
-        <code>{{ obj._data|pprint }}</code>
-    </li>
+    <dt>
+        <a href="{{ url_for('family_detail', obj_id=obj.id) }}">{{ obj.id }}</a>
+        {{ obj._data.rel.get('@type') }}
+    </dt>
+
+    <dd>
+      {% if obj.father %}
+        <a href="{{ url_for('person_detail', obj_id=obj.father.id) }}">{{ obj.father }}</a>
+        <span class="text-muted">{{ obj.father.birth or '' }}</span>
+      {% else %}
+        ?
+      {% endif %}
+
+      и
+
+      {% if obj.mother %}
+        <a href="{{ url_for('person_detail', obj_id=obj.mother.id) }}">{{ obj.mother }}</a>
+        <span class="text-muted">{{ obj.mother.birth or '' }}</span>
+      {% else %}
+        ?
+      {% endif %}
+    </dd>
+
+    {#
+    <dd>
+      <ul>
+      {% for child in obj.children %}
+        <li>{{ child }}</li>
+      {% endfor %}
+      </ul>
+    </dd>
+
+    <dd>
+      <code>{{ obj._data|pprint }}</code>
+    </dd>
+    #}
 {% endfor %}
-</ul>
+</dl>
 
 {% endblock %}

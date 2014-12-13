@@ -83,23 +83,39 @@
     {% endfor %}
 </dl>
 
-<h2>Events</h2>
+<!-- h2>Events</h2 -->
 
-<ul>
+<table class="table table-striped table-hover">
+  <tr>
+    <th>ID</th>
+    <th>Place</th>
+    <th>Date</th>
+    <th>Type</th>
+    <th>Summary</th>
+    <th>People</th>
+  </tr>
 {% for event in obj.events %}
-  <li>
+  <tr>
+    <td>
       <a href="{{ url_for('event_detail', obj_id=event.id) }}">{{ event.id }}</a>
-      <strong>{{ event.date or '(when?)' }}</strong>
-      <em>{{ event.type }}</em>
-      {{ event.summary }}
-      —
-
+    </td>
+    <td>
       {% if event.place %}
         <a href="{{ url_for('place_detail', obj_id=event.place.id) }}">{{ event.place }}</a>
       {% else %}
-        (where?)
+        ?
       {% endif %}
-
+    </td>
+    <td>
+      {{ event.date }}
+    </td>
+    <td>
+      {{ event.type }}
+    </td>
+    <td>
+      {{ event.summary }}
+    </td>
+    <td>
       <ul>
       {% for p in event.people %}
         {% if p.id != obj.id %}
@@ -107,9 +123,11 @@
         {% endif %}
       {% endfor %}
       </ul>
-  </li>
+    </td>
+  </tr>
 {% endfor %}
-</ul>
+</table>
+
 
 <h2>Debug</h2>
 <dl class="dl-horizontal">

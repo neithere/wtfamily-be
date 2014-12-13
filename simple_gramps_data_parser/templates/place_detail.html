@@ -8,7 +8,7 @@
 
 <dl class="dl-horizontal">
   <dt>Другие названия</dt>
-    <dd>{{ obj.alt_name|join(', ') }}</dd>
+    <dd>{{ obj.alt_name|join(', ') or '—' }}</dd>
 
   {% if obj.parent_places %}
     <dt>В составе мест</dt>
@@ -17,31 +17,66 @@
     {% endfor %}
   {% endif %}
 
-  {% if obj.nested_places %}
-    <dt>Содержит</dt>
-    {% for p in obj.nested_places %}
-      <dd><a href="{{ url_for('place_detail', obj_id=p.id) }}">{{ p }}</a></dd>
-    {% endfor %}
-  {% endif %}
+  <dt>Содержит</dt>
+  {% for p in obj.nested_places %}
+    <dd>
+      <a href="{{ url_for('place_detail', obj_id=p.id) }}">{{ p.name }}</a>
+      {# <span class="text-muted">({{ p.title }})</span> #}
+    </dd>
+  {% else %}
+    <dd>—</dd>
+  {% endfor %}
 </dl>
 
-<h2>Events</h2>
+<!-- h2>Events</h2 -->
 
-<ul>
+<table class="table table-striped table-hover">
+  <tr>
+    <th>ID</th>
+    <th>Subplace</th>
+    <th>Date</th>
+    <th>Type</th>
+    <th>People</th>
+    <th>Summary</th>
+  </tr>
 {% for event in obj.events %}
-  <li>
+  <tr>
+    <td>
       <a href="{{ url_for('event_detail', obj_id=event.id) }}">{{ event.id }}</a>
-      {{ event.date or '(when?)' }}
-      <em>{{ event.type }}</em>
-      {{ event.summary }}
+    </td>
+    <td>
+      {% if event.place.id != obj.id %}
+        {{ event.place.name }}
+      {% endif %}
+    </td>
+    <td>
+      {{ event.date }}
+    </td>
+    <td>
+      {{ event.type }}
+    </td>
+    <td>
       <ul>
       {% for p in event.people %}
-        <li><a href="{{ url_for('person_detail', obj_id=p.id) }}">{{ p }}</a></li>
+        <li>
+            <a href="{{ url_for('person_detail', obj_id=p.id) }}">{{ p }}</a>
+            <span class="text-muted">~{{ p.birth.year }}</span>
+        </li>
       {% endfor %}
       </ul>
-  </li>
+      <ul>
+      {% for f in event.families %}
+        <li><a href="{{ url_for('family_detail', obj_id=f.id) }}">{{ f }}</a></li>
+      {% endfor %}
+      </ul>
+    </td>
+    <td>
+      {{ event.summary }}
+    </td>
+  </tr>
 {% endfor %}
-</ul>
+</table>
+
 
 <h2>Debug</h2>
 <dl class="dl-horizontal">

@@ -39,7 +39,19 @@ def event_detail(obj_id):
 
 @app.route('/family/')
 def family_index():
-    object_list = Family.find()
+    def _sort_key(item):
+        # This is a very naïve sorting method.
+        # We sort families by father's birth year; if it's missing, then
+        # by mother's.  This does not take into account actual marriage dates,
+        # so if the second wife was older than the first one, the second family
+        # goes first.  The general idea is to roughly sort the families and
+        # have older people appear before younger ones.
+        if item.father and item.father.birth:
+            return str(item.father.birth.year)
+        if item.mother and item.mother.birth:
+            return str(item.mother.birth.year)
+        return ''
+    object_list = sorted(Family.find(), key=_sort_key)
     return render_template('family_list.html', object_list=object_list)
 
 
@@ -109,6 +121,16 @@ class Entity:
         for p in cls.find(conditions):
             return p
 
+    @classmethod
+    def find_by_event_ref(cls, hlink):
+        # anything except Event can reference to an Event
+        for obj in cls.find():
+            refs = obj._data.get('eventref')
+            if not refs:
+                continue
+            if hlink in _extract_hlinks(refs):
+                yield obj
+
     @property
     def id(self):
         return self._data['@id']
@@ -162,15 +184,6 @@ class Family(Entity):
 class Person(Entity):
     category_pl = 'people'
     category_sg = 'person'
-
-    @classmethod
-    def find_by_event_ref(cls, hlink):
-        for person in cls.find():
-            refs = person._data.get('eventref')
-            if not refs:
-                continue
-            if hlink in _extract_hlinks(refs):
-                yield person
 
     def __repr__(self):
         #return 'Person {} {}'.format(self.name, self._data)
@@ -240,7 +253,7 @@ class Event(Entity):
 
     @property
     def date(self):
-        return _format_date(self._data)
+        return DateRepresenter(**self._data)
 
     @property
     def summary(self):
@@ -258,6 +271,10 @@ class Event(Entity):
     def people(self):
         return Person.find_by_event_ref(self.handle)
 
+    @property
+    def families(self):
+        return Family.find_by_event_ref(self.handle)
+
 
 class Place(Entity):
     category_pl = 'places'
@@ -265,6 +282,10 @@ class Place(Entity):
 
     def __repr__(self):
         return '{0.title}'.format(self)
+
+    @property
+    def name(self):
+        return self._data.get('@name')
 
     @property
     def title(self):
@@ -284,7 +305,7 @@ class Place(Entity):
 
     @property
     def nested_places(self):
-        print( {'placeref': {'@hlink': self.handle}})
+        #print( {'placeref': {'@hlink': self.handle}})
         for place in Place.find():
             if 'placeref' not in place._data:
                 continue
@@ -320,24 +341,43 @@ def _extract_hlinks(ref):
 
 
 def _format_date(obj_data):
-    if 'dateval' in obj_data:
-        node = obj_data['dateval']
-        val = node['@val']
-    elif 'daterange' in obj_data:
-        node = obj_data['daterange']
-        val = '{}—{}'.format(
-            node.get('@start'),
-            node.get('@stop'),
-        )
-    else:
-        return '?'
+    return str(DateRepresenter(**obj_data))
 
-    vals = [
-        node.get('@quality'),
-        node.get('@type'),
-        val,
-    ]
-    return ' '.join([x for x in vals if x])
+
+class DateRepresenter:
+    def __init__(self, dateval=None, daterange=None, **kwargs):
+        self.dateval = dateval
+        self.daterange = daterange
+
+    def __str__(self):
+        if self.dateval:
+            node = self.dateval
+            val = node['@val']
+        elif self.daterange:
+            node = self.daterange
+            val = '{}—{}'.format(
+                node.get('@start'),
+                node.get('@stop'),
+            )
+        else:
+            return '?'
+
+        vals = [
+            node.get('@quality'),
+            node.get('@type'),
+            val,
+        ]
+        return ' '.join([x for x in vals if x])
+
+    @property
+    def year(self):
+        "Returns earliest known year as string"
+        if self.dateval:
+            return self.dateval['@val']
+        elif self.daterange:
+            return self.daterange['@start']
+        else:
+            return ''
 
 
 if __name__ == '__main__':

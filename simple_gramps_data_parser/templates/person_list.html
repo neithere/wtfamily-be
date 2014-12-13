@@ -6,13 +6,14 @@
 
 {% block content %}
 
-<ul>
+<ol>
 {% for obj in object_list %}
     <li>
         <a href="{{ url_for('person_detail', obj_id=obj.id) }}">{{ obj.name }}</a>
-        <code>{{ obj._data|pprint }}</code>
+        {{ obj.birth or '' }}
+        {# <code>{{ obj._data|pprint }}</code> #}
     </li>
 {% endfor %}
-</ul>
+</ol>
 
 {% endblock %}
