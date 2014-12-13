@@ -94,10 +94,16 @@ def place_detail(obj_id):
     return render_template('place_detail.html', obj=obj, db=db)
 
 
-@app.route('/heatmap')
+@app.route('/map/heat')
 def map_heatmap():
     events = Event.find()
     return render_template('map_heatmap.html', events=events)
+
+
+@app.route('/map/circles')
+def map_circles():
+    places = [p for p in Place.find() if list(p.events)]
+    return render_template('map_circles.html', places=places)
 
 
 class Entity:
