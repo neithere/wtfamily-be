@@ -106,6 +106,12 @@ def map_circles():
     return render_template('map_circles.html', places=places)
 
 
+@app.route('/map/circles/integrated')
+def map_circles_integrated():
+    places = [p for p in Place.find() if list(p.events)]
+    return render_template('map_circles_integrated.html', places=places)
+
+
 class Entity:
     category_pl = NotImplemented
     category_sg = NotImplemented

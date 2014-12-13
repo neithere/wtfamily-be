@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+
+{% block heading %}
+    Event Density Map (Circles)
+{% endblock %}
+
+{% block content %}
+
+<iframe src="{{ url_for('map_circles') }}" style="left: 0; right: 0;"
+        scrolling="no" width="100%" height="600px" frameborder="no">
+</iframe>
+
+{% endblock %}
