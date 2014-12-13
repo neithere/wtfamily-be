@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+import re
+
 from flask import (
     Flask,
     abort, render_template,
@@ -90,6 +92,12 @@ def place_detail(obj_id):
     if not obj:
         abort(404)
     return render_template('place_detail.html', obj=obj, db=db)
+
+
+@app.route('/heatmap')
+def map_heatmap():
+    events = Event.find()
+    return render_template('map_heatmap.html', events=events)
 
 
 class Entity:
@@ -296,6 +304,16 @@ class Place(Entity):
         return _dbi._ensure_list(self._data.get('alt_name', []))
 
     @property
+    def coords(self):
+        coords = self._data.get('coord')
+        if not coords:
+            return
+        return {
+            'lat': _normalize_coords_to_pure_degrees(coords['@lat']),
+            'lng': _normalize_coords_to_pure_degrees(coords['@long']),
+        }
+
+    @property
     def parent_places(self):
         try:
             hlinks = _extract_hlinks(self._data['placeref'])
@@ -342,6 +360,24 @@ def _extract_hlinks(ref):
 
 def _format_date(obj_data):
     return str(DateRepresenter(**obj_data))
+
+
+def _normalize_coords_to_pure_degrees(coords):
+    if isinstance(coords, float):
+        return coords
+    assert isinstance(coords, str)
+    parts = [float(x) for x in re.findall('([0-9\.]+)', coords)]
+    pure_degrees = parts.pop(0)
+    if parts:
+        # minutes
+        pure_degrees += (parts.pop(0) / 60)
+    if parts:
+        # seconds
+        pure_degrees += (parts.pop(0) / 60*60)
+    assert not parts, (coords, pure_degrees, parts)
+    if 'S' in coords or 'W' in coords:
+        pure_degrees = -pure_degrees
+    return pure_degrees
 
 
 class DateRepresenter:
