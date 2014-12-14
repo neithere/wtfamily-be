@@ -260,6 +260,7 @@ class Event(Entity):
     category_sg = 'event'
     sort_key = lambda item: (
         item.get('dateval', {}).get('@val', '') or
+        item.get('datespan', {}).get('@start', '') or
         item.get('daterange', {}).get('@start', '')
     )
 
@@ -382,10 +383,10 @@ def _normalize_coords_to_pure_degrees(coords):
     pure_degrees = parts.pop(0)
     if parts:
         # minutes
-        pure_degrees += (parts.pop(0) / 60)
+        pure_degrees += parts.pop(0) / 60
     if parts:
         # seconds
-        pure_degrees += (parts.pop(0) / 60*60)
+        pure_degrees += parts.pop(0) / (60*60)
     assert not parts, (coords, pure_degrees, parts)
     if 'S' in coords or 'W' in coords:
         pure_degrees = -pure_degrees
@@ -393,14 +394,21 @@ def _normalize_coords_to_pure_degrees(coords):
 
 
 class DateRepresenter:
-    def __init__(self, dateval=None, daterange=None, **kwargs):
+    def __init__(self, dateval=None, daterange=None, datespan=None, **kwargs):
         self.dateval = dateval
         self.daterange = daterange
+        self.datespan = datespan
 
     def __str__(self):
         if self.dateval:
             node = self.dateval
             val = node['@val']
+        elif self.datespan:
+            node = self.datespan
+            val = '{}..{}'.format(
+                node.get('@start'),
+                node.get('@stop'),
+            )
         elif self.daterange:
             node = self.daterange
             val = '{}—{}'.format(

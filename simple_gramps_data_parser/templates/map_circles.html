@@ -34,7 +34,7 @@ var places = [
                 center: new google.maps.LatLng({{ place.coords.lat }},
                                                {{ place.coords.lng }}),
                 event_cnt: {{ place.events|list|length }},
-                title: '{{ place.title }}',
+                title: '{{ place.title }}\n{% for e in place.events %}{{ e.date }} {{ e.type }} {{ e.people|join(', ') }}\n{% endfor %}',
             },
         {% endif %}
     {% endfor %}
@@ -59,7 +59,7 @@ function initialize() {
             fillOpacity: 0.35,
             map: map,
             center: place.center,
-            radius: Math.sqrt(place.event_cnt) * 2000,
+            radius: Math.sqrt(place.event_cnt) * 1000,
         };
         console.log(place, circle_options);
         // Add the circle for this city to the map.
