@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+
+{% block heading %}
+    Citations
+{% endblock %}
+
+{% block content %}
+
+<ul>
+{% for citation in object_list %}
+    <li>
+        <a href="{{ url_for('citation_detail', obj_id=citation.id) }}">{{ citation.id }}</a>
+        {{ citation.page|urlize or '(page?)' }}
+        {% if citation.date %}
+          ({{ citation.date }})
+        {% endif %}
+        {#<code>{{ citation._data|pprint }}</code>#}
+    </li>
+{% endfor %}
+</ul>
+
+{% endblock %}

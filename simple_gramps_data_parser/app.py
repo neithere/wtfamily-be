@@ -26,7 +26,7 @@ def home():
 
 
 @app.route('/event/')
-def event_index():
+def event_list():
     object_list = Event.find()
     return render_template('event_list.html', object_list=object_list)
 
@@ -40,7 +40,7 @@ def event_detail(obj_id):
 
 
 @app.route('/family/')
-def family_index():
+def family_list():
     def _sort_key(item):
         # This is a very naïve sorting method.
         # We sort families by father's birth year; if it's missing, then
@@ -66,7 +66,7 @@ def family_detail(obj_id):
 
 
 @app.route('/person/')
-def person_index():
+def person_list():
     object_list = Person.find()
     object_list = sorted(object_list, key=lambda x: x.name)
     return render_template('person_list.html', object_list=object_list)
@@ -81,7 +81,7 @@ def person_detail(obj_id):
 
 
 @app.route('/place/')
-def place_index():
+def place_list():
     object_list = Place.find()
     return render_template('place_list.html', object_list=object_list)
 
@@ -92,6 +92,37 @@ def place_detail(obj_id):
     if not obj:
         abort(404)
     return render_template('place_detail.html', obj=obj, db=db)
+
+
+@app.route('/source/')
+def source_list():
+    object_list = Source.find()
+    return render_template('source_list.html', object_list=object_list)
+
+
+@app.route('/source/<obj_id>')
+def source_detail(obj_id):
+    obj = Source.find_one({'@id': obj_id})
+    if not obj:
+        abort(404)
+    return render_template('source_detail.html', obj=obj, db=db)
+
+
+@app.route('/citation/')
+def citation_list():
+    object_list = Citation.find()
+    by_source = {}
+    for citation in object_list:
+        by_source.setdefault(citation.source, []).append(citation)
+    return render_template('citation_list.html', groups=by_source)
+
+
+@app.route('/citation/<obj_id>')
+def citation_detail(obj_id):
+    obj = Citation.find_one({'@id': obj_id})
+    if not obj:
+        abort(404)
+    return render_template('citation_detail.html', obj=obj, db=db)
 
 
 @app.route('/map/heat')
@@ -355,6 +386,75 @@ class Place(Entity):
         for event in Event.find():
             if event.place and event.place.handle in hlinks:
                 yield event
+
+
+class Source(Entity):
+    category_pl = 'sources'
+    category_sg = 'source'
+    sort_key = lambda item: item['stitle']
+
+    @property
+    def title(self):
+        return self._data.get('stitle')
+
+    @property
+    def author(self):
+        return self._data.get('sauthor')
+
+    @property
+    def pubinfo(self):
+        return self._data.get('spubinfo')
+
+    @property
+    def citations(self):
+        for citation in Citation.find():
+            if self.handle in _extract_hlinks(citation._data.get('sourceref')):
+                yield citation
+
+
+class Citation(Entity):
+    category_pl = 'citations'
+    category_sg = 'citation'
+
+    @property
+    def source(self):
+        return Source.find_one({'@handle': self._data['sourceref']['@hlink']})
+
+    @property
+    def page(self):
+        return self._data.get('page')
+
+    @property
+    def date(self):
+        return DateRepresenter(self._data.get('dateval'))
+
+    @property
+    def notes(self):
+        try:
+            hlinks = _extract_hlinks(self._data['noteref'])
+        except KeyError:
+            return
+        for note in Note.find():
+            if note.handle in hlinks:
+                yield note
+
+    @property
+    def events(self):
+        for event in Event.find():
+            ref = event._data.get('citationref')
+            if not ref:
+                continue
+            if self.handle in _extract_hlinks(ref):
+                yield event
+
+
+class Note(Entity):
+    category_pl = 'notes'
+    category_sg = 'note'
+
+    @property
+    def text(self):
+        return self._data['text']
 
 
 def _extract_hlinks(ref):

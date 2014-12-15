@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+
+{% block heading %}
+  {{ obj.title }}
+{% endblock %}
+
+{% block content %}
+
+
+<dl class="dl-horizontal">
+  <dt>Source</dt>
+  <dd>
+    <a href="{{ url_for('source_detail', obj_id=obj.source.id) }}">{{ obj.source.title }}</a>
+  </dd>
+
+  <dt>Date</dt>
+  <dd>{{ obj.date }}</dd>
+
+  <dt>Page</dt>
+  <dd>{{ obj.page }}</dd>
+
+  <dt>Notes</dt>
+  <dd>
+  {% for note in obj.notes %}
+    <pre>{{ note.text }}</pre>
+    {#
+    <blockquote>
+      <p>{{ note.text }}</p>
+      <footer>
+        Note <cite>{{ note.id }}</cite>
+      </footer>
+    </blockquote>
+    #}
+    {% if config.DEBUG %}<code>{{ note._data|pprint }}</code>{% endif %}
+  {% endfor %}
+  </dd>
+
+  <dt>Proved Events</dt>
+  {% for event in obj.events %}
+    <dd>
+      <a href="{{ url_for('event_detail', obj_id=event.id) }}">
+        {{ event.id }}
+      </a>
+      {{ event }}
+    </dd>
+  {% endfor %}
+</dl>
+
+{% if config.DEBUG %}
+  <h2>Debug</h2>
+  <code>{{ obj._data|pprint }}</code>
+{% endif %}
+
+{% endblock %}
