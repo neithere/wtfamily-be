@@ -2,6 +2,7 @@
 
 import re
 
+import argh
 from flask import (
     Flask,
     abort, render_template,
@@ -536,5 +537,9 @@ class DateRepresenter:
             return ''
 
 
+def run_app(debug=False):
+    app.run(debug=debug)
+
+
 if __name__ == '__main__':
-    app.run(debug=True)
+    argh.dispatch_command(run_app)
