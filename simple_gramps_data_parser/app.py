@@ -14,6 +14,7 @@ import show_people as _dbi
 GRAMPS_XML_PATH = 'data.gramps'
 
 EVENT_TYPE_BIRTH = 'Birth'
+EVENT_TYPE_DEATH = 'Death'
 
 
 app = Flask(__name__)
@@ -142,6 +143,51 @@ def map_circles():
 def map_circles_integrated():
     places = [p for p in Place.find() if list(p.events)]
     return render_template('map_circles_integrated.html', places=places)
+
+
+@app.route('/orgchart')
+def orgchart():
+    return render_template('tree_orgchart.html')
+
+
+@app.route('/orgchart/data')
+def orgchart_data():
+    import json
+    def _prep_row(person):
+        parent_families = list(person.get_parent_families())
+        if parent_families:
+            # XXX ideally we should link to all members of all families
+            parent = parent_families[0].father or parent_families[0].mother
+            parent_id = parent.id
+        else:
+            parent_id = None
+        name_format = '<a href="/person/{id}">{name}</a><br><small>{birth}<br>{death}</small>'
+        tooltip_format = '{birth}'
+        birth_str = '☀{}'.format(person.birth) if person.birth else ''
+        death_str = '✝{}'.format(person.death) if person.death else ''
+        def _compress_life_str(s):
+            return (s.replace('estimated ', 'cca')
+                     .replace('calculated ', 'calc')
+                     .replace('about ', '~')
+                     .replace('before ', '<')
+                     .replace('after ', '>'))
+        birth_str = _compress_life_str(birth_str)
+        death_str = _compress_life_str(death_str)
+        formatted_name = name_format.format(
+            id=person.id,
+            name=person.name,
+            birth=birth_str,
+            death=death_str)
+        tooltip = tooltip_format.format(birth=person.birth)
+        return [
+            {
+                'v': person.id,
+                'f': formatted_name,
+            },
+            parent_id,
+            tooltip,
+        ]
+    return json.dumps([_prep_row(p) for p in Person.find()])
 
 
 class Entity:
@@ -284,6 +330,12 @@ class Person(Entity):
     def birth(self):
         for event in self.events:
             if event.type == EVENT_TYPE_BIRTH:
+                return event.date
+
+    @property
+    def death(self):
+        for event in self.events:
+            if event.type == EVENT_TYPE_DEATH:
                 return event.date
 
 

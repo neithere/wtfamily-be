@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+
+{% block heading %}
+  Family Tree Chart
+{% endblock %}
+
+{% block head %}
+  <script type="text/javascript" src="https://www.google.com/jsapi"></script>
+  <script type="text/javascript">
+    var DATA_JSON_URL = '/orgchart/data';
+
+    google.load("visualization", "1", {packages:["orgchart"]});
+    google.setOnLoadCallback(function () {
+      $.getJSON(DATA_JSON_URL, function(json_data){
+        var data = new google.visualization.DataTable();
+        data.addColumn('string', 'person_id');
+        data.addColumn('string', 'father_id');    // no f...ng way to show mother
+        data.addColumn('string', 'ToolTip');
+
+        data.addRows(json_data);
+
+        var chart = new google.visualization.OrgChart(document.getElementById('chart_div'));
+        chart.draw(data, {
+            allowHtml: true,
+        });
+      });
+    });
+ </script>
+{% endblock %}
+
+{% block content %}
+
+    <div id="chart_div"></div>
+
+{% endblock %}
