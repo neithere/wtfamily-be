@@ -161,7 +161,8 @@ def orgchart_data():
             parent_id = parent.id
         else:
             parent_id = None
-        name_format = '<a href="/person/{id}">{name}</a><br><small>{birth}<br>{death}</small>'
+        # TODO use url_for
+        name_format = '<a href="/person/{id}">{name}</a><br><small>{birth}<br>{death}</small>{spouses}'
         tooltip_format = '{birth}'
         birth_str = '☀{}'.format(person.birth) if person.birth else ''
         death_str = '✝{}'.format(person.death) if person.death else ''
@@ -173,11 +174,25 @@ def orgchart_data():
                      .replace('after ', '>'))
         birth_str = _compress_life_str(birth_str)
         death_str = _compress_life_str(death_str)
+
+        spouses = []
+        for f in person.get_families():
+            for x in (f.father, f.mother):
+                if x and x.id != person.id:
+                    spouses.append(x)
+        if spouses:
+            # TODO use url_for
+            spouses_str = ', '.join(
+                '⚭ <a href="/person/{0.id}">{0.name}</a>'.format(s) for s in spouses)
+        else:
+            spouses_str = ''
+
         formatted_name = name_format.format(
             id=person.id,
             name=person.name,
             birth=birth_str,
-            death=death_str)
+            death=death_str,
+            spouses=spouses_str)
         tooltip = tooltip_format.format(birth=person.birth)
         return [
             {
