@@ -124,6 +124,10 @@ def citation_detail(obj_id):
     obj = Citation.find_one({'@id': obj_id})
     if not obj:
         abort(404)
+    if not obj.source:
+        # either the reference is broken or the source is marked as private
+        # skipped on export
+        abort(404)
     return render_template('citation_detail.html', obj=obj, db=db)
 
 
@@ -214,7 +218,7 @@ class Entity:
         self._data = data
 
     @classmethod
-    def find(cls, conditions=None):
+    def _find(cls, conditions=None):
         items = db[cls.category_pl][cls.category_sg]
         if cls.sort_key:
             items = sorted(items, key=cls.sort_key)
@@ -228,6 +232,10 @@ class Entity:
                 if k in p and p[k] in v:
                     yield cls(p)
                     break
+
+    @classmethod
+    def find(cls, conditions=None):
+        return cls._find(conditions)
 
     @classmethod
     def find_one(cls, conditions=None):
@@ -394,6 +402,14 @@ class Event(Entity):
     @property
     def families(self):
         return Family.find_by_event_ref(self.handle)
+
+    @classmethod
+    def find(cls, conditions=None):
+        for elem in cls._find(conditions):
+            # exclude orphaned events (e.g. if the person was skipped
+            # on export for whatever reason)
+            if list(elem.people):
+                yield elem
 
 
 class Place(Entity):
