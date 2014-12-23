@@ -162,7 +162,7 @@ def orgchart_data():
         else:
             parent_id = None
         # TODO use url_for
-        name_format = '<a href="/person/{id}">{name}</a><br><small>{birth}<br>{death}</small>{spouses}'
+        name_format = '<a name="id{id}"></a><a href="/person/{id}">{name}</a><br><small>{birth}<br>{death}</small>{spouses}'
         tooltip_format = '{birth}'
         birth_str = '☀{}'.format(person.birth) if person.birth else ''
         death_str = '✝{}'.format(person.death) if person.death else ''
@@ -183,7 +183,7 @@ def orgchart_data():
         if spouses:
             # TODO use url_for
             spouses_str = ', '.join(
-                '⚭ <a href="/person/{0.id}">{0.name}</a>'.format(s) for s in spouses)
+                '⚭ <a href="/person/{0.id}">{0.name}</a><a href="#id{0.id}">#</a>'.format(s) for s in spouses)
         else:
             spouses_str = ''
 
@@ -579,7 +579,7 @@ class DateRepresenter:
             )
         elif self.daterange:
             node = self.daterange
-            val = '{}—{}'.format(
+            val = '{}-{}'.format(
                 node.get('@start'),
                 node.get('@stop'),
             )
