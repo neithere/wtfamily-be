@@ -42,9 +42,7 @@ def _format_names(name_node):
     return [_format_name(n) for n in name_node]
 
 
-def _format_name(name_node):
-    #template = '{primary} ({nonpatronymic}), {first} {patronymic}'
-    template = '{first} {patronymic} {primary} ({nonpatronymic})'
+def _get_name_parts(name_node):
 
     #print('---')
     #import pprint
@@ -69,7 +67,6 @@ def _format_name(name_node):
     if isinstance(surname_spec, dict):
         surname_spec = [surname_spec]
 
-
     for surname in surname_spec:
         #print('surname:', surname)
         if isinstance(surname, str):
@@ -85,6 +82,15 @@ def _format_name(name_node):
             primary_surnames.append(text)
         else:
             nonpatronymic.append(text)
+
+    return first, primary_surnames, patronymic, nonpatronymic
+
+
+def _format_name(name_node):
+    #template = '{primary} ({nonpatronymic}), {first} {patronymic}'
+    template = '{first} {patronymic} {primary} ({nonpatronymic})'
+
+    first, primary_surnames, patronymic, nonpatronymic = _get_name_parts(name_node)
 
     ' '.join(primary_surnames)
     ' '.join(patronymic)

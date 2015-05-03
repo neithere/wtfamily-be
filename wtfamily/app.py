@@ -1,11 +1,14 @@
 #!/usr/bin/env python
 
+from collections import OrderedDict
+import json
 import re
 
 import argh
 from flask import (
     Flask,
     abort, render_template,
+    url_for,
 )
 
 import show_people as _dbi
@@ -156,7 +159,6 @@ def orgchart():
 
 @app.route('/orgchart/data')
 def orgchart_data():
-    import json
     def _prep_row(person):
         parent_families = list(person.get_parent_families())
         if parent_families:
@@ -207,6 +209,28 @@ def orgchart_data():
             tooltip,
         ]
     return json.dumps([_prep_row(p) for p in Person.find()])
+
+
+@app.route('/familytree')
+def familytree():
+    data_script = '/static/js/familytree_ajax.js'
+    print(list(NameMap.find()))
+    return render_template('familytree.html', data_script=data_script)
+
+
+@app.route('/familytree.json')
+def familytree_json():
+    people = sorted(Person.find(), key=lambda p: p.group_name)
+    def _prepare_item(person):
+        print(person.group_name, person.name)
+        url = url_for('person_detail', obj_id=person.id)
+        return {
+            'name': '<a href="{}">{}</a>'.format(url, person.name),
+            'parents': [p.id for p in person.get_parents()],
+            'blurb': '{}—{}'.format(person.birth or '?', person.death or '?'),
+        }
+    data = OrderedDict((p.id, _prepare_item(p)) for p in people)
+    return json.dumps(data)
 
 
 class Entity:
@@ -319,6 +343,19 @@ class Person(Entity):
         return _dbi._format_names(self._data['name'])
 
     @property
+    def group_name(self):
+        name_nodes = self._data['name']
+        if not isinstance(name_nodes, list):
+            name_nodes = [name_nodes]
+        for n in name_nodes:
+            _, primary_surnames, _, _ = _dbi._get_name_parts(n)
+            for surname in primary_surnames:
+                alias = NameMap.group_as(surname)
+                if alias:
+                    return alias
+        return self.name
+
+    @property
     def events(self):
         try:
             hlinks = _extract_hlinks(self._data['eventref'])
@@ -348,6 +385,13 @@ class Person(Entity):
         except KeyError:
             return []
         return Family.find({'@handle': hlinks})
+
+    def get_parents(self):
+        for family in self.get_parent_families():
+            if family.mother:
+                yield family.mother
+            if family.father:
+                yield family.father
 
     @property
     def birth(self):
@@ -539,6 +583,29 @@ class Note(Entity):
     @property
     def text(self):
         return self._data['text']
+
+
+class NameMap(Entity):
+    category_pl = 'namemaps'
+    category_sg = 'map'
+
+    @property
+    def type(self):
+        return self._data.get('@type')
+
+    @property
+    def key(self):
+        return self._data.get('@key')
+
+    @property
+    def value(self):
+        return self._data.get('@value')
+
+    @classmethod
+    def group_as(self, key):
+        for item in self.find():
+            if item.type == 'group_as' and item.key == key:
+                return item.value
 
 
 def _extract_hlinks(ref):

@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+
+{% block heading %}
+  FamilyTreeJS visualization (Experimental; using <code>{{ data_script }}</code>)
+{% endblock %}
+
+{% block head %}
+  <script type="text/javascript" src="{{ url_for('static', filename='js/autoshape.js') }}"></script>
+  <script type="text/javascript" src="{{ url_for('static', filename='js/familytree.js') }}"></script>
+  <style type="text/css">
+    .familytree-node {
+      font-size: 7pt;
+      line-height: 11pt;
+      vertical-align: bottom;
+      font-family: verdana;
+      z-index: 2;
+    }
+    .familytree-node .blurb {
+      background-color: rgb(150,150, 100);
+      margin-top: 1px;
+      padding: 2px;
+      font-size: 6pt;
+      line-height: 8pt;
+      z-index: 2;
+    }
+  </style>
+{% endblock %}
+
+{% block content %}
+  <div id="familytree"></div>
+{% endblock %}
+
+{% block foot %}
+  <script type="text/javascript" src="{{ data_script }}"></script>
+  <script type="text/javascript">drawFamilyTree();</script>
+{% endblock %}
