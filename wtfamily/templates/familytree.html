@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 
 {% block heading %}
-  FamilyTreeJS visualization (Experimental; using <code>{{ data_script }}</code>)
+  Family Tree (Experimental)
 {% endblock %}
 
 {% block head %}
@@ -22,6 +22,9 @@
       font-size: 6pt;
       line-height: 8pt;
       z-index: 2;
+    }
+    .familytree-node a:active {
+      color: red !important;
     }
   </style>
 {% endblock %}

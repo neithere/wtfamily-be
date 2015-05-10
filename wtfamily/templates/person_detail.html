@@ -13,6 +13,13 @@
         <dd>{{ name }}</dd>
         {% endfor %}
     {% endif %}
+
+    {% if obj.get_parent_families() or obj.get_families %}
+        <p><a href="{{ url_for('familytree') }}#{{ obj.id }}">Посмотреть в семейном древе</a></p>
+    {% else %}
+        <p>Фактов о родителях или семьях нет, поэтому в семейном древе персона не отображается.</p>
+    {% endif %}
+
     <dt>Родители</dt>
     {% for family in obj.get_parent_families() %}
         <dd>

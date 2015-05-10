@@ -23,6 +23,23 @@
         <dd>{{ obj.summary }}</dd>
 </dl>
 
+Related people:
+
+<ul>
+{% for person in obj.people %}
+    <li><a href="{{ url_for('person_detail', obj_id=person.id) }}">{{ person }}</a></li>
+{% endfor %}
+</ul>
+
+Related families:
+
+<ul>
+{% for family in obj.families %}
+    <li><a href="{{ url_for('family_detail', obj_id=family.id) }}">{{ family }}</a></li>
+{% endfor %}
+</ul>
+
+
 <h2>Debug</h2>
 <dl class="dl-horizontal">
 {% for key in obj._data %}
