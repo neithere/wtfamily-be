@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+
+{% block heading %}
+  Family Tree using Basic Primitives
+{% endblock %}
+
+{% block head %}
+  <link href="{{ url_for('static', filename='css/jquery-ui.min.css') }}" media="screen" rel="stylesheet" type="text/css" />
+  <link href="{{ url_for('static', filename='css/theme.css') }}" rel="stylesheet" type="text=css" />
+  <link href="{{ url_for('static', filename='css/primitives.latest.css') }}" media="screen" rel="stylesheet" type="text/css" />
+{% endblock %}
+
+{% block content %}
+  <div id="basicdiagram" style="width: 1000px; height: 480px"/>
+{% endblock %}
+
+{% block foot %}
+  {# <script type="text/javascript" src="{{ url_for('static', filename='js/jquery.min.js') }}"></script> #}
+  <script type="text/javascript" src="{{ url_for('static', filename='js/jquery-ui.min.js') }}"></script>
+
+  <script type="text/javascript" src="{{ url_for('static', filename='js/primitives.min.js') }}"></script>
+
+  <script type='text/javascript'>
+        function init_family_tree (items) {
+            console.log(items);
+            var options = new primitives.orgdiagram.Config();
+
+            options.items = items;
+
+            options.cursorItem = 0;
+            options.cursorItem = 2;
+            options.linesWidth = 1;
+            options.linesColor = "black";
+            options.hasSelectorCheckbox = primitives.common.Enabled.False;
+            options.normalLevelShift = 20;
+            options.dotLevelShift = 20;
+            options.lineLevelShift = 20;
+            options.normalItemsInterval = 10;
+            options.dotItemsInterval = 10;
+            options.lineItemsInterval = 10;
+
+            $("#basicdiagram").famDiagram(options);
+        };
+        $(window).load(function () {
+            $.getJSON("{{ url_for('familytree_primitives_ajax_data') }}", function(data) {
+                init_family_tree(data);
+            });
+        });
+
+  </script>
+{% endblock %}

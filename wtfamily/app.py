@@ -245,6 +245,25 @@ def familytree_json():
     return json.dumps(data)
 
 
+@app.route('/familytree-bp')
+def familytree_primitives_ajax():
+    return render_template('familytree_primitives.html')
+
+
+@app.route('/familytree-bp/data')
+def familytree_primitives_ajax_data():
+    people = sorted(Person.find(), key=lambda p: p.group_name)
+    def _prepare_item(person):
+        return {
+            'id': person.id,
+            'title': person.name,
+            'parents': [p.id for p in person.get_parents()],
+            'description': '{}—{}'.format(person.birth or '?', person.death or '?'),
+        }
+    return json.dumps([_prepare_item(p) for p in  people])
+
+
+
 def run_app(debug=False):
     app.run(debug=debug)
 
