@@ -11,7 +11,7 @@
 {% endblock %}
 
 {% block content %}
-  <div id="basicdiagram" style="width: 1000px; height: 480px"/>
+  <div id="basicdiagram" style="width: 1100px; height: 800px;"/>
 {% endblock %}
 
 {% block foot %}
@@ -42,7 +42,7 @@
             $("#basicdiagram").famDiagram(options);
         };
         $(window).load(function () {
-            $.getJSON("{{ url_for('familytree_primitives_ajax_data') }}", function(data) {
+            $.getJSON("{{ url_for('familytree_primitives_data') }}", function(data) {
                 init_family_tree(data);
             });
         });

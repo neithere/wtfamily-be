@@ -214,15 +214,15 @@ def orgchart_data():
     return json.dumps([_prep_row(p) for p in Person.find()])
 
 
-@app.route('/familytree')
-def familytree():
+@app.route('/familytreejs')
+def familytreejs():
     data_script = '/static/js/familytree_ajax.js'
     print(list(NameMap.find()))
     return render_template('familytree.html', data_script=data_script)
 
 
-@app.route('/familytree.json')
-def familytree_json():
+@app.route('/familytreejs.json')
+def familytreejs_json():
     people = sorted(Person.find(), key=lambda p: p.group_name)
     def _prepare_item(person):
         print(person.group_name, person.name)
@@ -243,15 +243,17 @@ def familytree_json():
     pairs = map(_prepare_item, people)
     data = OrderedDict(p for p in pairs if p)
     return json.dumps(data)
+#    return json.dumps({
+***REMOVED******REMOVED******REMOVED***#    })
 
 
 @app.route('/familytree-bp')
-def familytree_primitives_ajax():
+def familytree_primitives():
     return render_template('familytree_primitives.html')
 
 
 @app.route('/familytree-bp/data')
-def familytree_primitives_ajax_data():
+def familytree_primitives_data():
     people = sorted(Person.find(), key=lambda p: p.group_name)
     def _prepare_item(person):
         return {
