@@ -10,10 +10,12 @@ from flask import (
 
 import show_people as _dbi
 from models import Person, Event, Family, Place, Source, Citation, NameMap
+from storage import Storage
 
 
 class WTFamilyWebApp(Configurable):
     needs = {
+        'storage': Storage,
         'debug': False,
     }
 
