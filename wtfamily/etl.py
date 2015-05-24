@@ -13,11 +13,9 @@ class WTFamilyETL(Configurable):
     def import_gramps_xml(self):
         xml_root = extract(self.gramps_xml_path)
         items = transform(xml_root)
-        loaded = load(items, self.storage.path)   # FIXME this should use Storage API;
-                                                  # all YAML stuff should be there
-        # trigger the process
-        for x in loaded:
-            pass
+        for entity_name, pk, item in items:
+            self.storage.add(entity_name, pk, item, upsert=True, commit=False)
+        self.storage.commit()
 
     @property
     def commands(self):

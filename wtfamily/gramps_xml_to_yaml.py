@@ -28,7 +28,7 @@ def _with_namespace(field_name):
 def _strip_namespace(field_name):
     return field_name.replace('{' + NAMESPACES[GRAMPS_NAMESPACE_LABEL] + '}', '')
 
-ENTITIES = (
+GRAMPS_ENTITIES = (
     'gramps:name-formats',
     'gramps:events',
     'gramps:people',
@@ -43,6 +43,8 @@ ENTITIES = (
 )
 SINGLE_VALUE_FIELDS = (
     # generic
+    'id',
+    'handle',
     'change',    # last changed timestamp
     'priv',      # is this a private record?
 
@@ -111,6 +113,10 @@ ATTRIBUTE = {
     'type': str,
     'value': str,
     opt_key('citationref'): LIST_OF_HLINKS,
+}
+BASE_ENTITY = {
+    'id': str,
+    'handle': str,
 }
 SCHEMATA = {
     'gramps:places': {
@@ -197,6 +203,8 @@ SCHEMATA = {
         opt_key('attribute'): [ ATTRIBUTE ],
     },
 }
+for k in SCHEMATA:
+    SCHEMATA[k].update(BASE_ENTITY)
 
 
 t = blessings.Terminal()
@@ -206,19 +214,26 @@ def extract(path):
     print('extract...')
     with gzip.open(path) as f:
         root = ElementTree.fromstring(f.read())
+    #print(root.tag)
+    #print(root.attrib)
+    #print(list(root))
     return root
 
 
 def transform(xml_root):
     print('transform...')
     converter = Converter()
-    for entity_name in ENTITIES:
+    for entity_name in GRAMPS_ENTITIES:
         schema = SCHEMATA.get(entity_name)
         nodes = xml_root.findall(entity_name + '/', NAMESPACES)
         for node in nodes:
             pk, item = converter(node, entity_name=entity_name)
             if schema:
-                validate(schema, item)
+                try:
+                    validate(schema, item)
+                except ValidationError as e:
+                    print(entity_name, pk, item)
+                    raise e from None
             yield entity_name, pk, item
 
 
@@ -271,8 +286,6 @@ class Converter:
             else:
                 item.setdefault(k, []).append(v)
 
-        item.pop('id', None)
-        item.pop('handle', None)
 
         id = node.attrib.get('id', str(uuid.uuid1()))    # if there's no id, assign a UUID
         handle = node.attrib.get('handle', id)           # if there's no handle, use ID
