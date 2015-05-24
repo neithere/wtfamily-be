@@ -8,7 +8,6 @@ from flask import (
 )
 #from werkzeug import LocalProxy
 
-import show_people as _dbi
 from models import Person, Event, Family, Place, Source, Citation, NameMap
 from storage import Storage
 
@@ -25,13 +24,9 @@ class WTFamilyWebApp(Configurable):
 
     def run(self):
         self.flask_app = Flask(__name__)
-        GRAMPS_XML_PATH = '/tmp/all.gramps'
-        self.db = _dbi._parse_gramps_file(GRAMPS_XML_PATH)
-        #db = LocalProxy(_get_db)
 
         @self.flask_app.before_request
         def _init():
-            g.db = self.db    # TODO remove it
             g.storage = self.storage
 
         self.flask_app.route('/')(home)
@@ -119,7 +114,7 @@ def person_detail(obj_id):
     obj = Person.find_one({'id': obj_id})
     if not obj:
         abort(404)
-    return render_template('person_detail.html', obj=obj, db=g.db)
+    return render_template('person_detail.html', obj=obj)
 
 
 #@app.route('/place/')
@@ -133,7 +128,7 @@ def place_detail(obj_id):
     obj = Place.find_one({'id': obj_id})
     if not obj:
         abort(404)
-    return render_template('place_detail.html', obj=obj, db=g.db)
+    return render_template('place_detail.html', obj=obj)
 
 
 #@app.route('/source/')
@@ -147,7 +142,7 @@ def source_detail(obj_id):
     obj = Source.find_one({'id': obj_id})
     if not obj:
         abort(404)
-    return render_template('source_detail.html', obj=obj, db=g.db)
+    return render_template('source_detail.html', obj=obj)
 
 
 #@app.route('/citation/')
@@ -168,7 +163,7 @@ def citation_detail(obj_id):
         # either the reference is broken or the source is marked as private
         # skipped on export
         abort(404)
-    return render_template('citation_detail.html', obj=obj, db=g.db)
+    return render_template('citation_detail.html', obj=obj)
 
 
 #@app.route('/map/heat')

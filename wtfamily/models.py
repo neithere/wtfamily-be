@@ -320,11 +320,7 @@ class Source(Entity):
 
     @property
     def citations(self):
-        print('gonna find citations...')
         for citation in Citation.find():
-            print('citation')
-            hlinks = _extract_hlinks(citation._data.get('sourceref'))
-            print('hlinks in sourceref:', hlinks)
             if self.handle in _extract_hlinks(citation._data.get('sourceref')):
                 yield citation
 
@@ -398,7 +394,7 @@ class NameFormat(Entity):
     entity_name = 'name-formats'
 
 
-class ResearchObject(Entity):
+class MediaObject(Entity):
     entity_name = 'objects'
 
 
