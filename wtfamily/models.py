@@ -2,6 +2,7 @@ import re
 
 from flask import g
 
+# TODO: remove this
 import show_people as _dbi
 
 
@@ -10,8 +11,7 @@ EVENT_TYPE_DEATH = 'Death'
 
 
 class Entity:
-    category_pl = NotImplemented
-    category_sg = NotImplemented
+    entity_name = NotImplemented
     sort_key = None
 
     def __init__(self, data):
@@ -19,7 +19,12 @@ class Entity:
 
     @classmethod
     def _find(cls, conditions=None):
-        items = g.db[cls.category_pl][cls.category_sg]
+        assert cls.entity_name != NotImplemented
+        entities = g.storage._entities
+        entity = entities[cls.entity_name]
+        items = entity.find_and_adapt_to_legacy()
+
+
         if cls.sort_key:
             items = sorted(items, key=cls.sort_key)
         for p in items:
@@ -54,16 +59,15 @@ class Entity:
 
     @property
     def id(self):
-        return self._data['@id']
+        return self._data['id']
 
     @property
     def handle(self):
-        return self._data['@handle']
+        return self._data['handle']
 
 
 class Family(Entity):
-    category_pl = 'families'
-    category_sg = 'family'
+    entity_name = 'families'
 
     def __repr__(self):
         return '{} + {}'.format(self.father or '?',
@@ -71,11 +75,11 @@ class Family(Entity):
 
     def _get_participant(self, key):
         try:
-            hlink = self._data[key]['@hlink']
+            hlink = self._data[key]['hlink']
         except KeyError:
             return None
         else:
-            return Person.find_one({'@handle': hlink})
+            return Person.find_one({'handle': hlink})
 
     @property
     def father(self):
@@ -91,7 +95,7 @@ class Family(Entity):
             hlinks = _extract_hlinks(self._data['childref'])
         except KeyError:
             return []
-        return Person.find({'@handle': hlinks})
+        return Person.find({'handle': hlinks})
 
     @property
     def events(self):
@@ -99,12 +103,11 @@ class Family(Entity):
             hlinks = _extract_hlinks(self._data['eventref'])
         except KeyError:
             return []
-        return Event.find({'@handle': hlinks})
+        return Event.find({'handle': hlinks})
 
 
 class Person(Entity):
-    category_pl = 'people'
-    category_sg = 'person'
+    entity_name = 'people'
 
     def __repr__(self):
         #return 'Person {} {}'.format(self.name, self._data)
@@ -137,7 +140,7 @@ class Person(Entity):
             hlinks = _extract_hlinks(self._data['eventref'])
         except KeyError:
             return []
-        return Event.find({'@handle': hlinks})
+        return Event.find({'handle': hlinks})
 
     @property
     def attributes(self):
@@ -153,14 +156,14 @@ class Person(Entity):
             hlinks = _extract_hlinks(self._data['childof'])
         except KeyError:
             return []
-        return Family.find({'@handle': hlinks})
+        return Family.find({'handle': hlinks})
 
     def get_families(self):
         try:
             hlinks = _extract_hlinks(self._data['parentin'])
         except KeyError:
             return []
-        return Family.find({'@handle': hlinks})
+        return Family.find({'handle': hlinks})
 
     def get_parents(self):
         for family in self.get_parent_families():
@@ -183,12 +186,11 @@ class Person(Entity):
 
 
 class Event(Entity):
-    category_pl = 'events'
-    category_sg = 'event'
+    entity_name = 'events'
     sort_key = lambda item: (
-        item.get('dateval', {}).get('@val', '') or
-        item.get('datespan', {}).get('@start', '') or
-        item.get('daterange', {}).get('@start', '')
+        item.get('dateval', {}).get('val', '') or
+        item.get('datespan', {}).get('start', '') or
+        item.get('daterange', {}).get('start', '')
     )
 
     def __repr__(self):
@@ -214,7 +216,7 @@ class Event(Entity):
             hlinks = _extract_hlinks(self._data['place'])
         except KeyError:
             return
-        return Place.find_one({'@handle': hlinks})
+        return Place.find_one({'handle': hlinks})
 
     @property
     def people(self):
@@ -234,15 +236,14 @@ class Event(Entity):
 
 
 class Place(Entity):
-    category_pl = 'places'
-    category_sg = 'placeobj'
+    entity_name = 'places'
 
     def __repr__(self):
         return '{0.title}'.format(self)
 
     @property
     def name(self):
-        return self._data.get('@name')
+        return self._data.get('name')
 
     @property
     def title(self):
@@ -258,8 +259,8 @@ class Place(Entity):
         if not coords:
             return
         return {
-            'lat': _normalize_coords_to_pure_degrees(coords['@lat']),
-            'lng': _normalize_coords_to_pure_degrees(coords['@long']),
+            'lat': _normalize_coords_to_pure_degrees(coords['lat']),
+            'lng': _normalize_coords_to_pure_degrees(coords['long']),
         }
 
     @property
@@ -268,11 +269,11 @@ class Place(Entity):
             hlinks = _extract_hlinks(self._data['placeref'])
         except KeyError:
             return
-        return Place.find({'@handle': hlinks})
+        return Place.find({'handle': hlinks})
 
     @property
     def nested_places(self):
-        #print( {'placeref': {'@hlink': self.handle}})
+        #print( {'placeref': {'hlink': self.handle}})
         for place in Place.find():
             if 'placeref' not in place._data:
                 continue
@@ -302,8 +303,7 @@ class Place(Entity):
 
 
 class Source(Entity):
-    category_pl = 'sources'
-    category_sg = 'source'
+    entity_name = 'sources'
     sort_key = lambda item: item['stitle'] or ''
 
     @property
@@ -320,18 +320,21 @@ class Source(Entity):
 
     @property
     def citations(self):
+        print('gonna find citations...')
         for citation in Citation.find():
+            print('citation')
+            hlinks = _extract_hlinks(citation._data.get('sourceref'))
+            print('hlinks in sourceref:', hlinks)
             if self.handle in _extract_hlinks(citation._data.get('sourceref')):
                 yield citation
 
 
 class Citation(Entity):
-    category_pl = 'citations'
-    category_sg = 'citation'
+    entity_name = 'citations'
 
     @property
     def source(self):
-        return Source.find_one({'@handle': self._data['sourceref']['@hlink']})
+        return Source.find_one({'handle': self._data['sourceref']['hlink']})
 
     @property
     def page(self):
@@ -362,8 +365,7 @@ class Citation(Entity):
 
 
 class Note(Entity):
-    category_pl = 'notes'
-    category_sg = 'note'
+    entity_name = 'notes'
 
     @property
     def text(self):
@@ -371,20 +373,19 @@ class Note(Entity):
 
 
 class NameMap(Entity):
-    category_pl = 'namemaps'
-    category_sg = 'map'
+    entity_name = 'namemaps'
 
     @property
     def type(self):
-        return self._data.get('@type')
+        return self._data.get('type')
 
     @property
     def key(self):
-        return self._data.get('@key')
+        return self._data.get('key')
 
     @property
     def value(self):
-        return self._data.get('@value')
+        return self._data.get('value')
 
     @classmethod
     def group_as(self, key):
@@ -394,27 +395,25 @@ class NameMap(Entity):
 
 
 class NameFormat(Entity):
-    category_pl = 'name-formats'
-    category_sg = 'format'
+    entity_name = 'name-formats'
 
 
 class ResearchObject(Entity):
-    category_pl = 'objects'
-    category_sg = 'object'
+    entity_name = 'objects'
 
 
 def _extract_hlinks(ref):
     if isinstance(ref, str):
         # 'foo'
-        ref = {'@hlink': ref}
+        ref = {'hlink': ref}
     if isinstance(ref, dict):
-        # {'@hlink': 'foo'}
+        # {'hlink': 'foo'}
         ref = [ref]
 
-    # [{'@hlink': 'foo'}]
+    # [{'hlink': 'foo'}]
     assert isinstance(ref, list)
 
-    return [x['@hlink'] for x in ref]
+    return [x['hlink'] for x in ref]
 
 
 def _format_date(obj_data):
@@ -448,25 +447,25 @@ class DateRepresenter:
     def __str__(self):
         if self.dateval:
             node = self.dateval
-            val = node['@val']
+            val = node['val']
         elif self.datespan:
             node = self.datespan
             val = '{}..{}'.format(
-                node.get('@start'),
-                node.get('@stop'),
+                node.get('start'),
+                node.get('stop'),
             )
         elif self.daterange:
             node = self.daterange
             val = '{}-{}'.format(
-                node.get('@start'),
-                node.get('@stop'),
+                node.get('start'),
+                node.get('stop'),
             )
         else:
             return '?'
 
         vals = [
-            node.get('@quality'),
-            node.get('@type'),
+            node.get('quality'),
+            node.get('type'),
             val,
         ]
         return ' '.join([x for x in vals if x])
@@ -475,8 +474,8 @@ class DateRepresenter:
     def year(self):
         "Returns earliest known year as string"
         if self.dateval:
-            return self.dateval['@val']
+            return self.dateval['val']
         elif self.daterange:
-            return self.daterange['@start']
+            return self.daterange['start']
         else:
             return ''

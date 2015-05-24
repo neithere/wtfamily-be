@@ -28,6 +28,9 @@ def _with_namespace(field_name):
 def _strip_namespace(field_name):
     return field_name.replace('{' + NAMESPACES[GRAMPS_NAMESPACE_LABEL] + '}', '')
 
+def _strip_namespace_label(entity_name):
+    return entity_name.replace(GRAMPS_NAMESPACE_LABEL + ':', '')
+
 GRAMPS_ENTITIES = (
     'gramps:name-formats',
     'gramps:events',
@@ -37,9 +40,10 @@ GRAMPS_ENTITIES = (
     'gramps:places',
     'gramps:objects',
     'gramps:repositories',
-#    'gramps:notes',
+    'gramps:notes',
     'gramps:bookmarks',
     'gramps:namemaps',
+    'gramps:citations',
 )
 SINGLE_VALUE_FIELDS = (
     # generic
@@ -47,6 +51,22 @@ SINGLE_VALUE_FIELDS = (
     'handle',
     'change',    # last changed timestamp
     'priv',      # is this a private record?
+
+    'dateval',
+    'daterange',
+    'datespan',
+
+    # citations
+    'sourceref',
+    'page',
+    'confidence',
+
+    # events
+    'description',
+
+    # families
+    'father',
+    'mother',
 
     # repositories
     'rname',
@@ -64,8 +84,6 @@ SINGLE_VALUE_FIELDS = (
     'key',
     'value',
 
-    # objects
-    'dateval',
 
     # places
     'ptitle',
@@ -234,7 +252,7 @@ def transform(xml_root):
                 except ValidationError as e:
                     print(entity_name, pk, item)
                     raise e from None
-            yield entity_name, pk, item
+            yield _strip_namespace_label(entity_name), pk, item
 
 
 def load(items, out):

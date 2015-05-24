@@ -85,8 +85,8 @@
     {% endfor %}
 
     {% for attr in obj.attributes %}
-        <dt>{{ attr['@type'] }}</dt>
-        <dd>{{ attr['@value'] }}</dd>
+        <dt>{{ attr.type }}</dt>
+        <dd>{{ attr.value }}</dd>
     {% endfor %}
 </dl>
 

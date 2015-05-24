@@ -10,7 +10,7 @@
 {% for obj in object_list %}
     <dt>
         <a href="{{ url_for('family_detail', obj_id=obj.id) }}">{{ obj.id }}</a>
-        {{ obj._data.rel.get('@type') }}
+        {{ obj._data.rel.type }}
     </dt>
 
     <dd>
