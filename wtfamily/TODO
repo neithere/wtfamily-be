@@ -1,0 +1,26 @@
+WTFamily TODO
+=============
+
+Storage
+-------
+
+- Remove hlinks, use IDs.
+- Split items into separate YAML files.
+- Refactor.
+- Unify models with validation schemata.
+- Caching.  (implement as late as possible.)
+
+Web interface
+-------------
+
+...
+
+Visualisation
+-------------
+
+Fan/Sunbirst Chart
+
+    http://bl.ocks.org/mbostock/4348373 — zoomable sunburst
+
+    more than just zoom, very useful.
+    not sure about text but perhaps it can be added somehow.
