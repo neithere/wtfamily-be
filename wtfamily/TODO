@@ -4,11 +4,12 @@ WTFamily TODO
 Storage
 -------
 
-- Remove hlinks, use IDs.
-- Split items into separate YAML files.
-- Refactor.
-- Unify models with validation schemata.
-- Caching.  (implement as late as possible.)
+- [ ] Remove hlinks, use IDs.
+- [x] Split items into separate YAML files.
+- [ ] Refactor.
+- [ ] Unify models with validation schemata.
+- [ ] Add ETL option: delete local items not found in imported data
+- [ ] Caching.  (implement as late as possible.)
 
 Web interface
 -------------
