@@ -21,6 +21,10 @@ GRAMPS_NAMESPACE_LABEL = 'gramps'
 NAMESPACES = {
     GRAMPS_NAMESPACE_LABEL: 'http://gramps-project.org/xml/1.6.0/',
 }
+PK_FIELD_DEFAULT = 'id'
+PK_FIELD_FOR_ENTITY = {
+    'gramps:namemaps': 'key',
+}
 
 def _with_namespace(field_name):
     return '{' + NAMESPACES[GRAMPS_NAMESPACE_LABEL] + '}' + field_name
@@ -175,6 +179,7 @@ SCHEMATA = {
                 opt_key('alt'): str,     # TODO bool
                 opt_key('group'): str,    # group as...
                 opt_key('dateval'): [ DATEVAL ],
+                opt_key('group'): str,    # an individual namemap
             },
         ],
         'gender': one_of(['M', 'F']),
@@ -304,12 +309,13 @@ class Converter:
             else:
                 item.setdefault(k, []).append(v)
 
+        pk_field = PK_FIELD_FOR_ENTITY.get(entity_name, PK_FIELD_DEFAULT)
 
-        id = node.attrib.get('id', str(uuid.uuid1()))    # if there's no id, assign a UUID
-        handle = node.attrib.get('handle', id)           # if there's no handle, use ID
-        self._alias_handle_to_id(handle, id)
+        pk = node.attrib.get(pk_field, str(uuid.uuid1()))    # if there's no id, assign a UUID
+        handle = node.attrib.get('handle', pk)               # if there's no handle, use ID
+        self._alias_handle_to_id(handle, pk)
 
-        return id, item
+        return pk, item
 
     def _get_fields_from_node(self, entity_node, entity_name):
         """
