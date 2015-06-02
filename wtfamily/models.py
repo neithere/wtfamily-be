@@ -484,26 +484,16 @@ class DateRepresenter:
         self.quality = quality
 
     def __str__(self):
-        if self.modifier == self.MOD_NONE:
-            val = self.value
-        elif self.modifier == self.MOD_SPAN:
-            val = '{}..{}'.format(
-                self.value.get('start'),
-                self.value.get('stop'),
-            )
-        elif self.modifier == self.MOD_RANGE:
-            val = '{}-{}'.format(
-                self.value.get('start'),
-                self.value.get('stop'),
-            )
-        elif self.modifier == self.MOD_BEFORE:
-            return '<{}'.format(self.value)
-        elif self.modifier == self.MOD_AFTER:
-            return '{}+'.format(self.value)
-        elif self.modifier == self.MOD_ABOUT:
-            return '≈{}'.format(self.value)
-        else:
-            raise ValueError('unknown modifier', self.modifier)
+        formats = {
+            self.MOD_NONE: '{}',
+            self.MOD_SPAN: '{0[start]}..{0[stop]}',
+            self.MOD_RANGE: '{0[start]}-{0[stop]}',
+            self.MOD_BEFORE: '<{}',
+            self.MOD_AFTER: '{}+',
+            self.MOD_ABOUT: '≈{}',
+        }
+        template = formats[self.modifier]
+        val = template.format(self.value)
 
         vals = [
             self.quality,
