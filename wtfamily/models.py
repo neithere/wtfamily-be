@@ -1,6 +1,7 @@
 import re
 
 from flask import g
+from dateutil.parser import parse as parse_date
 
 # TODO: remove this
 import show_people as _dbi
@@ -208,7 +209,9 @@ class Event(Entity):
     @property
     def date(self):
         #return _dbi._format_dateval(self._data.get('dateval'))
-        return DateRepresenter(**self._data)
+        date = self._data.get('date')
+        if date:
+            return DateRepresenter(**date)
 
     @property
     def summary(self):
@@ -347,7 +350,9 @@ class Citation(Entity):
 
     @property
     def date(self):
-        return DateRepresenter(self._data.get('dateval'))
+        date = self._data.get('date')
+        if date:
+            return DateRepresenter(**date)
 
     @property
     def notes(self):
@@ -422,7 +427,10 @@ def _extract_hlinks(ref):
 
 
 def _format_date(obj_data):
-    return str(DateRepresenter(**obj_data))
+    date = obj_data.get('date')
+    if date:
+        return str(DateRepresenter(**date))
+    return ''
 
 
 def _normalize_coords_to_pure_degrees(coords):
@@ -444,33 +452,62 @@ def _normalize_coords_to_pure_degrees(coords):
 
 
 class DateRepresenter:
-    def __init__(self, dateval=None, daterange=None, datespan=None, **kwargs):
-        self.dateval = dateval
-        self.daterange = daterange
-        self.datespan = datespan
+    """
+    A simple alternative to Gramps' gen.lib.date.Date object.
+
+    Supported properties: modifier, quality.
+
+    Unsupported: alternate calendars; newyear start date.
+    """
+    MOD_NONE = None
+    MOD_BEFORE = 'before'
+    MOD_AFTER = 'after'
+    MOD_ABOUT = 'about'
+    MOD_RANGE = 'range'
+    MOD_SPAN = 'span'
+    MOD_TEXTONLY = 'textonly'
+    MODIFIER_OPTIONS = (MOD_NONE, MOD_BEFORE, MOD_AFTER, MOD_ABOUT, MOD_RANGE,
+                        MOD_SPAN, MOD_TEXTONLY)
+    COMPOUND_MODIFIERS = MOD_RANGE, MOD_SPAN
+
+    QUAL_NONE = None
+    QUAL_ESTIMATED = 'estimated'
+    QUAL_CALCULATED = 'calculated'
+    QUALITY_OPTIONS = (QUAL_NONE, QUAL_ESTIMATED, QUAL_CALCULATED)
+
+    def __init__(self, value, modifier=MOD_NONE, quality=QUAL_NONE):
+        assert modifier in self.MODIFIER_OPTIONS
+        assert quality in self.QUALITY_OPTIONS
+
+        self.value = value
+        self.modifier = modifier
+        self.quality = quality
 
     def __str__(self):
-        if self.dateval:
-            node = self.dateval
-            val = node['val']
-        elif self.datespan:
-            node = self.datespan
+        if self.modifier == self.MOD_NONE:
+            val = self.value
+        elif self.modifier == self.MOD_SPAN:
             val = '{}..{}'.format(
-                node.get('start'),
-                node.get('stop'),
+                self.value.get('start'),
+                self.value.get('stop'),
             )
-        elif self.daterange:
-            node = self.daterange
+        elif self.modifier == self.MOD_RANGE:
             val = '{}-{}'.format(
-                node.get('start'),
-                node.get('stop'),
+                self.value.get('start'),
+                self.value.get('stop'),
             )
+        elif self.modifier == self.MOD_BEFORE:
+            return '<{}'.format(self.value)
+        elif self.modifier == self.MOD_AFTER:
+            return '{}+'.format(self.value)
+        elif self.modifier == self.MOD_ABOUT:
+            return '≈{}'.format(self.value)
         else:
-            return '?'
+            raise ValueError('unknown modifier', self.modifier)
 
         vals = [
-            node.get('quality'),
-            node.get('type'),
+            self.quality,
+            self.modifier,
             val,
         ]
         return ' '.join([x for x in vals if x])
@@ -478,9 +515,13 @@ class DateRepresenter:
     @property
     def year(self):
         "Returns earliest known year as string"
-        if self.dateval:
-            return self.dateval['val']
-        elif self.daterange:
-            return self.daterange['start']
+        if isinstance(self.value, str):
+            return parse_date(self.value).year
+        elif self.modifier in self.COMPOUND_MODIFIERS:
+            return parse_date(self.value.get('start')).year
         else:
             return ''
+
+    @property
+    def is_estimated(self):
+        return self.quality == self.QUAL_ESTIMATED

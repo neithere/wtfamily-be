@@ -16,6 +16,8 @@ import blessings
 from monk import *
 import yaml
 
+from models import DateRepresenter
+
 
 GRAMPS_NAMESPACE_LABEL = 'gramps'
 NAMESPACES = {
@@ -123,14 +125,23 @@ LIST_OF_URLS = [
     },
 ]
 ADDRESS = Anything()    # TODO it's a complex type
+
 DATEVAL = {
     'val': str,
-    opt_key('type'): one_of(['after', 'before']),
+    opt_key('type'): one_of(['before', 'after', 'about']),
+    opt_key('quality'): one_of(['estimated', 'calculated']),
 }
 DATESPAN = {
     'start': str,
     'stop': str,
+    opt_key('quality'): one_of(['estimated', 'calculated']),
 }
+DATERANGE = {
+    'start': str,
+    'stop': str,
+    opt_key('quality'): one_of(['estimated', 'calculated']),
+}
+
 ATTRIBUTE = {
     'type': str,
     'value': str,
@@ -156,6 +167,7 @@ SCHEMATA = {
                 'hlink': str,
                 opt_key('dateval'): [ DATEVAL ],
                 opt_key('datespan'): [ DATESPAN ],
+                opt_key('daterange'): [ DATERANGE ],
             },
         ],
         opt_key('citationref'): LIST_OF_HLINKS,  # TODO LIST_OF_IDS
@@ -163,11 +175,13 @@ SCHEMATA = {
     },
     'gramps:people': {
         'name': [
-            IsA(str) | {
+            IsA(str)
+            | {
                 'type': str,
                 opt_key('first'): str,
                 opt_key('surname'): [
-                    IsA(str) | {
+                    IsA(str)
+                    | {
                         'text': str,
                         opt_key('derivation'): str,
                         opt_key('prim'): str,       # TODO True/False (primary? flag)
@@ -278,8 +292,68 @@ def main(path='/tmp/all.gramps', out='/tmp/all.gramps.yaml'):
         pass
 
 
+def _extract_dateval_quality(value):
+    quality = value.get('quality')
+    mapping = {
+        None: DateRepresenter.QUAL_NONE,
+        'estimated': DateRepresenter.QUAL_ESTIMATED,
+        'calculated': DateRepresenter.QUAL_CALCULATED,
+    }
+    return mapping[quality]
+
+def _extract_dateval_type(value):
+    type_ = value.get('type')
+    mapping = {
+        None: DateRepresenter.MOD_NONE,
+        'before': DateRepresenter.MOD_BEFORE,
+        'after': DateRepresenter.MOD_AFTER,
+        'about': DateRepresenter.MOD_ABOUT,
+    }
+    return mapping[type_]
+
+def _normalize_dateval(value):
+    d = {
+        'quality': _extract_dateval_quality(value),
+        'modifier': _extract_dateval_type(value),
+        'value': value['val'],
+    }
+    for k in ('quality', 'modifier'):
+        if d[k] is None:
+            del d[k]
+    return d
+
+def _normalize_datespan(value):
+    return _normalize_compound_date(value, DateRepresenter.MOD_SPAN)
+
+def _normalize_daterange(value):
+    return _normalize_compound_date(value, DateRepresenter.MOD_RANGE)
+
+def _normalize_compound_date(value, modifier):
+    d = {
+        'quality': _extract_dateval_quality(value),
+        'modifier': modifier,
+        'value': {
+            'start': value.get('start'),
+            'stop': value.get('stop'),
+        },
+    }
+    for k in ('quality',):
+        if d[k] is None:
+            del d[k]
+    return d
+
+
 GLOBAL_FIELD_PROCESSORS = {
     'change': lambda v: datetime.datetime.utcfromtimestamp(int(v)) if v else None,
+    'dateval': _normalize_dateval,
+    'datespan': _normalize_datespan,
+    'daterange': _normalize_daterange,
+}
+
+GLOBAL_FIELD_RENAME = {
+    'dateval': 'date',
+    'datespan': 'date',
+    'daterange': 'date',
 }
 
 # XXX challenges:
@@ -303,11 +377,12 @@ class Converter:
             if transform:
                 v = transform(v)
 
+            field = GLOBAL_FIELD_RENAME.get(k, k)
             if k in SINGLE_VALUE_FIELDS:
                 assert k not in item
-                item[k] = v
+                item[field] = v
             else:
-                item.setdefault(k, []).append(v)
+                item.setdefault(field, []).append(v)
 
         pk_field = PK_FIELD_FOR_ENTITY.get(entity_name, PK_FIELD_DEFAULT)
 
