@@ -2,6 +2,18 @@
 
 {% block heading %}
     {{ obj.name }}
+
+        {% if obj._data.gender == 'M' %}
+          <span class="icon-male">♂<span>
+        {% elif obj._data.gender == 'F' %}
+          <span class="icon-female">♀<span>
+        {% endif %}
+        <small class="text-muted">
+          {% if obj.birth %}☀{{ obj.birth }}{% endif %}
+          &nbsp;
+          {% if obj.death %}✝{{ obj.death }}{% endif %}
+        </small>
+
 {% endblock %}
 
 {% block content %}
@@ -20,7 +32,7 @@
         <p>Фактов о родителях или семьях нет, поэтому в семейном древе персона не отображается.</p>
     {% endif %}
 
-    <dt>Родители</dt>
+    <dt>Родительская семья</dt>
     {% for family in obj.get_parent_families() %}
         <dd>
             <a href="{{ url_for('family_detail', obj_id=family.id) }}">{{ family.id }}</a>
@@ -51,7 +63,7 @@
         </dd>
     {% endfor %}
 
-    <dt>Семья</dt>
+    <dt>Супруги и дети</dt>
     {% for family in obj.get_families() %}
         <dd>
             <a href="{{ url_for('family_detail', obj_id=family.id) }}">{{ family.id }}</a>

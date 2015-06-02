@@ -127,6 +127,10 @@ class Person(Entity):
         if not isinstance(name_nodes, list):
             name_nodes = [name_nodes]
         for n in name_nodes:
+            assert not isinstance(n, str)
+            if 'group' in n:
+                return n['group']
+
             _, primary_surnames, _, _ = _dbi._get_name_parts(n)
             for surname in primary_surnames:
                 alias = NameMap.group_as(surname)
@@ -225,6 +229,11 @@ class Event(Entity):
     @property
     def families(self):
         return Family.find_by_event_ref(self.handle)
+
+    @property
+    def citations(self):
+        hlinks = _extract_hlinks(self._data['citationref'])
+        return Citation.find({'handle': hlinks})
 
     @classmethod
     def find(cls, conditions=None):

@@ -39,6 +39,18 @@ Related families:
 {% endfor %}
 </ul>
 
+Related citations:
+
+<ul>
+{% for citation in obj.citations %}
+    <li>
+        <a href="{{ url_for('source_detail', obj_id=citation.source.id) }}">{{ citation.source.title }}</a>:
+        <a href="{{ url_for('citation_detail', obj_id=citation.id) }}">{{
+            citation.page }} ({{ citation.date }})</a>, {{ citation.notes|list|length }} notes.
+    </li>
+{% endfor %}
+</ul>
+
 
 <h2>Debug</h2>
 <dl class="dl-horizontal">

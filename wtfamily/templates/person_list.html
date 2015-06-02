@@ -6,14 +6,32 @@
 
 {% block content %}
 
-<ol>
-{% for obj in object_list %}
-    <li>
+<dl>
+{% for group, people in object_list|groupby('group_name') %}
+  <dt>{{ group }}</dt>
+  <dd>
+    <ol>
+    {% for obj in people %}
+      <li>
         <a href="{{ url_for('person_detail', obj_id=obj.id) }}">{{ obj.name }}</a>
-        {{ obj.birth or '' }}
+
+        {% if obj._data.gender == 'M' %}
+          <span class="icon-male">♂<span>
+        {% elif obj._data.gender == 'F' %}
+          <span class="icon-female">♀<span>
+        {% endif %}
+        <small class="text-muted">
+          {% if obj.birth %}☀{{ obj.birth }}{% endif %}
+          &nbsp;
+          {% if obj.death %}✝{{ obj.death }}{% endif %}
+        </small>
+
         {# <code>{{ obj._data|pprint }}</code> #}
-    </li>
+      </li>
+    {% endfor %}
+    </ol>
+  </dd>
 {% endfor %}
-</ol>
+</dl>
 
 {% endblock %}
