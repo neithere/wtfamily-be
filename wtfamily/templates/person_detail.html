@@ -61,6 +61,8 @@
             {% endfor %}
             </ul>
         </dd>
+    {% else %}
+        <dd>?</dd>
     {% endfor %}
 
     <dt>Супруги и дети</dt>
@@ -113,7 +115,7 @@
     <th>Summary</th>
     <th>People</th>
   </tr>
-{% for event in obj.events %}
+{% for event in obj.events|sort(attribute='date') %}
   <tr>
     <td>
       <a href="{{ url_for('event_detail', obj_id=event.id) }}">{{ event.id }}</a>

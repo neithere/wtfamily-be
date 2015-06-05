@@ -212,6 +212,11 @@ class Event(Entity):
         date = self._data.get('date')
         if date:
             return DateRepresenter(**date)
+        else:
+            # XXX this is a hack for `xs|sort(attribute='x')` Jinja filter
+            # in Python 3.x environment where None can't be compared
+            # to anything (i.e. TypeError is raised).
+            return DateRepresenter()
 
     @property
     def summary(self):
@@ -458,6 +463,12 @@ class DateRepresenter:
     Supported properties: modifier, quality.
 
     Unsupported: alternate calendars; newyear start date.
+
+    Examples::
+
+        DateRepresenter()      # unknown/undefined date
+        DateRepresenter('1919')
+
     """
     MOD_NONE = None
     MOD_BEFORE = 'before'
@@ -475,15 +486,23 @@ class DateRepresenter:
     QUAL_CALCULATED = 'calculated'
     QUALITY_OPTIONS = (QUAL_NONE, QUAL_ESTIMATED, QUAL_CALCULATED)
 
-    def __init__(self, value, modifier=MOD_NONE, quality=QUAL_NONE):
+    def __init__(self, value=None, modifier=MOD_NONE, quality=QUAL_NONE):
         assert modifier in self.MODIFIER_OPTIONS
         assert quality in self.QUALITY_OPTIONS
+
+        # TODO: validate the arguments
 
         self.value = value
         self.modifier = modifier
         self.quality = quality
 
+    def __bool__(self):
+        return self.value is not None
+
     def __str__(self):
+        if self.value is None:
+            return '?'
+
         formats = {
             self.MOD_NONE: '{}',
             self.MOD_SPAN: '{0[start]}..{0[stop]}',
@@ -497,10 +516,26 @@ class DateRepresenter:
 
         vals = [
             self.quality,
-            self.modifier,
+            #self.modifier,    # excluded here because it's in the val's template
             val,
         ]
         return ' '.join([x for x in vals if x])
+
+    def __eq__(self, other):
+        if isinstance(other, type(self)) and str(self) == str(other):
+            return True
+
+    def __lt__(self, other):
+        assert isinstance(other, type(self));
+        # FIXME this is extremely rough
+        return str(self.year) < str(other.year)
+
+    @property
+    def century(self):
+        year = str(self.year)
+        if not year:
+            return '?'
+        return '{}xx'.format(year[:2])
 
     @property
     def year(self):

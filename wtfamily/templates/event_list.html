@@ -6,6 +6,8 @@
 
 {% block content %}
 
+{% for century, items in object_list|groupby('date.century') %}
+<h2>{{ century }}</h2>
 <table class="table table-striped table-hover">
   <tr>
     <th>ID</th>
@@ -15,7 +17,7 @@
     <th>People</th>
     <th>Summary</th>
   </tr>
-{% for obj in object_list %}
+{% for obj in items|sort(attribute='date') %}
   <tr>
     <td>
       <a href="{{ url_for('event_detail', obj_id=obj.id) }}">{{ obj.id }}</a>
@@ -45,5 +47,6 @@
   </tr>
 {% endfor %}
 </table>
+{% endfor %}
 
 {% endblock %}
