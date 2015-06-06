@@ -12,7 +12,7 @@
   <dt>Citations</dt>
   <dd>
     <ul>
-    {% for citation in obj.citations %}
+    {% for citation in obj.citations|sort(attribute='date') %}
         <li>
             <a href="{{ url_for('citation_detail', obj_id=citation.id) }}">{{ citation.id }}</a>
             {{ citation.page|urlize or '(page?)' }}

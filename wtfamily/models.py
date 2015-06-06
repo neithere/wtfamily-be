@@ -182,12 +182,18 @@ class Person(Entity):
         for event in self.events:
             if event.type == EVENT_TYPE_BIRTH:
                 return event.date
+        return DateRepresenter()
 
     @property
     def death(self):
         for event in self.events:
             if event.type == EVENT_TYPE_DEATH:
                 return event.date
+        return DateRepresenter()
+
+    @property
+    def gender(self):
+        return self._data['gender']
 
 
 class Event(Entity):

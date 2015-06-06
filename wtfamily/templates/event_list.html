@@ -7,46 +7,46 @@
 {% block content %}
 
 {% for century, items in object_list|groupby('date.century') %}
-<h2>{{ century }}</h2>
-<table class="table table-striped table-hover">
-  <tr>
-    <th>ID</th>
-    <th>Date</th>
-    <th>Place</th>
-    <th>Type</th>
-    <th>People</th>
-    <th>Summary</th>
-  </tr>
-{% for obj in items|sort(attribute='date') %}
-  <tr>
-    <td>
-      <a href="{{ url_for('event_detail', obj_id=obj.id) }}">{{ obj.id }}</a>
-    </td>
-    <td>
-      {{ obj.date }}
-    </td>
-    <td>
-      {% if obj.place %}
-        <a href="{{ url_for('place_detail', obj_id=obj.place.id) }}">{{ obj.place }}</a>
-      {% else %}
-        ?
-      {% endif %}
-    </td>
-    <td>
-      {{ obj.type }}
-    </td>
-    <td>
-      {% for p in obj.people %}
-        <a href="{{ url_for('person_detail', obj_id=p.id) }}">{{ p }}</a>{% if not loop.last %}, {% endif %}
-      {% endfor %}
-    </td>
-    <td>
-      {{ obj.summary }}
-    </td>
-    {# <td>{{ obj.place._data.coord if obj.place else '' }}</td> #}
-  </tr>
-{% endfor %}
-</table>
+  <h2>{{ century }}</h2>
+  <table class="table table-striped table-hover">
+    <tr>
+      <th>ID</th>
+      <th>Date</th>
+      <th>Place</th>
+      <th>Type</th>
+      <th>People</th>
+      <th>Summary</th>
+    </tr>
+  {% for obj in items|sort(attribute='date') %}
+    <tr>
+      <td>
+        <a href="{{ url_for('event_detail', obj_id=obj.id) }}">{{ obj.id }}</a>
+      </td>
+      <td>
+        {{ obj.date }}
+      </td>
+      <td>
+        {% if obj.place %}
+          <a href="{{ url_for('place_detail', obj_id=obj.place.id) }}">{{ obj.place }}</a>
+        {% else %}
+          ?
+        {% endif %}
+      </td>
+      <td>
+        {{ obj.type }}
+      </td>
+      <td>
+        {% for p in obj.people %}
+          <a href="{{ url_for('person_detail', obj_id=p.id) }}">{{ p }}</a>{% if not loop.last %}, {% endif %}
+        {% endfor %}
+      </td>
+      <td>
+        {{ obj.summary }}
+      </td>
+      {# <td>{{ obj.place._data.coord if obj.place else '' }}</td> #}
+    </tr>
+  {% endfor %}
+  </table>
 {% endfor %}
 
 {% endblock %}

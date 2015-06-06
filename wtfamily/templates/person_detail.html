@@ -32,70 +32,73 @@
         <p>Фактов о родителях или семьях нет, поэтому в семейном древе персона не отображается.</p>
     {% endif %}
 
-    <dt>Родительская семья</dt>
     {% for family in obj.get_parent_families() %}
+        <dt><a href="{{ url_for('family_detail', obj_id=family.id) }}">Семья родителей</a></dt>
         <dd>
-            <a href="{{ url_for('family_detail', obj_id=family.id) }}">{{ family.id }}</a>
-            —
-            <a href="{{ url_for('person_detail', obj_id=family.father.id) }}">{{ family.father or '?'}}</a>
+            отец <a href="{{ url_for('person_detail', obj_id=family.father.id) }}">{{ family.father or '?'}}</a>
             {% if family.father.birth %}
-                {{ family.father.birth }}
+                ({{ family.father.birth }})
             {% endif %}
-            и
-            <a href="{{ url_for('person_detail', obj_id=family.mother.id) }}">{{ family.mother or '?'}}</a>
-            {% if family.mother.birth %}
-                {{ family.mother.birth }}
-            {% endif %}
-            <ul>
-            {% for child in family.children %}
-                <li>
-                    {% if child.id == obj.id %}
-                        {{ child }}
-                    {% else %}
-                        <a href="{{ url_for('person_detail', obj_id=child.id) }}">{{ child }}</a>
-                        {% if child.birth %}
-                            {{ child.birth }}
-                        {% endif %}
-                    {% endif %}
-                </li>
-            {% endfor %}
-            </ul>
         </dd>
-    {% else %}
-        <dd>?</dd>
+        <dd>
+            мать <a href="{{ url_for('person_detail', obj_id=family.mother.id) }}">{{ family.mother or '?'}}</a>
+            {% if family.mother.birth %}
+                ({{ family.mother.birth }})
+            {% endif %}
+        </dd>
+        {% for child in family.children|sort(attribute='birth') %}
+            <dd>
+                {% if child.id == obj.id %}
+                    <span class="bg-info">{{ child }}</span>
+                {% else %}
+                    <!-- note: roles relative to the central person -->
+                    {% if child.gender == 'M'  %}брат{% elif child.gender == 'F' %}сестра{% endif %}
+                    <a href="{{ url_for('person_detail', obj_id=child.id) }}">{{ child }}</a>
+                    {% if child.birth %}
+                        ({{ child.birth }})
+                    {% endif %}
+                {% endif %}
+            </dd>
+        {% endfor %}
     {% endfor %}
 
-    <dt>Супруги и дети</dt>
     {% for family in obj.get_families() %}
+        <dt><a href="{{ url_for('family_detail', obj_id=family.id) }}">Семья</a></dt>
         <dd>
-            <a href="{{ url_for('family_detail', obj_id=family.id) }}">{{ family.id }}</a>
-            —
-            {% if family.father.id != obj.id %}
+            {% if family.father.id == obj.id %}
+                <span class="bg-info">{{ family.father }}</span>
+            {% else %}
+                муж
                 <a href="{{ url_for('person_detail', obj_id=family.father.id) }}">
                     {{ family.father or '?' }}
                 </a>
                 {% if family.father.birth %}
-                    {{ family.father.birth }}
+                    ({{ family.father.birth }})
                 {% endif %}
             {% endif %}
-            {% if family.mother.id != obj.id %}
+        </dd>
+        <dd>
+            {% if family.mother.id == obj.id %}
+                <span class="bg-info">{{ family.mother }}</span>
+            {% else %}
+                жена
                 <a href="{{ url_for('person_detail', obj_id=family.mother.id) }}">
                     {{ family.mother or '?' }}
                 </a>
                 {% if family.mother.birth %}
-                    {{ family.mother.birth }}
+                    ({{ family.mother.birth }})
                 {% endif %}
             {% endif %}
-            <ul>
-            {% for child in family.children %}
-                <li>
-                    <a href="{{ url_for('person_detail', obj_id=child.id) }}">{{ child }}</a>
-                </li>
-            {% endfor %}
-            </ul>
         </dd>
-    {% else %}
-        <dd>—</dd>
+        {% for child in family.children %}
+            <dd>
+                {% if child.gender == 'M'  %}сын{% elif child.gender == 'F' %}дочь{% endif %}
+                <a href="{{ url_for('person_detail', obj_id=child.id) }}">{{ child }}</a>
+                {% if child.birth %}
+                    ({{ child.birth }})
+                {% endif %}
+            </dd>
+        {% endfor %}
     {% endfor %}
 
     {% for attr in obj.attributes %}
