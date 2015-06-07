@@ -99,6 +99,9 @@ SINGLE_VALUE_FIELDS = (
     # people
     'gender',
 )
+SINGLE_VALUE_FIELDS_PER_ENTITY = {
+    'gramps:places': ('name',),
+}
 # fields about which we are *sure* that they *can* have multiple values.
 # in the future we may want a strict check and a field will have to belong
 # to one of the two mappings.
@@ -153,7 +156,7 @@ BASE_ENTITY = {
 }
 SCHEMATA = {
     'gramps:places': {
-        'name': [str],    # TODO: str  (single value)
+        'name': str,
         opt_key('ptitle'): str,
         opt_key('coord'): {'long': str, 'lat': str},
         opt_key('alt_name'): [str],
@@ -378,7 +381,9 @@ class Converter:
                 v = transform(v)
 
             field = GLOBAL_FIELD_RENAME.get(k, k)
-            if k in SINGLE_VALUE_FIELDS:
+            is_single_value = (k in SINGLE_VALUE_FIELDS
+                or k in SINGLE_VALUE_FIELDS_PER_ENTITY.get(entity_name, []))
+            if is_single_value:
                 assert k not in item
                 item[field] = v
             else:

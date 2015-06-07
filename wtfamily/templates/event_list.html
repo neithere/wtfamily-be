@@ -16,6 +16,7 @@
       <th>Type</th>
       <th>People</th>
       <th>Summary</th>
+      <th>Citations</th>
     </tr>
   {% for obj in items|sort(attribute='date') %}
     <tr>
@@ -42,6 +43,13 @@
       </td>
       <td>
         {{ obj.summary }}
+      </td>
+      <td>
+        {% if obj.citations %}
+          {% for c in obj.citations %}
+            <a href="{{ url_for('citation_detail', obj_id=c.id) }}">{{ c.id }}</a>
+          {% endfor %}
+        {% endif %}
       </td>
       {# <td>{{ obj.place._data.coord if obj.place else '' }}</td> #}
     </tr>

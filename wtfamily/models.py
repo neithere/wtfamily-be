@@ -141,6 +141,8 @@ class Person(Entity):
 
     @property
     def events(self):
+        # TODO: the `eventref` records are dicts with `hlink` and `role`.
+        #       we need to somehow decorate(?) the yielded event with these roles.
         try:
             hlinks = _extract_hlinks(self._data['eventref'])
         except KeyError:
@@ -246,7 +248,10 @@ class Event(Entity):
 
     @property
     def citations(self):
-        hlinks = _extract_hlinks(self._data['citationref'])
+        try:
+            hlinks = _extract_hlinks(self._data['citationref'])
+        except KeyError:
+            return
         return Citation.find({'handle': hlinks})
 
     @classmethod
@@ -350,6 +355,9 @@ class Source(Entity):
 
 class Citation(Entity):
     entity_name = 'citations'
+
+    def __repr__(self):
+        return str(self.id)
 
     @property
     def source(self):

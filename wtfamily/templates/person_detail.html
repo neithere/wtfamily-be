@@ -2,18 +2,16 @@
 
 {% block heading %}
     {{ obj.name }}
-
-        {% if obj._data.gender == 'M' %}
-          <span class="icon-male">♂<span>
-        {% elif obj._data.gender == 'F' %}
-          <span class="icon-female">♀<span>
-        {% endif %}
-        <small class="text-muted">
-          {% if obj.birth %}☀{{ obj.birth }}{% endif %}
-          &nbsp;
-          {% if obj.death %}✝{{ obj.death }}{% endif %}
-        </small>
-
+    <small>
+      {% if obj._data.gender == 'M' %}
+        <span class="icon-male">♂</span>
+      {% elif obj._data.gender == 'F' %}
+        <span class="icon-female">♀</span>
+      {% endif %}
+      {% if obj.birth %}☀{{ obj.birth }}{% endif %}
+      &nbsp;
+      {% if obj.death %}✝{{ obj.death }}{% endif %}
+    </small>
 {% endblock %}
 
 {% block content %}
@@ -117,6 +115,7 @@
     <th>Type</th>
     <th>Summary</th>
     <th>People</th>
+    <th>Citations</th>
   </tr>
 {% for event in obj.events|sort(attribute='date') %}
   <tr>
@@ -147,6 +146,13 @@
         {% endif %}
       {% endfor %}
       </ul>
+    </td>
+    <td>
+      {% if event.citations %}
+        {% for c in event.citations %}
+          <a href="{{ url_for('citation_detail', obj_id=c.id) }}">{{ c }}</a>
+        {% endfor %}
+      {% endif %}
     </td>
   </tr>
 {% endfor %}

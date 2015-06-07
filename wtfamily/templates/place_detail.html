@@ -1,7 +1,8 @@
 {% extends 'base.html' %}
 
 {% block heading %}
-  {{ obj.title }}
+  {{ obj.name }}
+  <small>{{ obj.title }}</small>
 {% endblock %}
 
 {% block content %}
@@ -39,7 +40,7 @@
     <th>People</th>
     <th>Summary</th>
   </tr>
-{% for event in obj.events %}
+{% for event in obj.events|sort(attribute='date') %}
   <tr>
     <td>
       <a href="{{ url_for('event_detail', obj_id=event.id) }}">{{ event.id }}</a>
@@ -59,14 +60,14 @@
       <ul>
       {% for p in event.people %}
         <li>
-            <a href="{{ url_for('person_detail', obj_id=p.id) }}">{{ p }}</a>
-            <span class="text-muted">~{{ p.birth.year }}</span>
+          <a href="{{ url_for('person_detail', obj_id=p.id) }}">{{ p }}</a>
+          <span class="text-muted">~{{ p.birth.year }}</span>
         </li>
       {% endfor %}
       </ul>
       <ul>
       {% for f in event.families %}
-        <li><a href="{{ url_for('family_detail', obj_id=f.id) }}">{{ f }}</a></li>
+        <li>семья <a href="{{ url_for('family_detail', obj_id=f.id) }}">{{ f }}</a></li>
       {% endfor %}
       </ul>
     </td>
