@@ -334,6 +334,9 @@ class Source(Entity):
     entity_name = 'sources'
     sort_key = lambda item: item['stitle'] or ''
 
+    def __repr__(self):
+        return str(self.title)
+
     @property
     def title(self):
         return self._data.get('stitle')
@@ -347,6 +350,10 @@ class Source(Entity):
         return self._data.get('spubinfo')
 
     @property
+    def abbrev(self):
+        return self._data.get('sabbrev')
+
+    @property
     def citations(self):
         for citation in Citation.find():
             if self.handle in _extract_hlinks(citation._data.get('sourceref')):
@@ -357,6 +364,8 @@ class Citation(Entity):
     entity_name = 'citations'
 
     def __repr__(self):
+        if self.page:
+            return self.page
         return str(self.id)
 
     @property
@@ -372,6 +381,11 @@ class Citation(Entity):
         date = self._data.get('date')
         if date:
             return DateRepresenter(**date)
+        else:
+            # XXX this is a hack for `xs|sort(attribute='x')` Jinja filter
+            # in Python 3.x environment where None can't be compared
+            # to anything (i.e. TypeError is raised).
+            return DateRepresenter()
 
     @property
     def notes(self):
@@ -528,8 +542,14 @@ class DateRepresenter:
         template = formats[self.modifier]
         val = template.format(self.value)
 
+        quality_abbrevs = {
+            self.QUAL_ESTIMATED: 'est',
+            self.QUAL_CALCULATED: 'calc',
+            self.QUAL_NONE: '',
+        }
+
         vals = [
-            self.quality,
+            quality_abbrevs[self.quality],
             #self.modifier,    # excluded here because it's in the val's template
             val,
         ]

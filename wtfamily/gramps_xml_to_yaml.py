@@ -81,6 +81,7 @@ SINGLE_VALUE_FIELDS = (
     'stitle',
     'sauthor',
     'spubinfo',
+    'sabbrev',
 
     # notes
     'text',

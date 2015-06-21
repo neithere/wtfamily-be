@@ -11,8 +11,9 @@
   <dt>Publication</dt> <dd>{{ obj.pubinfo|urlize or '?' }}</dd>
   <dt>Citations</dt>
   <dd>
+  {% if obj.citations %}
     <ul>
-    {% for citation in obj.citations|sort(attribute='date') %}
+    {% for citation in obj.citations|list|sort(attribute='date') %}
         <li>
             <a href="{{ url_for('citation_detail', obj_id=citation.id) }}">{{ citation.id }}</a>
             {{ citation.page|urlize or '(page?)' }}
@@ -28,6 +29,9 @@
         </li>
     {% endfor %}
     </ul>
+  {% else %}
+    None.
+  {% endif %}
   </dd>
 </dl>
 

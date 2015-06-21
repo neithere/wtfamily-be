@@ -149,9 +149,11 @@
     </td>
     <td>
       {% if event.citations %}
+        <ul>
         {% for c in event.citations %}
-          <a href="{{ url_for('citation_detail', obj_id=c.id) }}">{{ c }}</a>
+          <li><a href="{{ url_for('citation_detail', obj_id=c.id) }}" title="{{ c.source }}">{{ c.source.abbrev or c.source }}: {{ c }}</a></li>
         {% endfor %}
+        <ul>
       {% endif %}
     </td>
   </tr>

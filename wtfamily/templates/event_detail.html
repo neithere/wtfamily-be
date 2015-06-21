@@ -41,6 +41,7 @@ Related families:
 
 Related citations:
 
+{% if obj.citations %}
 <ul>
 {% for citation in obj.citations %}
     <li>
@@ -50,6 +51,7 @@ Related citations:
     </li>
 {% endfor %}
 </ul>
+{% endif %}
 
 
 <h2>Debug</h2>
