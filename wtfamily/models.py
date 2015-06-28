@@ -19,25 +19,32 @@ class Entity:
         self._data = data
 
     @classmethod
+    def _get_entity_storage(cls):
+        entities = g.storage._entities
+        return entities[cls.entity_name]
+
+    @classmethod
     def _find(cls, conditions=None):
         assert cls.entity_name != NotImplemented
-        entities = g.storage._entities
-        entity = entities[cls.entity_name]
-        items = entity.find_and_adapt_to_legacy()
+        entity_storage = cls._get_entity_storage()
+        items = entity_storage.find_and_adapt_to_legacy()
 
+        def _filter(xs):
+            for p in xs:
+                if not conditions:
+                    yield cls(p)
+                    continue
+                for k, v in conditions.items():
+                    if not isinstance(v, list):
+                        v = [v]
+                    if k in p and p[k] in v:
+                        yield cls(p)
+                        break
 
+        items = _filter(items)
         if cls.sort_key:
             items = sorted(items, key=cls.sort_key)
-        for p in items:
-            if not conditions:
-                yield cls(p)
-                continue
-            for k, v in conditions.items():
-                if not isinstance(v, list):
-                    v = [v]
-                if k in p and p[k] in v:
-                    yield cls(p)
-                    break
+        return items
 
     @classmethod
     def find(cls, conditions=None):
@@ -57,6 +64,12 @@ class Entity:
                 continue
             if hlink in _extract_hlinks(refs):
                 yield obj
+
+    @classmethod
+    def find_by_index(cls, key, value):
+        s = cls._get_entity_storage()
+        for item in s.find_by_index(key, value):
+            yield cls(item)
 
     @property
     def id(self):
@@ -199,11 +212,7 @@ class Person(Entity):
 
 class Event(Entity):
     entity_name = 'events'
-    sort_key = lambda item: (
-        item.get('dateval', {}).get('val', '') or
-        item.get('datespan', {}).get('start', '') or
-        item.get('daterange', {}).get('start', '')
-    )
+    sort_key = lambda item: item.date
 
     def __repr__(self):
         #return 'Event {}'.format(self._data)
@@ -296,19 +305,19 @@ class Place(Entity):
             hlinks = _extract_hlinks(self._data['placeref'])
         except KeyError:
             return
-        return Place.find({'handle': hlinks})
+        return self.find_by_index('handle', [hlinks])
 
     @property
     def nested_places(self):
         #print( {'placeref': {'hlink': self.handle}})
-        for place in Place.find():
-            if 'placeref' not in place._data:
-                continue
-            if self.handle in _extract_hlinks(place._data.get('placeref', [])):
-                yield place
+        for place in self.find_by_index('placeref.hlink', self.handle):
+            print('nested place:', place)
+            yield place
 
     @property
     def events(self):
+
+        # build a list of hlinks for current place hierarchy
         hlinks = []
         nested_to_see = [self]
         while nested_to_see:
@@ -316,9 +325,9 @@ class Place(Entity):
             hlinks.append(place.handle)
             nested_to_see.extend(place.nested_places)
 
-        for event in Event.find():
-            if event.place and event.place.handle in hlinks:
-                yield event
+        # find events with references to any of these places
+        for event in Event.find_by_index('place.hlink', hlinks):
+            yield event
 
 #    @classmethod
 #    def find(cls, conditions=None):
@@ -331,7 +340,7 @@ class Place(Entity):
 
 class Source(Entity):
     entity_name = 'sources'
-    sort_key = lambda item: item['stitle'] or ''
+    sort_key = lambda item: item.title
 
     def __repr__(self):
         return str(self.title)
