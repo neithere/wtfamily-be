@@ -27,6 +27,11 @@
   {% else %}
     <dd>—</dd>
   {% endfor %}
+
+  {% if obj.coords %}
+    <dt>На карте</dt>
+    <dd><a href="https://google.com/maps/@{{ obj.coords.lat }},{{ obj.coords.lng }},13z">Google Maps</a></dd>
+  {% endif %}
 </dl>
 
 <!-- h2>Events</h2 -->
