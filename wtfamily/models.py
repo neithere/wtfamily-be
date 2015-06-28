@@ -155,7 +155,6 @@ class Person(Entity):
             attribs = self._data['attribute']
         except KeyError:
             return []
-        attribs = _dbi._ensure_list(attribs)
         return attribs
 
     def get_parent_families(self):
@@ -279,7 +278,7 @@ class Place(Entity):
 
     @property
     def alt_name(self):
-        return _dbi._ensure_list(self._data.get('alt_name', []))
+        return self._data.get('alt_name', [])
 
     @property
     def coords(self):
