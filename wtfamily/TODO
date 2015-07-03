@@ -5,6 +5,23 @@ Storage
 -------
 
 - [ ] Remove hlinks, use IDs.
+
+      challenges:
+
+      - forward-looking hlink→ID resolver
+
+        - perhaps as a final step, outside of the converter?
+          it would just register the mappings on an external visitor object)
+
+          - we'll also need to go *into* the items.  They should be flat-ish, i.e.
+            each item is a dictionary where values can be single or multiple.
+            This is defined by schema.
+            So we just iterate the list if the field isn't in SINGLE_VALUE_FIELDS.
+
+      - some entities (e.g. namemaps) don't have IDs
+
+        - currently using UUID but not sure if it's ok
+
 - [x] Split items into separate YAML files.
 - [ ] Refactor.
 - [ ] Unify models with validation schemata.
