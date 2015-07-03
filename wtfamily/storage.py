@@ -113,7 +113,7 @@ class EntityStorage:
                 try:
                     value = data[key]
                 except KeyError:
-                    pass
+                    return    # XXX ?
 
             assert not isinstance(value, dict)
             if isinstance(value, list):

@@ -103,6 +103,15 @@ SINGLE_VALUE_FIELDS = (
 SINGLE_VALUE_FIELDS_PER_ENTITY = {
     'gramps:places': ('name',),
 }
+HLINK_FIELDS = (
+    'sourceref',
+    'citationref',
+    'placeref',
+    'eventref',
+    'noteref',
+    'objref',
+    'personref',
+)
 # fields about which we are *sure* that they *can* have multiple values.
 # in the future we may want a strict check and a field will have to belong
 # to one of the two mappings.
@@ -263,7 +272,9 @@ def extract(path):
 
 def transform(xml_root):
     print('transform...')
+    handle_to_id = {}
     converter = Converter()
+    entities = []
     for entity_name in GRAMPS_ENTITIES:
         schema = SCHEMATA.get(entity_name)
         nodes = xml_root.findall(entity_name + '/', NAMESPACES)
@@ -275,7 +286,13 @@ def transform(xml_root):
                 except ValidationError as e:
                     print(entity_name, pk, item)
                     raise e from None
-            yield _strip_namespace_label(entity_name), pk, item
+            if 'handle' in item:
+                handle = item['handle']
+                handle_to_id[handle] = pk
+            entities.append((_strip_namespace_label(entity_name), pk, item))
+    for kind, pk, item in entities:
+        item_with_pk_links = _replace_hlinks_with_ids(item, handle_to_id)
+        yield kind, pk, item_with_pk_links
 
 
 def load(items, out):
@@ -285,7 +302,8 @@ def load(items, out):
         full_data.setdefault(entity_name, {})[pk] = data
 
     with open(out, 'w') as f:
-        yield yaml.dump(full_data, f, allow_unicode=True, default_flow_style=False)
+        yield yaml.dump(full_data, f, allow_unicode=True,
+                        default_flow_style=False)
     print('Wrote YAML to {}'.format(t.yellow(out)))
 
 
@@ -295,6 +313,28 @@ def main(path='/tmp/all.gramps', out='/tmp/all.gramps.yaml'):
     for x in load(items, out):
         pass
 
+
+def _replace_hlinks_with_ids(item, handle_to_id):
+    item_with_pk_links = {}
+    for field_name in item:
+        value = item[field_name]
+        if field_name in HLINK_FIELDS:
+            if field_name in SINGLE_VALUE_FIELDS:
+                print('value', value)
+                if 'hlink' in value:
+                    handle = value.pop('hlink')
+                    value['id'] = handle_to_id[handle]
+            else:
+                fixed_value = []
+                for val in value:
+                    if 'hlink' in val:
+                        handle = val.pop('hlink')
+                        val['id'] = handle_to_id[handle]
+                    fixed_value.append(val)
+                value = fixed_value
+
+        item_with_pk_links[field_name] = value
+    return item_with_pk_links
 
 def _extract_dateval_quality(value):
     quality = value.get('quality')

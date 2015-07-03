@@ -18,6 +18,15 @@ Storage
             This is defined by schema.
             So we just iterate the list if the field isn't in SINGLE_VALUE_FIELDS.
 
+            General pattern::
+
+                fooref:
+                - {hlink: x, quux: 1}
+                barref:
+                - {hlink: y, quux: 2}
+
+            Should we just add ID to that?
+
       - some entities (e.g. namemaps) don't have IDs
 
         - currently using UUID but not sure if it's ok
