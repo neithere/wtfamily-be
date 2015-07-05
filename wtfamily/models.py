@@ -166,6 +166,9 @@ class Person(Entity):
         name_nodes = self._data['name']
         if not isinstance(name_nodes, list):
             name_nodes = [name_nodes]
+
+        # Check for name groups and aliases; if none, use first found surname
+        first_found_surname = None
         for n in name_nodes:
             assert not isinstance(n, str)
             if 'group' in n:
@@ -173,10 +176,12 @@ class Person(Entity):
 
             _, primary_surnames, _, _ = _dbi._get_name_parts(n)
             for surname in primary_surnames:
+                if not first_found_surname:
+                    first_found_surname = surname
                 alias = NameMap.group_as(surname)
                 if alias:
                     return alias
-        return self.name
+        return first_found_surname or self.name
 
     @property
     def events(self):

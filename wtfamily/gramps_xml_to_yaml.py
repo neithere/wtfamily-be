@@ -326,7 +326,6 @@ def _replace_hlinks_with_ids(item, handle_to_id):
         value = item[field_name]
         if field_name in HLINK_FIELDS:
             if field_name in SINGLE_VALUE_FIELDS:
-                print('value', value)
                 if 'hlink' in value:
                     handle = value.pop('hlink')
                     value['id'] = handle_to_id[handle]
