@@ -111,6 +111,12 @@ HLINK_FIELDS = (
     'noteref',
     'objref',
     'personref',
+    'place',
+    'father',
+    'mother',
+    'childref',
+    'parentin',
+    'childof',
 )
 # fields about which we are *sure* that they *can* have multiple values.
 # in the future we may want a strict check and a field will have to belong

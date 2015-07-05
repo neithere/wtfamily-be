@@ -58,7 +58,7 @@ class Storage(Configurable):
 
 
 class EntityStorage:
-    INDEXED_ATTRS = ('handle', 'place.hlink', 'placeref.hlink')
+    INDEXED_ATTRS = ('handle', 'place.id', 'placeref.id')
 
     def __init__(self, basedir, entity_name, sync_on_demand=True):
         #self.basedir = basedir
@@ -146,7 +146,6 @@ class EntityStorage:
 
         return list(set(pks))
 
-
     def add(self, pk, data, upsert=False, commit=True):
         self._ensure_data_ready()
         assert upsert or pk not in self._items, (pk, data)
@@ -160,6 +159,10 @@ class EntityStorage:
             filepath = os.path.join(self.path, fn)
             with open(filepath, 'w') as f:
                 yaml.dump(data, f, allow_unicode=True, default_flow_style=False)
+
+    def get(self, pk):
+        self._ensure_data_ready()
+        return self._items[pk]
 
     def find_and_adapt_to_legacy(self):
         self._ensure_data_ready()

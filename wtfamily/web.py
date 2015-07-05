@@ -70,7 +70,7 @@ def event_list():
 
 #@app.route('/event/<obj_id>')
 def event_detail(obj_id):
-    obj = Event.find_one({'id': obj_id})
+    obj = Event.get(obj_id)
     if not obj:
         abort(404)
     return render_template('event_detail.html', obj=obj)
@@ -96,7 +96,7 @@ def family_list():
 
 #@app.route('/family/<obj_id>')
 def family_detail(obj_id):
-    obj = Family.find_one({'id': obj_id})
+    obj = Family.get(obj_id)
     if not obj:
         abort(404)
     return render_template('family_detail.html', obj=obj)
@@ -111,7 +111,7 @@ def person_list():
 
 #@app.route('/person/<obj_id>')
 def person_detail(obj_id):
-    obj = Person.find_one({'id': obj_id})
+    obj = Person.get(obj_id)
     if not obj:
         abort(404)
     return render_template('person_detail.html', obj=obj)
@@ -125,7 +125,7 @@ def place_list():
 
 #@app.route('/place/<obj_id>')
 def place_detail(obj_id):
-    obj = Place.find_one({'id': obj_id})
+    obj = Place.get(obj_id)
     if not obj:
         abort(404)
     return render_template('place_detail.html', obj=obj)
@@ -139,7 +139,7 @@ def source_list():
 
 #@app.route('/source/<obj_id>')
 def source_detail(obj_id):
-    obj = Source.find_one({'id': obj_id})
+    obj = Source.get(obj_id)
     if not obj:
         abort(404)
     return render_template('source_detail.html', obj=obj)
@@ -156,7 +156,7 @@ def citation_list():
 
 #@app.route('/citation/<obj_id>')
 def citation_detail(obj_id):
-    obj = Citation.find_one({'id': obj_id})
+    obj = Citation.get(obj_id)
     if not obj:
         abort(404)
     if not obj.source:

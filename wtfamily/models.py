@@ -24,10 +24,13 @@ class Entity:
         return entities[cls.entity_name]
 
     @classmethod
+    def _storage(cls):
+        return cls._get_entity_storage()
+
+    @classmethod
     def _find(cls, conditions=None):
         assert cls.entity_name != NotImplemented
-        entity_storage = cls._get_entity_storage()
-        items = entity_storage.find_and_adapt_to_legacy()
+        items = cls._storage().find_and_adapt_to_legacy()
 
         def _filter(xs):
             for p in xs:
@@ -46,6 +49,33 @@ class Entity:
             items = sorted(items, key=cls.sort_key)
         return items
 
+    def _find_refs(self, key, model):
+        try:
+            pks = _extract_refs(self._data[key])
+        except KeyError:
+            return []
+        pks = pks if isinstance(pks, list) else [pks]
+        return model.find_by_pks(pks)
+
+
+    @classmethod
+    def references_to(cls, other):
+        """
+        Returns objects of this class referencing given object.
+        """
+        other_cls = other.__class__
+        assert issubclass(other_cls, Entity)
+        key = cls.REFERENCES[other_cls.__name__]
+        for obj in cls.find():
+            refs = _extract_ids(obj, key)
+            if other.id in refs:
+                yield obj
+
+    @classmethod
+    def get(cls, pk):
+        data = cls._storage().get(pk)
+        return cls(data)
+
     @classmethod
     def find(cls, conditions=None):
         return cls._find(conditions)
@@ -56,19 +86,23 @@ class Entity:
             return p
 
     @classmethod
-    def find_by_event_ref(cls, hlink):
+    def find_by_pks(cls, pks):
+        for pk in pks:
+            yield cls.get(pk)
+
+    @classmethod
+    def find_by_event_ref(cls, pk):
         # anything except Event can reference to an Event
         for obj in cls.find():
             refs = obj._data.get('eventref')
             if not refs:
                 continue
-            if hlink in _extract_hlinks(refs):
+            if pk in _extract_refs(refs):
                 yield obj
 
     @classmethod
     def find_by_index(cls, key, value):
-        s = cls._get_entity_storage()
-        for item in s.find_by_index(key, value):
+        for item in cls._storage().find_by_index(key, value):
             yield cls(item)
 
     @property
@@ -89,11 +123,11 @@ class Family(Entity):
 
     def _get_participant(self, key):
         try:
-            hlink = self._data[key]['hlink']
+            pk = self._data[key]['id']
         except KeyError:
             return None
         else:
-            return Person.find_one({'handle': hlink})
+            return Person.find_one({'id': pk})
 
     @property
     def father(self):
@@ -105,19 +139,11 @@ class Family(Entity):
 
     @property
     def children(self):
-        try:
-            hlinks = _extract_hlinks(self._data['childref'])
-        except KeyError:
-            return []
-        return Person.find({'handle': hlinks})
+        return self._find_refs('childref', Person)
 
     @property
     def events(self):
-        try:
-            hlinks = _extract_hlinks(self._data['eventref'])
-        except KeyError:
-            return []
-        return Event.find({'handle': hlinks})
+        return self._find_refs('eventref', Event)
 
 
 class Person(Entity):
@@ -156,11 +182,7 @@ class Person(Entity):
     def events(self):
         # TODO: the `eventref` records are dicts with `hlink` and `role`.
         #       we need to somehow decorate(?) the yielded event with these roles.
-        try:
-            hlinks = _extract_hlinks(self._data['eventref'])
-        except KeyError:
-            return []
-        return Event.find({'handle': hlinks})
+        return self._find_refs('eventref', Event)
 
     @property
     def attributes(self):
@@ -171,18 +193,10 @@ class Person(Entity):
         return attribs
 
     def get_parent_families(self):
-        try:
-            hlinks = _extract_hlinks(self._data['childof'])
-        except KeyError:
-            return []
-        return Family.find({'handle': hlinks})
+        return self._find_refs('childof', Family)
 
     def get_families(self):
-        try:
-            hlinks = _extract_hlinks(self._data['parentin'])
-        except KeyError:
-            return []
-        return Family.find({'handle': hlinks})
+        return self._find_refs('parentin', Family)
 
     def get_parents(self):
         for family in self.get_parent_families():
@@ -213,6 +227,10 @@ class Person(Entity):
 class Event(Entity):
     entity_name = 'events'
     sort_key = lambda item: item.date
+    REFERENCES = {
+        'Place': 'place',
+        'Citation': 'citationref',
+    }
 
     def __repr__(self):
         #return 'Event {}'.format(self._data)
@@ -224,7 +242,6 @@ class Event(Entity):
 
     @property
     def date(self):
-        #return _dbi._format_dateval(self._data.get('dateval'))
         date = self._data.get('date')
         if date:
             return DateRepresenter(**date)
@@ -240,33 +257,29 @@ class Event(Entity):
 
     @property
     def place(self):
-        try:
-            hlinks = _extract_hlinks(self._data['place'])
-        except KeyError:
-            return
-        return Place.find_one({'handle': hlinks})
+        refs = list(self._find_refs('place', Place))
+        if refs:
+            assert len(refs) == 1
+            return refs[0]
 
     @property
     def people(self):
-        return Person.find_by_event_ref(self.handle)
+        return Person.find_by_event_ref(self.id)
 
     @property
     def families(self):
-        return Family.find_by_event_ref(self.handle)
+        return Family.find_by_event_ref(self.id)
 
     @property
     def citations(self):
-        try:
-            hlinks = _extract_hlinks(self._data['citationref'])
-        except KeyError:
-            return
-        return Citation.find({'handle': hlinks})
+        return self._find_refs('citationref', Citation)
 
     @classmethod
     def find(cls, conditions=None):
         for elem in cls._find(conditions):
             # exclude orphaned events (e.g. if the person was skipped
             # on export for whatever reason)
+            # XXX this may do a big Person query for each event
             if list(elem.people):
                 yield elem
 
@@ -301,32 +314,26 @@ class Place(Entity):
 
     @property
     def parent_places(self):
-        try:
-            hlinks = _extract_hlinks(self._data['placeref'])
-        except KeyError:
-            return
-        return self.find_by_index('handle', [hlinks])
+        return self._find_refs('placeref', Place)
 
     @property
     def nested_places(self):
-        #print( {'placeref': {'hlink': self.handle}})
-        for place in self.find_by_index('placeref.hlink', self.handle):
-            print('nested place:', place)
+        for place in self.find_by_index('placeref.id', self.id):
             yield place
 
     @property
     def events(self):
 
-        # build a list of hlinks for current place hierarchy
-        hlinks = []
+        # build a list of refs for current place hierarchy
+        refs = []
         nested_to_see = [self]
         while nested_to_see:
             place = nested_to_see.pop()
-            hlinks.append(place.handle)
+            refs.append(place.id)
             nested_to_see.extend(place.nested_places)
 
         # find events with references to any of these places
-        for event in Event.find_by_index('place.hlink', hlinks):
+        for event in Event.references_to(self):
             yield event
 
 #    @classmethod
@@ -363,13 +370,15 @@ class Source(Entity):
 
     @property
     def citations(self):
-        for citation in Citation.find():
-            if self.handle in _extract_hlinks(citation._data.get('sourceref')):
-                yield citation
+        return Citation.references_to(self)
 
 
 class Citation(Entity):
     entity_name = 'citations'
+
+    REFERENCES = {
+        'Source': 'sourceref',
+    }
 
     def __repr__(self):
         if self.page:
@@ -378,7 +387,10 @@ class Citation(Entity):
 
     @property
     def source(self):
-        return Source.find_one({'handle': self._data['sourceref']['hlink']})
+        refs = list(self._find_refs('sourceref', Source))
+        if refs:
+            assert len(refs) == 1
+            return refs[0]
 
     @property
     def page(self):
@@ -397,22 +409,11 @@ class Citation(Entity):
 
     @property
     def notes(self):
-        try:
-            hlinks = _extract_hlinks(self._data['noteref'])
-        except KeyError:
-            return
-        for note in Note.find():
-            if note.handle in hlinks:
-                yield note
+        return self._find_refs('noteref', Note)
 
     @property
     def events(self):
-        for event in Event.find():
-            ref = event._data.get('citationref')
-            if not ref:
-                continue
-            if self.handle in _extract_hlinks(ref):
-                yield event
+        return Event.references_to(self)
 
 
 class Note(Entity):
@@ -453,19 +454,27 @@ class MediaObject(Entity):
     entity_name = 'objects'
 
 
-def _extract_hlinks(ref):
+def _extract_refs(ref):
+    """
+    Returns a list of IDs (strings)
+    """
     if isinstance(ref, str):
         # 'foo'
-        ref = {'hlink': ref}
+        return [ref]
     if isinstance(ref, dict):
         # {'hlink': 'foo'}
-        ref = [ref]
+        return [ref['id']]
 
     # [{'hlink': 'foo'}]
     assert isinstance(ref, list)
 
-    return [x['hlink'] for x in ref]
+    return [x['id'] if isinstance(x, dict) else x for x in ref]
 
+def _extract_ids(obj, key):
+    value = obj._data.get(key)
+    if not value:
+        return []
+    return _extract_refs(value)
 
 def _format_date(obj_data):
     date = obj_data.get('date')
