@@ -38,8 +38,64 @@
             options.normalItemsInterval = 10;
             options.dotItemsInterval = 10;
             options.lineItemsInterval = 10;
+            options.arrowsDirection = primitives.common.GroupByType.Children;
+
+            options.hasButtons = primitives.common.Enabled.True;
+            options.onButtonClick = function (e, data) {
+                var message = "User clicked '" + data.name + "' button for item '" + data.context.title + "'.";
+                window.open('/person/' + data.context.id, '_blank'); //, 'location=yes,height=570,width=520,scrollbars=yes,status=yes');
+            };
+
+            options.onItemRender = onTemplateRender;
+            options.templates = [getPersonTemplate()];
+
+            function onTemplateRender(event, data) {
+                var item_context = data.context;
+                var fields = ['title', 'id', 'description'];
+                $.each(fields, function(i, name) {
+                    var element = data.element.find("[name=" + name + "]");
+                    if (element.text() != item_context[name]) {
+                        element.text(item_context[name]);
+                    }
+                });
+
+                // OMG, in preview mode this elem seems to be reused...
+                data.element.find('[name=title]').removeClass('gender-male').removeClass('gender-female');
+                if (item_context.gender == 'M') {
+                    data.element.find('[name=title]').addClass('gender-male');
+                } else if (item_context.gender == 'F') {
+                    data.element.find('[name=title]').addClass('gender-female');
+                }
+            }
+
+            function getPersonTemplate() {
+                var result = new primitives.orgdiagram.TemplateConfig();
+
+                result.itemTemplate =
+                  '<div class="bp-item bp-corner-all bp-item-frame">'+
+                    '<span name="title" class="bp-person-title">(TITLE)</span>'+
+                    '<div name="description" class="bp-person-description">(DESC)</div>' +
+                  '</div>';
+                result.itemSize = new primitives.common.Size(150, 80);
+                result.buttons = [
+                    new primitives.orgdiagram.ButtonConfig('detail', 'ui-icon-person', 'Detail')
+                ];
+                result.minimizedItemSize = new primitives.common.Size(3, 3);
+                result.highlightPadding = new primitives.common.Thickness(2, 2, 2, 2);
+                return result;
+            }
 
             $("#basicdiagram").famDiagram(options);
+
+            function focus_person(id) {
+                $("#basicdiagram").famDiagram({cursorItem: id});
+                $("#basicdiagram").famDiagram('update', primitives.orgdiagram.UpdateMode.Refresh)
+            }
+
+            var person_id = window.location.hash.slice(1);
+            if ( person_id ) {
+                focus_person(person_id);
+            }
         };
         $(window).load(function () {
             $.getJSON("{{ url_for('familytree_primitives_data') }}", function(data) {

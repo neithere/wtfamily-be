@@ -289,6 +289,7 @@ def familytree_primitives_data():
             'id': person.id,
             'title': person.name,
             'parents': [p.id for p in person.get_parents()],
-            'description': '{}—{}'.format(person.birth or '?', person.death or '?'),
+            'description': '{}—{}'.format(person.birth.year or '?', person.death.year or '?'),
+            'gender': person.gender,
         }
     return json.dumps([_prepare_item(p) for p in  people])

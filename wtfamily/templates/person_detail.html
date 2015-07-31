@@ -25,7 +25,7 @@
     {% endif %}
 
     {% if obj.get_parent_families() or obj.get_families %}
-        <p><a href="{{ url_for('familytreejs') }}#{{ obj.id }}">Посмотреть в семейном древе</a></p>
+        <p><a href="{{ url_for('familytree_primitives') }}#{{ obj.id }}">Посмотреть в семейном древе</a></p>
     {% else %}
         <p>Фактов о родителях или семьях нет, поэтому в семейном древе персона не отображается.</p>
     {% endif %}
