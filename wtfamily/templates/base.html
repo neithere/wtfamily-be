@@ -12,49 +12,7 @@
     <!-- Optional Bootstrap theme -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap-theme.min.css') }}">
 
-    <style type="text/css">
-        body {
-            margin-top: 50px;
-        }
-        span.icon-male   { color: blue; }
-        span.icon-female { color: red; }
-
-        /*
-         * family tree (basic primitives)
-         */
-        div.bp-item-frame {
-            background: white;
-            border: 1px solid grey;
-            font-size: .8em;
-            width: 50px;
-        }
-        div.bp-item-frame span.bp-person-title {
-            display: block;
-            position: relative;
-            padding: .5em;
-            color: white;
-            background: #033;
-            font-weight: normal;
-        }
-        div.bp-item-frame span.bp-person-title.gender-male {
-            background: Indigo;
-        }
-        div.bp-item-frame span.bp-person-title.gender-female {
-            background: MediumVioletRed;
-        }
-        div.bp-item-frame div.bp-person-description {
-            display: block;
-            position: relative;
-            padding: 1em;
-        }
-        /*
-        div.bp-item-frame span.bp-person-id {
-            display: block;
-            position: relative;
-            font-size: .6em;
-        }
-        */
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 
     {% block head %}
     {% endblock %}
