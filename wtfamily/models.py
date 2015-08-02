@@ -1,3 +1,4 @@
+from datetime import datetime
 import re
 
 from flask import g
@@ -552,7 +553,9 @@ class DateRepresenter:
     def __str__(self):
         if self.value is None:
             return '?'
+        return self._format(self.value)
 
+    def _format(self, value):
         formats = {
             self.MOD_NONE: '{}',
             self.MOD_SPAN: '{0[start]}..{0[stop]}',
@@ -562,7 +565,7 @@ class DateRepresenter:
             self.MOD_ABOUT: '≈{}',
         }
         template = formats[self.modifier]
-        val = template.format(self.value)
+        val = template.format(value)
 
         quality_abbrevs = {
             self.QUAL_ESTIMATED: 'est',
@@ -597,12 +600,45 @@ class DateRepresenter:
     def year(self):
         "Returns earliest known year as string"
         if isinstance(self.value, str):
-            return parse_date(self.value).year
+            value = self.value
         elif self.modifier in self.COMPOUND_MODIFIERS:
-            return parse_date(self.value.get('start')).year
+            value = self.value.get('start')
         else:
             return ''
+        return self._parse_to_year(value)
+
+    @property
+    def year_formatted(self):
+        if self.is_compound:
+            start, stop = self.boundaries
+            # match the structure expected by template
+            value = {
+                'start': self._parse_to_year(start) if start else '',
+                'stop':  self._parse_to_year(stop)  if stop  else '',
+            }
+        else:
+            value = self.year
+        return self._format(value)
 
     @property
     def is_estimated(self):
         return self.quality == self.QUAL_ESTIMATED
+
+    @property
+    def is_compound(self):
+        return self.modifier in self.COMPOUND_MODIFIERS
+
+    @property
+    def boundaries(self):
+        assert self.is_compound
+        return self.value.get('start'), self.value.get('stop')
+
+    def _parse_to_year(self, value):
+        if isinstance(value, int):
+            value = str(int)
+        if not isinstance(value, str):
+            raise TypeError('expected a str, got {!r}'.format(value))
+        # supplying default to avoid bug when the default day (31) was out
+        # of range for given month (e.g. 30th is the last possible DoM).
+        print('    parse_date(', repr(value),')')
+        return parse_date(value, default=datetime(1,1,1)).year

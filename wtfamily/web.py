@@ -285,11 +285,19 @@ def familytree_primitives():
 def familytree_primitives_data():
     people = sorted(Person.find(), key=lambda p: p.group_name)
     def _prepare_item(person):
+        # ethical reasons
+        if person.death.year:
+            tmpl = '{born} — {dead}'
+        else:
+            tmpl = '{born}'
+        description = tmpl.format(born=person.birth.year_formatted or '?',
+                                  dead=person.death.year_formatted or '?')
         return {
             'id': person.id,
             'title': person.name,
             'parents': [p.id for p in person.get_parents()],
-            'description': '{}—{}'.format(person.birth.year or '?', person.death.year or '?'),
+            'description': description,
+
             'gender': person.gender,
         }
     return json.dumps([_prepare_item(p) for p in  people])
