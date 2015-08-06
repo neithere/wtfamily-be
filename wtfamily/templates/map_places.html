@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+
+{% block heading %}
+    Event Density Map (Circles)
+
+    <style>
+        #map-canvas { width: 1100px; height: 600px; }
+    </style>
+    <script src="https://maps.googleapis.com/maps/api/js?v=3.exp&libraries=visualization"></script>
+    <script>
+
+var map, pointarray, heatmap;
+
+//var MY_MAPTYPE_ID = 'my_simplified_map';
+
+var places = [
+    {% for place in places %}
+        {% if place.coords %}
+            {
+                center: new google.maps.LatLng({{ place.coords.lat }},
+                                               {{ place.coords.lng }}),
+                {#% event_cnt: {{ place.events|list|length }} #}
+                title: '{{ place.title }}',
+                id: '{{ place.id }}',
+                //people: '{{ place.people }}',
+                //years: '{{ place.events_years }}',
+            },
+        {% endif %}
+    {% endfor %}
+];
+
+function initialize() {
+    var mapOptions = {
+        zoom: 8,
+        center: new google.maps.LatLng(55.55, 26.2),
+    };
+    map = new google.maps.Map(document.getElementById('map-canvas'), mapOptions);
+
+
+    var place_circle;
+    for (var i in places) {
+        var place = places[i];
+
+        var infowindow = new google.maps.InfoWindow({
+            content: '<a href="/place/'+ place.id +'">'+ place.title +'</a>',
+        });
+        var marker = new google.maps.Marker({
+            map: map,
+            title: place.title,
+            label: place.title,
+            position: place.center,
+            infowindow: infowindow,
+        });
+        google.maps.event.addListener(marker, 'click', function() {
+            console.log('Got click on marker', marker, '- will show', infowindow);
+            this.infowindow.open(map, this);
+        });
+        console.log('Added listener', infowindow, 'for click on', marker);
+    }
+    console.log('initialized');
+}
+
+google.maps.event.addDomListener(window, 'load', initialize);
+
+    </script>
+{% endblock %}
+
+{% block content %}
+
+<div id="map-canvas"></div>
+
+{% endblock %}

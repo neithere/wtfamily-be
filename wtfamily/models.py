@@ -1,6 +1,8 @@
 from datetime import datetime
+import functools
 import re
 
+from cached_property import cached_property
 from flask import g
 from dateutil.parser import parse as parse_date
 
@@ -10,6 +12,14 @@ import show_people as _dbi
 
 EVENT_TYPE_BIRTH = 'Birth'
 EVENT_TYPE_DEATH = 'Death'
+
+
+def as_list(f):
+    @functools.wraps(f)
+    def inner(*args, **kwargs):
+        retval = f(*args, **kwargs)
+        return list(retval)
+    return inner
 
 
 class Entity:
@@ -184,7 +194,8 @@ class Person(Entity):
                     return alias
         return first_found_surname or self.name
 
-    @property
+    @cached_property
+    @as_list
     def events(self):
         # TODO: the `eventref` records are dicts with `hlink` and `role`.
         #       we need to somehow decorate(?) the yielded event with these roles.
@@ -322,12 +333,16 @@ class Place(Entity):
     def parent_places(self):
         return self._find_refs('placeref', Place)
 
-    @property
+    #@property
+    @cached_property
+    @as_list
     def nested_places(self):
         for place in self.find_by_index('placeref.id', self.id):
             yield place
 
-    @property
+    #@property
+    @cached_property
+    @as_list
     def events(self):
 
         # build a list of refs for current place hierarchy
@@ -640,5 +655,5 @@ class DateRepresenter:
             raise TypeError('expected a str, got {!r}'.format(value))
         # supplying default to avoid bug when the default day (31) was out
         # of range for given month (e.g. 30th is the last possible DoM).
-        print('    parse_date(', repr(value),')')
+        #print('    parse_date(', repr(value),')')
         return parse_date(value, default=datetime(1,1,1)).year

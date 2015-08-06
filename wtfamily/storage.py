@@ -1,6 +1,7 @@
 import os
 
 import argh
+from cached_property import cached_property
 from confu import Configurable
 import yaml
 

@@ -46,6 +46,7 @@ class WTFamilyWebApp(Configurable):
         self.flask_app.route('/map/heat')(map_heatmap)
         self.flask_app.route('/map/circles')(map_circles)
         self.flask_app.route('/map/circles/integrated')(map_circles_integrated)
+        self.flask_app.route('/map/places')(map_places)
 
         self.flask_app.route('/orgchart')(orgchart)
         self.flask_app.route('/orgchart/data')(orgchart_data)
@@ -182,6 +183,11 @@ def map_circles():
 def map_circles_integrated():
     places = [p for p in Place.find() if list(p.events)]
     return render_template('map_circles_integrated.html', places=places)
+
+def map_places():
+    places = [p for p in Place.find()]
+    print('places gathered, rendering template...')
+    return render_template('map_places.html', places=places)
 
 
 #@app.route('/orgchart')
