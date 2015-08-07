@@ -31,10 +31,14 @@ if __name__ == '__main__':
     webapp = WTFamilyWebApp(conf['web'], {'storage': storage})
     etl = WTFamilyETL(conf['etl'], {'storage': storage})
 
+    import place_to_event_algo_test
+    algotest = place_to_event_algo_test.AlgoTest({'storage': storage})
+
     command_tree = {
         None: webapp.commands,
         'etl': etl.commands,
         'db': storage.commands,
+        'algotest': algotest.commands,
     }
     for namespace, commands in command_tree.items():
         cli.add_commands(commands, namespace=namespace)

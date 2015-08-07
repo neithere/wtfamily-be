@@ -30,8 +30,13 @@ class Entity:
         self._data = data
 
     @classmethod
+    def _get_root_storage(cls):
+        "This can be monkey-patched to avoid Flask's `g`"
+        return g.storage
+
+    @classmethod
     def _get_entity_storage(cls):
-        entities = g.storage._entities
+        entities = cls._get_root_storage()._entities
         return entities[cls.entity_name]
 
     @classmethod
