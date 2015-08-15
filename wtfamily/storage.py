@@ -59,11 +59,15 @@ class Storage(Configurable):
 
 
 class EntityStorage:
-    INDEXED_ATTRS = ('handle', 'place.id', 'placeref.id')
+    INDEXED_ATTRS = (
+        'place.id',
+        'placeref.id',
+        'sourceref.id',
+    )
 
     def __init__(self, basedir, entity_name, sync_on_demand=True):
         #self.basedir = basedir
-        #self.name = entity_name
+        self.name = entity_name
         self.path = os.path.join(basedir, entity_name)
 
         self._items = None
@@ -71,6 +75,9 @@ class EntityStorage:
             self._ensure_data_ready()
 
         self._init_index()
+
+    def __repr__(self):
+        return '<{} "{}">'.format(self.__class__.__name__, self.name)
 
     def _ensure_data_ready(self):
         # sync on demand
@@ -172,7 +179,9 @@ class EntityStorage:
     def find_by_index(self, key, values):
         # NOTE: as we have all possible values there, we can do complex
         # comparison operations on them, too
-        assert key in self.INDEXED_ATTRS
+        self._ensure_data_ready()
+        assert key in self.INDEXED_ATTRS, (
+            'key "{}" is not indexed'.format(key))
         if not isinstance(values, list):
             values = [values]
         for v in values:

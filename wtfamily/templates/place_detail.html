@@ -14,7 +14,10 @@
   {% if obj.parent_places %}
     <dt>В составе мест</dt>
     {% for p in obj.parent_places %}
-      <dd><a href="{{ url_for('place_detail', obj_id=p.id) }}">{{ p }}</a></dd>
+      <dd>
+        <a href="{{ url_for('place_detail', obj_id=p.id) }}">{{ p }}</a>
+        ({{ p.events|length }} событий, {{ p.nested_places|length }} мест)
+      </dd>
     {% endfor %}
   {% endif %}
 
@@ -23,6 +26,7 @@
     <dd>
       <a href="{{ url_for('place_detail', obj_id=p.id) }}">{{ p.name }}</a>
       {# <span class="text-muted">({{ p.title }})</span> #}
+      ({{ p.events|length }} событий, {{ p.nested_places|length }} мест)
     </dd>
   {% else %}
     <dd>—</dd>
@@ -30,6 +34,7 @@
 
   {% if obj.coords %}
     <dt>На карте</dt>
+    <dd><a href="{{ url_for('map_places') }}?lat={{ obj.coords.lat }}&lng={{ obj.coords.lng }}&zoom=11">на карте мест</a></dd>
     <dd><a href="https://google.com/maps/@{{ obj.coords.lat }},{{ obj.coords.lng }},13z">Google Maps</a></dd>
   {% endif %}
 </dl>

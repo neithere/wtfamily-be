@@ -1,8 +1,6 @@
 {% extends 'base.html' %}
 
 {% block heading %}
-    Event Density Map (Circles)
-
     <style>
         #map-canvas { width: 1100px; height: 600px; }
     </style>
@@ -19,20 +17,31 @@ var places = [
             {
                 center: new google.maps.LatLng({{ place.coords.lat }},
                                                {{ place.coords.lng }}),
-                {#% event_cnt: {{ place.events|list|length }} #}
-                title: '{{ place.title }}',
+                event_cnt: {{ place.events|list|length }},
+                title: '{{ place.name }} ({{ place.events_years }})',
                 id: '{{ place.id }}',
-                //people: '{{ place.people }}',
                 //years: '{{ place.events_years }}',
+                //people: '{{ place.people }}',
+                people: '{% for p in place.people %}<a href="/person/{{ p.id }}">{{ p }}</a>{% if not loop.last %}; {% endif %}{% endfor %}',
             },
         {% endif %}
     {% endfor %}
 ];
 
 function initialize() {
+
+    // http://stackoverflow.com/a/12254019/68097
+    function get(n) {
+        var half = location.search.split(n + '=')[1];
+        return half !== undefined ? decodeURIComponent(half.split('&')[0]) : null;
+    }
+
+    var lat = get('lat') || 55.55;
+    var lng = get('lng') || 26.2;
+    var zoom = parseInt(get('zoom')) || 8;
     var mapOptions = {
-        zoom: 8,
-        center: new google.maps.LatLng(55.55, 26.2),
+        zoom: zoom,
+        center: new google.maps.LatLng(lat, lng),
     };
     map = new google.maps.Map(document.getElementById('map-canvas'), mapOptions);
 
@@ -42,7 +51,9 @@ function initialize() {
         var place = places[i];
 
         var infowindow = new google.maps.InfoWindow({
-            content: '<a href="/place/'+ place.id +'">'+ place.title +'</a>',
+            content: '<a href="/place/'+ place.id +'">'+ place.title +'</a> — '
+                + place.event_cnt +' events.'
+                +'<p>'+ place.people +'</p>',
         });
         var marker = new google.maps.Marker({
             map: map,

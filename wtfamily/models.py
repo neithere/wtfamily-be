@@ -75,17 +75,21 @@ class Entity:
 
 
     @classmethod
-    def references_to(cls, other):
+    def references_to(cls, other, indexed=True):
         """
         Returns objects of this class referencing given object.
         """
         other_cls = other.__class__
         assert issubclass(other_cls, Entity)
         key = cls.REFERENCES[other_cls.__name__]
-        for obj in cls.find():
-            refs = _extract_ids(obj, key)
-            if other.id in refs:
+        if indexed:
+            for obj in cls.find_by_index(key, other.id):
                 yield obj
+        else:
+            for obj in cls.find():
+                refs = _extract_ids(obj, key)
+                if other.id in refs:
+                    yield obj
 
     @classmethod
     def get(cls, pk):
@@ -160,6 +164,15 @@ class Family(Entity):
     @property
     def events(self):
         return self._find_refs('eventref', Event)
+
+    @property
+    def people(self):
+        if self.father:
+            yield self.father
+        if self.mother:
+            yield self.mother
+        for child in self.children:
+            yield child
 
 
 class Person(Entity):
@@ -250,7 +263,7 @@ class Event(Entity):
     entity_name = 'events'
     sort_key = lambda item: item.date
     REFERENCES = {
-        'Place': 'place',
+        'Place': 'place.id',
         'Citation': 'citationref',
     }
 
@@ -345,10 +358,27 @@ class Place(Entity):
         for place in self.find_by_index('placeref.id', self.id):
             yield place
 
-    #@property
     @cached_property
     @as_list
     def events(self):
+        for event in Event.references_to(self):
+            yield event
+
+    @cached_property
+    def events_years(self):
+        dates = sorted(e.date for e in self.events if e.date)
+        if not dates:
+            return 'years unknown'
+        since = min(dates)
+        until = max(dates)
+        if since == until:
+            return since
+        else:
+            return '{.year}—{.year}'.format(since, until)
+
+    @cached_property
+    @as_list
+    def events_recursive(self):
 
         # build a list of refs for current place hierarchy
         refs = []
@@ -359,8 +389,21 @@ class Place(Entity):
             nested_to_see.extend(place.nested_places)
 
         # find events with references to any of these places
-        for event in Event.references_to(self):
-            yield event
+        for place in nested_to_see:
+            for event in Event.references_to(place):
+                yield event
+
+    @cached_property
+    @as_list
+    def people(self):
+        people = {}
+        for event in self.events:
+            for person in event.people:
+                people.setdefault(person.id, person)
+            for family in event.families:
+                for person in family.people:
+                    people.setdefault(person.id, person)
+        return people.values()
 
 #    @classmethod
 #    def find(cls, conditions=None):
@@ -403,7 +446,7 @@ class Citation(Entity):
     entity_name = 'citations'
 
     REFERENCES = {
-        'Source': 'sourceref',
+        'Source': 'sourceref.id',
     }
 
     def __repr__(self):
