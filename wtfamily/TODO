@@ -4,7 +4,7 @@ WTFamily TODO
 Storage
 -------
 
-- [ ] Remove hlinks, use IDs.
+- [x] Remove hlinks, use IDs.
 
       challenges:
 
