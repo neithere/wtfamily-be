@@ -47,6 +47,7 @@ class WTFamilyWebApp(Configurable):
         self.flask_app.route('/map/circles')(map_circles)
         self.flask_app.route('/map/circles/integrated')(map_circles_integrated)
         self.flask_app.route('/map/places')(map_places)
+        self.flask_app.route('/map/migrations/<person_ids>')(map_migrations)
 
         self.flask_app.route('/orgchart')(orgchart)
         self.flask_app.route('/orgchart/data')(orgchart_data)
@@ -120,7 +121,7 @@ def person_detail(obj_id):
 
 #@app.route('/place/')
 def place_list():
-    object_list = Place.find()
+    object_list = (p for p in Place.find() if not p._data.get('placeref'))
     return render_template('place_list.html', object_list=object_list)
 
 
@@ -184,10 +185,30 @@ def map_circles_integrated():
     places = [p for p in Place.find() if list(p.events)]
     return render_template('map_circles_integrated.html', places=places)
 
+
 def map_places():
     places = [p for p in Place.find()]
     print('places gathered, rendering template...')
     return render_template('map_places.html', places=places)
+
+
+def map_migrations(person_ids):
+    person_ids = person_ids.split(',')
+    people = list(Person.find_by_pks(person_ids))
+    places = []
+    seen = {}
+    for person in people:
+        # XXX do we need to have unique places? in fact, zero-length lines are OK, too
+        for place in person.places:
+            if place.id not in seen:
+                places.append(place)
+                seen[place.id] = True
+    #places = [p for p in Place.find()]
+
+    print(places)
+
+    print('places gathered, rendering template...')
+    return render_template('map_migrations.html', places=places, people=people)
 
 
 #@app.route('/orgchart')
@@ -302,8 +323,8 @@ def familytree_primitives_data():
             'id': person.id,
             'title': person.name,
             'parents': [p.id for p in person.get_parents()],
+            'spouses': [p.id for p in person.get_partners()],
             'description': description,
-
             'gender': person.gender,
         }
     return json.dumps([_prepare_item(p) for p in  people])

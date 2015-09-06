@@ -63,6 +63,7 @@ class EntityStorage:
         'place.id',
         'placeref.id',
         'sourceref.id',
+        'citationref.id',
     )
 
     def __init__(self, basedir, entity_name, sync_on_demand=True):

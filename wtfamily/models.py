@@ -217,7 +217,20 @@ class Person(Entity):
     def events(self):
         # TODO: the `eventref` records are dicts with `hlink` and `role`.
         #       we need to somehow decorate(?) the yielded event with these roles.
-        return self._find_refs('eventref', Event)
+        events = self._find_refs('eventref', Event)
+        return sorted(events, key=lambda e: e.date)
+
+    @cached_property
+    @as_list
+    def places(self):
+        # unique with respect to the original order (expecting events sorted by date)
+        places = []
+        seen = {}
+        for event in self.events:
+            if event.place and event.place.id not in seen:
+                places.append(event.place)
+                seen[event.place.id] = True
+        return places
 
     @property
     def attributes(self):
@@ -239,6 +252,38 @@ class Person(Entity):
                 yield family.mother
             if family.father:
                 yield family.father
+
+    def get_siblings(self):
+        for family in self.get_parent_families():
+            for child in family.children:
+                if child != self:
+                    yield child
+
+    def get_partners(self):
+        for family in self.get_families():
+            partners = family.father, family.mother
+            for partner in partners:
+                if partner and partner != self:
+                    yield partner
+
+    def get_children(self):
+        for family in self.get_families():
+            for child in family.children:
+                yield child
+
+    @cached_property
+    @as_list
+    def related_people(self):
+        parents = list(self.get_parents())
+        siblings = list(self.get_siblings())
+        partners = list(self.get_partners())
+        children = list(self.get_children())
+        people = parents + siblings + partners + children
+        seen = {}
+        for person in people:
+            if person.id not in seen:
+                yield person
+                seen[person.id] = True
 
     @property
     def birth(self):
@@ -264,7 +309,7 @@ class Event(Entity):
     sort_key = lambda item: item.date
     REFERENCES = {
         'Place': 'place.id',
-        'Citation': 'citationref',
+        'Citation': 'citationref.id',
     }
 
     def __repr__(self):

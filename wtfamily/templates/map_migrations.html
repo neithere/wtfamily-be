@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 
 {% block heading %}
+    <h1>Migrations of given people</h1>
     <style>
         #map-canvas { width: 1100px; height: 600px; }
     </style>
@@ -38,13 +39,46 @@ function initialize() {
 
     var lat = get('lat') || 55.55;
     var lng = get('lng') || 26.2;
-    var zoom = parseInt(get('zoom')) || 8;
+    var zoom = parseInt(get('zoom')) || 5;
     var mapOptions = {
         zoom: zoom,
         center: new google.maps.LatLng(lat, lng),
         scaleControl: true,
     };
     map = new google.maps.Map(document.getElementById('map-canvas'), mapOptions);
+
+    // Define a symbol using a predefined path (an arrow)
+    // supplied by the Google Maps JavaScript API.
+    var lineSymbol = {
+        path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW
+    };
+
+    {% for person in people %}
+        {% if person.places %}
+            // {{ person }}
+            new google.maps.Polyline({
+                path: [
+                {% for event in person.events %}
+                    {% if event.place.coords %}
+                    {
+                        lat: {{ event.place.coords.lat }},
+                        lng: {{ event.place.coords.lng }}
+                    },
+                    {% endif %}
+                {% endfor %}
+                ],
+                geodesic: true,
+                strokeColor: '#'+(Math.random()*0xFFFFFF<<0).toString(16),
+                strokeOpacity: 1.0,
+                strokeWeight: 2,
+                map: map,
+                icons: [{
+                    icon: lineSymbol,
+                    offset: '100%'
+                }],
+            });
+        {% endif %}
+    {% endfor %}
 
     var place_circle;
     for (var i in places) {

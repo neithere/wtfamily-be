@@ -1,19 +1,37 @@
 {% extends 'base.html' %}
 
+{% macro render_tree_of_places(places) %}
+    {% if places %}
+        <ul>
+        {% for place in places %}
+            <li>
+                <a href="{{ url_for('place_detail', obj_id=place.id) }}">{{ place.name }}</a>
+                {#% FIXME magic number #}
+                {% if place.events_years != 'years unknown' %}
+                    — известны события за {{ place.events_years }}
+                {% endif %}
+                {% if place.people %}
+                    — <abbr title="{{ place.people|join(", ") }}">{{ place.people|count }} чел.</abbr>
+                {% endif %}
+
+                {# <code>{{ place._data|pprint }}</code> #}
+                {{ render_tree_of_places(place.nested_places) }}
+            </li>
+        {% endfor %}
+        </ul>
+    {% endif %}
+{% endmacro %}
+
 {% block heading %}
     Places
 {% endblock %}
 
 {% block content %}
 
-<ul>
-{% for obj in object_list %}
-    <li>
-        <a href="{{ url_for('place_detail', obj_id=obj.id) }}">{{ obj }}</a>
-        {# <code>{{ obj._data|pprint }}</code> #}
-    </li>
-{% endfor %}
-</ul>
+<p>Место может встречаться многократно в составе других мест вследствие
+реорганизации, дробления, объединения и переподчинения с течением времени.</p>
+
+{{ render_tree_of_places(object_list) }}
 
 {% endblock %}
 

@@ -50,6 +50,7 @@
                     <li><a href="{{ url_for('map_places') }}">Places</a></li>
                     <li><a href="{{ url_for('map_circles_integrated') }}">Event Density</a></li>
                     <li><a href="{{ url_for('map_heatmap') }}">Heat</a></li>
+                    <li><a href="{{ url_for('map_migrations', person_ids='josef') }}">Migrations</a></li>
                   </ul>
                 </li>
             </ul>
@@ -60,7 +61,7 @@
     <div class="container">
 
       <div class="page-header">
-        <h1>{% block heading %}Gramps XML viewer{% endblock %}</h1>
+        <h1>{% block heading %}What The Family{% endblock %}</h1>
       </div>
 
       <article>
