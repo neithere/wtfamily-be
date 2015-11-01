@@ -5,6 +5,7 @@ import re
 from cached_property import cached_property
 from flask import g
 from dateutil.parser import parse as parse_date
+import geopy.distance
 
 # TODO: remove this
 import show_people as _dbi
@@ -189,6 +190,10 @@ class Person(Entity):
     @property
     def names(self):
         return _dbi._format_names(self._data['name'])
+
+    @property
+    def initials(self):
+        return ''.join(x[0].upper() for x in self.name.split(' ') if x)
 
     @property
     def group_name(self):
@@ -396,6 +401,18 @@ class Place(Entity):
             'lat': _normalize_coords_to_pure_degrees(coords['lat']),
             'lng': _normalize_coords_to_pure_degrees(coords['long']),
         }
+
+    @property
+    def coords_tuple(self):
+        coords = self.coords
+        if not coords:
+            return
+        return coords['lat'], coords['lng']
+
+    def distance_to(self, other):
+        if not (self.coords and other.coords):
+            return
+        return geopy.distance.vincenty(self.coords_tuple, other.coords_tuple)
 
     @property
     def parent_places(self):

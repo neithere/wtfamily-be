@@ -1,5 +1,7 @@
 {% extends 'base.html' %}
 
+{% block title -%}{{ obj.name }}{%- endblock %}
+
 {% block heading %}
     {{ obj.name }}
     <small>
@@ -122,6 +124,7 @@
     <th>Другие участники</th>
     <th>Цитаты</th>
   </tr>
+{% set prev_place = None %}
 {% for event in obj.events|sort(attribute='date') %}
   <tr>
     <td>
@@ -129,39 +132,39 @@
     </td>
     <td>
       {% if event.place %}
-        <a href="{{ url_for('place_detail', obj_id=event.place.id) }}">{{ event.place }}</a>
+        {% if prev_place and event.place.id != prev_place.id %}
+            <span class="badge">+{{ '{:.0f}'.format(prev_place.distance_to(event.place).km) }}&nbsp;км</span>
+        {% endif %}
+        <a href="{{ url_for('place_detail', obj_id=event.place.id) }}">{{ event.place.name }}</a>
       {% else %}
         ?
       {% endif %}
     </td>
-    <td>
+    <td style="min-width: 24ex;">
       {{ event.date }}
     </td>
     <td>
-      {{ event.type }}
+      <span class="label label-primary">{{ event.type }}</span>
     </td>
     <td>
-      {{ event.summary }}
+      <small>{{ event.summary }}</small>
     </td>
     <td>
-      <ul>
-      {% for p in event.people %}
-        {% if p.id != obj.id %}
-          <li><a href="{{ url_for('person_detail', obj_id=p.id) }}">{{ p }}</a></li>
-        {% endif %}
+      {% for p in event.people if p.id != obj.id %}
+        <a href="{{ url_for('person_detail', obj_id=p.id) }}" title="{{ p }}">{{ p.initials }}</a>{% if not loop.last %}, {% endif %}
       {% endfor %}
-      </ul>
     </td>
     <td>
       {% if event.citations %}
-        <ul>
         {% for c in event.citations %}
-          <li><a href="{{ url_for('citation_detail', obj_id=c.id) }}" title="{{ c.source }}">{{ c.source.abbrev or c.source }}: {{ c }}</a></li>
+          <small>{% if loop.length > 1 %}{{ loop.index }})&nbsp;{% endif %}<a href="{{ url_for('citation_detail', obj_id=c.id) }}" title="{{ c.source }}">{{ c.source.abbrev or c.source }}: {{ c }}</a></small>{% if not loop.last %}; {% endif %}
         {% endfor %}
-        <ul>
       {% endif %}
     </td>
   </tr>
+  {% if event.place %}
+    {% set prev_place = event.place %}
+  {% endif %}
 {% endfor %}
 </table>
 
