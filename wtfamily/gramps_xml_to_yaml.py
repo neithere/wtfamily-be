@@ -175,7 +175,12 @@ SCHEMATA = {
     'gramps:places': {
         opt_key('ptitle'): str,
         opt_key('pname'): [
-            {'value': str},
+            {
+                'value': str,
+                opt_key('dateval'): [ DATEVAL ],
+                opt_key('datespan'): [ DATESPAN ],
+                opt_key('daterange'): [ DATERANGE ],
+            },
         ],
         opt_key('coord'): {'long': str, 'lat': str},
         opt_key('alt_name'): [str],

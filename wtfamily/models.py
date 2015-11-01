@@ -373,7 +373,7 @@ class Place(Entity):
     entity_name = 'places'
 
     def __repr__(self):
-        return '{0.title}'.format(self)
+        return '{0.name}'.format(self)
 
     @property
     def name(self):

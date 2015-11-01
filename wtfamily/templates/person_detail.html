@@ -132,7 +132,7 @@
     </td>
     <td>
       {% if event.place %}
-        {% if prev_place and event.place.id != prev_place.id %}
+        {% if event.place.coords and prev_place and prev_place.coords and event.place.id != prev_place.id %}
             <span class="badge">+{{ '{:.0f}'.format(prev_place.distance_to(event.place).km) }}&nbsp;км</span>
         {% endif %}
         <a href="{{ url_for('place_detail', obj_id=event.place.id) }}">{{ event.place.name }}</a>
