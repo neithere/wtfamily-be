@@ -21,7 +21,8 @@ from models import DateRepresenter
 
 GRAMPS_NAMESPACE_LABEL = 'gramps'
 NAMESPACES = {
-    GRAMPS_NAMESPACE_LABEL: 'http://gramps-project.org/xml/1.6.0/',
+    #GRAMPS_NAMESPACE_LABEL: 'http://gramps-project.org/xml/1.6.0/',
+    GRAMPS_NAMESPACE_LABEL: 'http://gramps-project.org/xml/1.7.1/',
 }
 PK_FIELD_DEFAULT = 'id'
 PK_FIELD_FOR_ENTITY = {
@@ -172,8 +173,10 @@ BASE_ENTITY = {
 }
 SCHEMATA = {
     'gramps:places': {
-        'name': str,
         opt_key('ptitle'): str,
+        opt_key('pname'): [
+            {'value': str},
+        ],
         opt_key('coord'): {'long': str, 'lat': str},
         opt_key('alt_name'): [str],
         'change': datetime.datetime,

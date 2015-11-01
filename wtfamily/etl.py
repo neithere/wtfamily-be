@@ -10,8 +10,8 @@ class WTFamilyETL(Configurable):
         'storage': Storage,
     }
 
-    def import_gramps_xml(self):
-        xml_root = extract(self.gramps_xml_path)
+    def import_gramps_xml(self, path=None):
+        xml_root = extract(path or self.gramps_xml_path)
         items = transform(xml_root)
         for entity_name, pk, data in items:
             self.storage.add(entity_name, pk, data, upsert=True, commit=False)

@@ -372,7 +372,9 @@ class Place(Entity):
 
     @property
     def name(self):
-        return self._data.get('name')
+        names = self._data.get('pname')
+        assert names, 'id={} : {}'.format(self.id, self._data)
+        return names[0]['value']
 
     @property
     def title(self):
@@ -380,7 +382,10 @@ class Place(Entity):
 
     @property
     def alt_name(self):
-        return self._data.get('alt_name', [])
+        assert 'alt_name' not in self._data    # deprecated
+        names = self._data.get('pname', [])
+        alt_names = names[1:]
+        return [x['value'] for x in alt_names]
 
     @property
     def coords(self):
