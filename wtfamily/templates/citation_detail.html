@@ -1,13 +1,17 @@
 {% extends 'base.html' %}
 
+{% block breadcrumbs %}
+  <a href="{{ url_for('source_detail', obj_id=obj.source.id) }}">{{ obj.source }}</a>
+{% endblock %}
+
 {% block heading %}
-  Citation from {{ obj.source }}
+{{ obj.source.abbrev or obj.source }}: {{ obj.page or 'Unnamed citation' }} ({{ obj.date or 'unknown date' }})
 {% endblock %}
 
 {% block content %}
 
-
 <dl class="dl-horizontal">
+{#
   <dt>Source</dt>
   <dd>
     <a href="{{ url_for('source_detail', obj_id=obj.source.id) }}">{{ obj.source.title }}</a>
@@ -18,7 +22,7 @@
 
   <dt>Page</dt>
   <dd>{{ obj.page }}</dd>
-
+#}
   <dt>Notes</dt>
   <dd>
   {% for note in obj.notes %}

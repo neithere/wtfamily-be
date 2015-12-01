@@ -1,6 +1,11 @@
 body {
     margin-top: 50px;
 }
+#breadcrumbs {
+    font-size: 1.4em;
+    line-height: 1;
+}
+
 span.icon-male   { color: blue; }
 span.icon-female { color: red; }
 

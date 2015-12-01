@@ -1,7 +1,10 @@
 {% extends 'base.html' %}
 
 {% block heading %}
-    <h1>Migrations of given people</h1>
+    Migrations of given people
+{% endblock %}
+
+{% block content %}
     <style>
         #map-canvas { width: 1100px; height: 600px; }
     </style>
@@ -108,9 +111,6 @@ function initialize() {
 google.maps.event.addDomListener(window, 'load', initialize);
 
     </script>
-{% endblock %}
-
-{% block content %}
 
 <div id="map-canvas"></div>
 
