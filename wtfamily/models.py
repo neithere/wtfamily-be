@@ -377,20 +377,25 @@ class Place(Entity):
 
     @property
     def name(self):
-        names = self._data.get('pname')
+        return self.names[0]
+
+    @property
+    def names(self):
+        return [x['value'] for x in self.names_annotated]
+
+    @property
+    def names_annotated(self):
+        names = self._data.get('pname', [])
         assert names, 'id={} : {}'.format(self.id, self._data)
-        return names[0]['value']
+        return names
 
     @property
     def title(self):
         return self._data.get('ptitle')
 
     @property
-    def alt_name(self):
-        assert 'alt_name' not in self._data    # deprecated
-        names = self._data.get('pname', [])
-        alt_names = names[1:]
-        return [x['value'] for x in alt_names]
+    def alt_names(self):
+        return self.names[1:]
 
     @property
     def coords(self):

@@ -177,13 +177,14 @@ SCHEMATA = {
         opt_key('pname'): [
             {
                 'value': str,
+                opt_key('lang'): str,
                 opt_key('dateval'): [ DATEVAL ],
                 opt_key('datespan'): [ DATESPAN ],
                 opt_key('daterange'): [ DATERANGE ],
             },
         ],
         opt_key('coord'): {'long': str, 'lat': str},
-        opt_key('alt_name'): [str],
+        #opt_key('alt_name'): [str],
         'change': datetime.datetime,
         'type': str,
         opt_key('priv'): str,    # TODO: True/False

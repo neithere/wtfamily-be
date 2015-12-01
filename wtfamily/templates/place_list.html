@@ -6,6 +6,9 @@
         {% for place in places %}
             <li>
                 <a href="{{ url_for('place_detail', obj_id=place.id) }}">{{ place.name }}</a>
+                {% if place.alt_names %}
+                    ({{ place.alt_names|join(', ') }})
+                {% endif %}
                 {#% FIXME magic number #}
                 {% if place.events_years != 'years unknown' %}
                     — известны события за {{ place.events_years }}
