@@ -1,9 +1,13 @@
 body {
     margin-top: 50px;
+    font-family: Ubuntu, sans-serif;
 }
 #breadcrumbs {
     font-size: 1.4em;
     line-height: 1;
+}
+h1, h2, h3 {
+    font-family: "Ubuntu Condensed", sans-serif;
 }
 
 span.icon-male   { color: blue; }
