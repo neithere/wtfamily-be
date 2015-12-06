@@ -98,7 +98,7 @@
             }
         };
         $(window).load(function () {
-            $.getJSON("{{ url_for('familytree_primitives_data') }}", function(data) {
+            $.getJSON("{{ url_for('familytree_primitives_data', surname=request.values.get('surname')) }}", function(data) {
                 init_family_tree(data);
             });
         });

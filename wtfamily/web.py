@@ -4,7 +4,7 @@ import json
 
 from confu import Configurable
 from flask import (
-    Flask, abort, render_template, url_for, g,
+    Flask, abort, render_template, url_for, g, request,
 )
 #from werkzeug import LocalProxy
 
@@ -311,7 +311,15 @@ def familytree_primitives():
 #@app.route('/familytree-bp/data')
 def familytree_primitives_data():
     people = sorted(Person.find(), key=lambda p: p.group_name)
+    filter_surnames = set(request.values.get('surname', '').lower().split(','))
+
     def _prepare_item(person):
+        names_lowercase = (n.lower() for n in person.group_names)
+        if filter_surnames:
+            intersects = filter_surnames & set(names_lowercase)
+            if not intersects:
+                return
+
         # ethical reasons
         if person.death.year:
             tmpl = '{born} — {dead}'
@@ -327,4 +335,6 @@ def familytree_primitives_data():
             'description': description,
             'gender': person.gender,
         }
-    return json.dumps([_prepare_item(p) for p in  people])
+    prepared = (_prepare_item(p) for p in people)
+    filtered = (p for p in prepared if p)
+    return json.dumps(list(filtered))
