@@ -48,6 +48,20 @@
       {{ event }}
     </dd>
   {% endfor %}
+
+  {% if obj.people %}
+    <dt>Described People</d>
+    {% for p in obj.people %}
+      <dd><a href="{{ url_for('person_detail', obj_id=p.id) }}">{{ p }}</a></dd>
+    {% endfor %}
+  {% endif %}
+
+  {% if obj.places %}
+    <dt>Described Places</d>
+    {% for p in obj.places %}
+      <dd><a href="{{ url_for('place_detail', obj_id=p.id) }}">{{ p }}</a></dd>
+    {% endfor %}
+  {% endif %}
 </dl>
 
 {% if config.DEBUG %}

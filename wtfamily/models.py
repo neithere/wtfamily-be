@@ -178,6 +178,9 @@ class Family(Entity):
 
 class Person(Entity):
     entity_name = 'people'
+    REFERENCES = {
+        'Citation': 'citationref.id',
+    }
 
     def __repr__(self):
         #return 'Person {} {}'.format(self.name, self._data)
@@ -196,7 +199,7 @@ class Person(Entity):
         return ''.join(x[0].upper() for x in self.name.split(' ') if x)
 
     @property
-    def group_name(self):
+    def group_names(self):
         name_nodes = self._data['name']
         if not isinstance(name_nodes, list):
             name_nodes = [name_nodes]
@@ -206,7 +209,7 @@ class Person(Entity):
         for n in name_nodes:
             assert not isinstance(n, str)
             if 'group' in n:
-                return n['group']
+                yield n['group']
 
             _, primary_surnames, _, _ = _dbi._get_name_parts(n)
             for surname in primary_surnames:
@@ -214,8 +217,15 @@ class Person(Entity):
                     first_found_surname = surname
                 alias = NameMap.group_as(surname)
                 if alias:
-                    return alias
-        return first_found_surname or self.name
+                    yield alias
+
+    @property
+    def group_name(self):
+        for name in self.group_names:
+            # first found wins
+            return name
+        else:
+            return self.name
 
     @cached_property
     @as_list
@@ -244,6 +254,10 @@ class Person(Entity):
         except KeyError:
             return []
         return attribs
+
+    @property
+    def citations(self):
+        return self._find_refs('citationref', Citation)
 
     def get_parent_families(self):
         return self._find_refs('childof', Family)
@@ -371,6 +385,9 @@ class Event(Entity):
 
 class Place(Entity):
     entity_name = 'places'
+    REFERENCES = {
+        'Citation': 'citationref.id',
+    }
 
     def __repr__(self):
         return '{0.name}'.format(self)
@@ -555,6 +572,10 @@ class Citation(Entity):
     @property
     def events(self):
         return Event.references_to(self)
+
+    @property
+    def people(self):
+        return Person.references_to(self)
 
 
 class Note(Entity):

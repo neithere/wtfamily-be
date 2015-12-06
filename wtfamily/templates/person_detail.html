@@ -110,6 +110,14 @@
         <dt>{{ attr.type }}</dt>
         <dd>{{ attr.value }}</dd>
     {% endfor %}
+
+    {% if obj.citations %}
+        <dt>Цитаты</dt>
+        {% for citation in obj.citations %}
+            <dd><a href="{{ url_for('citation_detail', obj_id=citation.id)
+            }}">{{ citation.source }}: {{ citation }}</a></dd>
+        {% endfor %}
+    {% endif %}
 </dl>
 
 <!-- h2>Events</h2 -->
