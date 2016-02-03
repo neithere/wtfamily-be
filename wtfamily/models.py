@@ -218,6 +218,8 @@ class Person(Entity):
                 alias = NameMap.group_as(surname)
                 if alias:
                     yield alias
+        if first_found_surname:
+            yield first_found_surname
 
     @property
     def group_name(self):
@@ -317,6 +319,15 @@ class Person(Entity):
             if event.type == EVENT_TYPE_DEATH:
                 return event.date
         return DateRepresenter()
+
+    @property
+    def age(self):
+        if not self.birth:
+            return
+        if self.death:
+            return self.death.year - self.birth.year
+        else:
+            return datetime.date.today().year - self.birth.year
 
     @property
     def gender(self):
@@ -529,6 +540,10 @@ class Source(Entity):
     @property
     def citations(self):
         return Citation.references_to(self)
+
+    @property
+    def repository(self):
+        return '(Repository {})'.format(self._data.get('reporef'))
 
 
 class Citation(Entity):

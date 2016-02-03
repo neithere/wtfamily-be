@@ -1,5 +1,7 @@
 {% extends 'base.html' %}
 
+{% block title -%}{{ obj.abbrev }}{%- endblock %}
+
 {% block heading %}
   {{ obj.title }}
 {% endblock %}
@@ -7,6 +9,7 @@
 {% block content %}
 
 <dl class="dl-horizontal">
+  <dt>Repository</dt> <dd>{{ obj.repository }}</dd>
   <dt>Author</dt> <dd>{{ obj.author or '?' }}</dd>
   <dt>Publication</dt> <dd>{{ obj.pubinfo|urlize or '?' }}</dd>
   <dt>Citations</dt>
@@ -25,7 +28,7 @@
             {#<code>{{ citation._data|pprint }}</code>#}
             {% for note in citation.notes %}
               <blockquote>
-                <p><small>{{ note.text }}</small></p>
+                <p><small>{{ note.text|replace('\n','<br>')|safe }}</small></p>
               </blockquote>
             {% endfor %}
         </li>

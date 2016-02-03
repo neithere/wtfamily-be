@@ -10,9 +10,10 @@
       {% elif obj._data.gender == 'F' %}
         <span class="icon-female">♀</span>
       {% endif %}
-      {% if obj.birth %}☀{{ obj.birth }}{% endif %}
+      {% if obj.birth %}✶{{ obj.birth }}{% endif %}
       &nbsp;
       {% if obj.death %}✝{{ obj.death }}{% endif %}
+      {% if obj.age %}({{ obj.age }} лет){% endif %}
     </small>
 {% endblock %}
 
@@ -54,7 +55,7 @@
         {% for child in family.children|sort(attribute='birth') %}
             <dd>
                 {% if child.id == obj.id %}
-                    <span class="bg-info">{{ child }}</span>
+                    <!--span class="bg-info">{{ child }}</span-->
                 {% else %}
                     <!-- note: roles relative to the central person -->
                     {% if child.gender == 'M'  %}брат{% elif child.gender == 'F' %}сестра{% endif %}
@@ -71,7 +72,7 @@
         <dt><a href="{{ url_for('family_detail', obj_id=family.id) }}">Семья</a></dt>
         <dd>
             {% if family.father.id == obj.id %}
-                <span class="bg-info">{{ family.father }}</span>
+                <!--span class="bg-info">{{ family.father }}</span-->
             {% else %}
                 муж
                 <a href="{{ url_for('person_detail', obj_id=family.father.id) }}">
@@ -84,7 +85,7 @@
         </dd>
         <dd>
             {% if family.mother.id == obj.id %}
-                <span class="bg-info">{{ family.mother }}</span>
+                <!--span class="bg-info">{{ family.mother }}</span-->
             {% else %}
                 жена
                 <a href="{{ url_for('person_detail', obj_id=family.mother.id) }}">

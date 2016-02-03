@@ -1,5 +1,7 @@
 {% extends 'base.html' %}
 
+{% block title -%}{{ obj.source.abbrev }} {{ obj.page }}{%- endblock %}
+
 {% block breadcrumbs %}
   <a href="{{ url_for('source_detail', obj_id=obj.source.id) }}">{{ obj.source }}</a>
 {% endblock %}
@@ -10,7 +12,7 @@
 
 {% block content %}
 
-<dl class="dl-horizontal">
+<dl class="dl-horizontal" style="overflow: hidden;">
 {#
   <dt>Source</dt>
   <dd>
@@ -23,33 +25,51 @@
   <dt>Page</dt>
   <dd>{{ obj.page }}</dd>
 #}
-  <dt>Notes</dt>
-  <dd>
-  {% for note in obj.notes %}
-    <pre>{{ note.text }}</pre>
-    {#
-    <blockquote>
-      <p>{{ note.text }}</p>
-      <footer>
-        Note <cite>{{ note.id }}</cite>
-      </footer>
-    </blockquote>
-    #}
-    {% if config.DEBUG %}<code>{{ note._data|pprint }}</code>{% endif %}
-  {% endfor %}
-  </dd>
 
-  <dt>Proved Events</dt>
-  {% for event in obj.events %}
-    <dd>
-      <a href="{{ url_for('event_detail', obj_id=event.id) }}">
-        {{ event.id }}
-      </a>
-      {{ event }}
-    </dd>
-  {% endfor %}
+  {% if obj.events|list %}
+    <dt>Proved Events</dt>
+    <table class="table">
+      <thead>
+        <tr>
+            <th>ID</th>
+            <th>Dates</th>
+            <th>Place</th>
+            <th>People</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for event in obj.events %}
+        <tr>
+          <td>
+            <a href="{{ url_for('event_detail', obj_id=event.id) }}">
+              {{ event.id }}
+            </a>
+          </td>
+          <td>
+            {{ event.date }}
+          </td>
+          <td>
+            {{ event.place }}
+          </td>
+          <td>
+            {% for person in event.people %}
+              <a href="{{ url_for('person_detail', obj_id=person.id) }}">{{ person }}</a>,
+            {% endfor %}
+            {% for family in event.families %}
+              {% for person in family.people %}
+                <a href="{{ url_for('person_detail', obj_id=person.id) }}">{{ person }}</a>,
+              {% endfor %}
+            {% endfor %}
+          <td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <div class="alert alert-warning" role="alert">No events reference this citation.</div>
+  {% endif %}
 
-  {% if obj.people %}
+  {% if obj.people|list %}
     <dt>Described People</d>
     {% for p in obj.people %}
       <dd><a href="{{ url_for('person_detail', obj_id=p.id) }}">{{ p }}</a></dd>
@@ -63,6 +83,21 @@
     {% endfor %}
   {% endif %}
 </dl>
+
+{% for note in obj.notes %}
+  <!-- note id={{ note.id }} -->
+  <p>{{ note.text|replace('  ', '&nbsp;&nbsp;')|replace('\n','<br>')|safe }}</p>
+    {#
+    <blockquote>
+      <p>{{ note.text }}</p>
+      <footer>
+        Note <cite>{{ note.id }}</cite>
+      </footer>
+    </blockquote>
+    #}
+    {% if config.DEBUG %}<code>{{ note._data|pprint }}</code>{% endif %}
+    {% if not loop.last %}<hr/>{% endif %}
+{% endfor %}
 
 {% if config.DEBUG %}
   <h2>Debug</h2>

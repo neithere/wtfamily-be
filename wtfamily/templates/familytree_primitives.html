@@ -1,5 +1,7 @@
 {% extends 'base.html' %}
 
+{% block title -%}Family Chart{%- endblock %}
+
 {% block heading %}
   Family Tree using Basic Primitives
 {% endblock %}
@@ -22,7 +24,7 @@
 
   <script type='text/javascript'>
         function init_family_tree (items) {
-            console.log(items);
+            //console.log(items);
             var options = new primitives.orgdiagram.Config();
 
             options.items = items;

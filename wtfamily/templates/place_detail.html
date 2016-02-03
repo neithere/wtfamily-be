@@ -1,5 +1,7 @@
 {% extends 'base.html' %}
 
+{% block title -%}{{ obj.title }}{%- endblock %}
+
 {% block heading %}
   {{ obj.name }}
   <small>{{ obj.title }}</small>
