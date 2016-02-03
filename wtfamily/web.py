@@ -311,7 +311,22 @@ def familytree_primitives():
 #@app.route('/familytree-bp/data')
 def familytree_primitives_data():
     people = sorted(Person.find(), key=lambda p: p.group_name)
-    filter_surnames = set(request.values.get('surname', '').lower().split(','))
+    filter_surnames = set(x for x in request.values.get('surname', '').lower().split(',') if x)
+
+    # only find ancestors of given person
+    ancestors, descendants = None, None
+    ancestors_of = request.values.get('ancestors_of')
+    if ancestors_of:
+        central_person = Person.get(ancestors_of)
+        ancestors = central_person.find_ancestors()
+
+    descendants_of = request.values.get('descendants_of')
+    if descendants_of:
+        central_person = Person.get(descendants_of)
+        descendants = central_person.find_descendants()
+
+    if ancestors_of or descendants_of:
+        people = set(list(ancestors)) | set(list(descendants))
 
     def _prepare_item(person):
         names_lowercase = (n.lower() for n in person.group_names)

@@ -28,15 +28,25 @@
     {% endif %}
 
     {% if obj.get_parent_families() or obj.get_families %}
-        <p><a href="{{ url_for('familytree_primitives') }}#{{ obj.id }}">Посмотреть в семейном древе</a></p>
+        <p>Посмотреть семейное древо:</p>
+        <ul>
+            <li><a href="{{ url_for('familytree_primitives') }}?ancestors_of={{ obj.id }}&descendants_of={{ obj.id}}#{{ obj.id }}">Предки и
+                  потомки</a></li>
+            <li><a href="{{ url_for('familytree_primitives') }}?ancestors_of={{ obj.id }}#{{ obj.id }}">Предки</a></li>
+            <li><a href="{{ url_for('familytree_primitives') }}?descendants_of={{ obj.id }}#{{ obj.id }}">Потомки</a></li>
+            <li><a href="{{ url_for('familytree_primitives') }}#{{ obj.id }}">Без фильтрации</a></li>
+        </ul>
     {% else %}
         <p>Фактов о родителях или семьях нет, поэтому в семейном древе персона не отображается.</p>
     {% endif %}
 
-    {% if obj.places %}
-        <p><a href="{{ url_for('map_migrations', person_ids=obj.id) }}">Посмотреть перемещения на карте</a></p>
-    {% endif %}
-    <p><a href="{{ url_for('map_migrations', person_ids=obj.related_people|join(',', attribute='id')) }}">Посмотреть перемещения всех связанных лиц на карте</a></p>
+    <p>На карте:</p>
+    <ul>
+        {% if obj.places %}
+            <li><a href="{{ url_for('map_migrations', person_ids=obj.id) }}">Этот человек</a></li>
+        {% endif %}
+        <li><a href="{{ url_for('map_migrations', person_ids=obj.related_people|join(',', attribute='id')) }}">Все связанные лица</a></li>
+    </ul>
 
     {% for family in obj.get_parent_families() %}
         <dt><a href="{{ url_for('family_detail', obj_id=family.id) }}">Семья родителей</a></dt>

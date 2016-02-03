@@ -42,16 +42,17 @@
             options.lineItemsInterval = 10;
             options.arrowsDirection = primitives.common.GroupByType.Children;
 
+
             options.hasButtons = primitives.common.Enabled.True;
             options.onButtonClick = function (e, data) {
                 var message = "User clicked '" + data.name + "' button for item '" + data.context.title + "'.";
                 window.open('/person/' + data.context.id, '_blank'); //, 'location=yes,height=570,width=520,scrollbars=yes,status=yes');
             };
 
-            options.onItemRender = onTemplateRender;
+            options.onItemRender = onItemRender;
             options.templates = [getPersonTemplate()];
 
-            function onTemplateRender(event, data) {
+            function onItemRender(event, data) {
                 var item_context = data.context;
                 var fields = ['title', 'id', 'description'];
                 $.each(fields, function(i, name) {
@@ -100,9 +101,18 @@
             }
         };
         $(window).load(function () {
-            $.getJSON("{{ url_for('familytree_primitives_data', surname=request.values.get('surname')) }}", function(data) {
+            var params = {};
+            window.location.search.replace(/[?&]+([^=&]+)=([^&]*)/gi, function(str,key,value) { params[key] = value; });
+            var url = "{{ url_for('familytree_primitives_data') }}";
+            var data = {
+                surname: params.surname,
+                ancestors_of: params.ancestors_of,
+                descendants_of: params.descendants_of,
+            };
+            var callback = function(data) {
                 init_family_tree(data);
-            });
+            };
+            $.getJSON(url, data, callback);
         });
 
   </script>

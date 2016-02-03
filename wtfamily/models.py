@@ -30,6 +30,16 @@ class Entity:
     def __init__(self, data):
         self._data = data
 
+    def __eq__(self, other):
+        if type(self) == type(other) and self.id == other.id:
+            return True
+        else:
+            return False
+
+    def __hash__(self):
+        # for `set([p1, p2])` etc.
+        return hash('{} {}'.format(type(self), self.id))
+
     @classmethod
     def _get_root_storage(cls):
         "This can be monkey-patched to avoid Flask's `g`"
@@ -291,6 +301,22 @@ class Person(Entity):
         for family in self.get_families():
             for child in family.children:
                 yield child
+
+    def find_ancestors(self):
+        stack = [self]
+        while stack:
+            p = stack.pop()
+            yield p
+            for parent in p.get_parents():
+                stack.append(parent)
+
+    def find_descendants(self):
+        stack = [self]
+        while stack:
+            p = stack.pop()
+            yield p
+            for child in p.get_children():
+                stack.append(child)
 
     @cached_property
     @as_list
