@@ -33,9 +33,32 @@ Storage
 
 - [x] Split items into separate YAML files.
 - [ ] Refactor.
+- [ ] Caching.  (implement as late as possible.)
+
+Import/Export
+-------------
+
 - [ ] Unify models with validation schemata.
 - [ ] Add ETL option: delete local items not found in imported data
-- [ ] Caching.  (implement as late as possible.)
+- [ ] Export to GrampsXML
+- [ ] Export to GEDCOM
+
+Access Control
+--------------
+
+- [ ] Hide information marked as private unless a certain HTTP header is present
+
+Linked Entities Management
+--------------------------
+
+- [ ] CLI tool to create files with pre-filled boilerplate + auto-update related ones
+
+  e.g. `add person --fullname=John\ Doe --child-of=alice --father-of=peter`
+  or `add event --who=john_doe --what=birth --where=london --source=citation123`
+
+- [ ] CLI tool to link existing entities without editor
+
+  e.g. `update person john_doe --child-of=alice_doe --born=est\ 1775`
 
 Web interface
 -------------
