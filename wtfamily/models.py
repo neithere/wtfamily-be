@@ -507,15 +507,15 @@ class Place(Entity):
     def events_recursive(self):
 
         # build a list of refs for current place hierarchy
-        refs = []
+        places = []
         nested_to_see = [self]
         while nested_to_see:
             place = nested_to_see.pop()
-            refs.append(place.id)
+            places.append(place)
             nested_to_see.extend(place.nested_places)
 
         # find events with references to any of these places
-        for place in nested_to_see:
+        for place in places:
             for event in Event.references_to(place):
                 yield event
 

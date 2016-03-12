@@ -52,7 +52,7 @@
     <th>People</th>
     <th>Summary</th>
   </tr>
-{% for event in obj.events|sort(attribute='date') %}
+{% for event in obj.events_recursive|sort(attribute='date') %}
   <tr>
     <td>
       <a href="{{ url_for('event_detail', obj_id=event.id) }}">{{ event.id }}</a>
