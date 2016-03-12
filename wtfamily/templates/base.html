@@ -60,6 +60,7 @@
 
     <div class="container">
 
+      {% block pageheader %}
       <div class="page-header">
         <div id="breadcrumbs">
             {% block breadcrumbs %}
@@ -67,6 +68,7 @@
         </div>
         <h1>{% block heading %}What The Family{% endblock %}</h1>
       </div>
+      {% endblock %}
 
       <article>
         {% block content %}

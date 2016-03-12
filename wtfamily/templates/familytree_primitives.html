@@ -2,8 +2,7 @@
 
 {% block title -%}Family Chart{%- endblock %}
 
-{% block heading %}
-  Family Tree using Basic Primitives
+{% block pageheader %}
 {% endblock %}
 
 {% block head %}
@@ -101,6 +100,8 @@
             }
         };
         $(window).load(function () {
+
+            // parse query string, use some params to filter data on back-end
             var params = {};
             window.location.search.replace(/[?&]+([^=&]+)=([^&]*)/gi, function(str,key,value) { params[key] = value; });
             var url = "{{ url_for('familytree_primitives_data') }}";
@@ -111,9 +112,15 @@
             };
             var callback = function(data) {
                 init_family_tree(data);
+
+                // NOTE: how to add items dynamically:
+                /*
+                diagram = $('#basicdiagram').data('uiFamDiagram')
+                diagram.options.items.push({title:'foeu',id:'Whut', parents:['akulina']})
+                diagram.update()
+                */
             };
             $.getJSON(url, data, callback);
         });
-
   </script>
 {% endblock %}

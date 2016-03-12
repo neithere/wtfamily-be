@@ -30,11 +30,10 @@
     {% if obj.get_parent_families() or obj.get_families %}
         <p>Посмотреть семейное древо:</p>
         <ul>
-            <li><a href="{{ url_for('familytree_primitives') }}?ancestors_of={{ obj.id }}&descendants_of={{ obj.id}}#{{ obj.id }}">Предки и
-                  потомки</a></li>
-            <li><a href="{{ url_for('familytree_primitives') }}?ancestors_of={{ obj.id }}#{{ obj.id }}">Предки</a></li>
-            <li><a href="{{ url_for('familytree_primitives') }}?descendants_of={{ obj.id }}#{{ obj.id }}">Потомки</a></li>
-            <li><a href="{{ url_for('familytree_primitives') }}#{{ obj.id }}">Без фильтрации</a></li>
+            <li><a href="{{ url_for('familytree_primitives') }}?ancestors_of={{ obj.id }}&descendants_of={{ obj.id}}#{{ obj.id }}">Предки и потомки</a> (hourglass)</li>
+            <li><a href="{{ url_for('familytree_primitives') }}?ancestors_of={{ obj.id }}#{{ obj.id }}">Предки</a> (древо)</li>
+            <li><a href="{{ url_for('familytree_primitives') }}?descendants_of={{ obj.id }}#{{ obj.id }}">Потомки</a> (перевернутое древо)</li>
+            <li><a href="{{ url_for('familytree_primitives') }}#{{ obj.id }}">Без фильтрации</a> (все известные люди)</li>
         </ul>
     {% else %}
         <p>Фактов о родителях или семьях нет, поэтому в семейном древе персона не отображается.</p>

@@ -39,5 +39,5 @@ div.bp-item-frame span.bp-person-title.gender-female {
 div.bp-item-frame div.bp-person-description {
     display: block;
     position: relative;
-    padding: 1em;
+    padding: .5em 1em;
 }
