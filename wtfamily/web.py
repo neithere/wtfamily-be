@@ -326,7 +326,7 @@ def familytree_primitives_data():
         descendants = central_person.find_descendants()
 
     if ancestors_of or descendants_of:
-        people = set(list(ancestors)) | set(list(descendants))
+        people = set(list(ancestors or [])) | set(list(descendants or []))
 
     def _prepare_item(person):
         names_lowercase = (n.lower() for n in person.group_names)
