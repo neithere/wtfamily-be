@@ -24,7 +24,7 @@
   {% endif %}
 
   <dt>Содержит</dt>
-  {% for p in obj.nested_places %}
+  {% for p in obj.nested_places|sort(attribute='name') %}
     <dd>
       <a href="{{ url_for('place_detail', obj_id=p.id) }}">{{ p.name }}</a>
       {# <span class="text-muted">({{ p.title }})</span> #}

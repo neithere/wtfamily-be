@@ -514,10 +514,15 @@ class Place(Entity):
             places.append(place)
             nested_to_see.extend(place.nested_places)
 
+        events_seen = {}
+
         # find events with references to any of these places
         for place in places:
             for event in Event.references_to(place):
+                if event.id in events_seen:
+                    continue
                 yield event
+                events_seen[event.id] = True
 
     @cached_property
     @as_list
