@@ -1,7 +1,4 @@
-def _format_names(name_node):
-    if not isinstance(name_node, list):
-        name_node = [name_node]
-    return [_format_name(n) for n in name_node]
+NAME_TEMPLATE = '{first} {patronymic} {primary} ({nonpatronymic})'
 
 
 def _get_name_parts(name_node):
@@ -48,9 +45,14 @@ def _get_name_parts(name_node):
     return first, primary_surnames, patronymic, nonpatronymic
 
 
-def _format_name(name_node):
+def _format_names(name_node, template=NAME_TEMPLATE):
+    if not isinstance(name_node, list):
+        name_node = [name_node]
+    return [_format_name(n, template=template) for n in name_node]
+
+
+def _format_name(name_node, template=NAME_TEMPLATE):
     #template = '{primary} ({nonpatronymic}), {first} {patronymic}'
-    template = '{first} {patronymic} {primary} ({nonpatronymic})'
 
     first, primary_surnames, patronymic, nonpatronymic = _get_name_parts(name_node)
 

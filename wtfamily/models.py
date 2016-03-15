@@ -185,24 +185,47 @@ class Family(Entity):
         for child in self.children:
             yield child
 
+    def get_partner_for(self, person):
+        assert person in (self.father, self.mother)
+        if person != self.father:
+            return self.father
+        else:
+            return self.mother
+
 
 class Person(Entity):
     entity_name = 'people'
     REFERENCES = {
         'Citation': 'citationref.id',
     }
+    NAME_TEMPLATE = '{first} {patronymic} {primary} ({nonpatronymic})'
 
     def __repr__(self):
         #return 'Person {} {}'.format(self.name, self._data)
         return '{}'.format(self.name)
 
-    @property
-    def name(self):
-        return _dbi._format_names(self._data['name'])[0]
+    def _format_all_names(self, template=NAME_TEMPLATE):
+        names = self._data['name']
+        return _dbi._format_names(names, template) or []
+
+    def _format_one_name(self, template=NAME_TEMPLATE):
+        return self._format_all_names(template)[0]
 
     @property
     def names(self):
-        return _dbi._format_names(self._data['name'])
+        return self._format_all_names()
+
+    @property
+    def name(self):
+        return self._format_one_name()
+
+    @property
+    def first_and_last_names(self):
+        return self._format_one_name('{first} {primary}')
+
+    @property
+    def first_name(self):
+        return self._format_one_name('{first}')
 
     @property
     def initials(self):
@@ -761,7 +784,7 @@ class DateRepresenter:
         formats = {
             self.MOD_NONE: '{}',
             self.MOD_SPAN: '{0[start]}..{0[stop]}',
-            self.MOD_RANGE: '{0[start]}-{0[stop]}',
+            self.MOD_RANGE: '[{0[start]}/{0[stop]}]',
             self.MOD_BEFORE: '<{}',
             self.MOD_AFTER: '{}+',
             self.MOD_ABOUT: '≈{}',
@@ -835,12 +858,23 @@ class DateRepresenter:
         assert self.is_compound
         return self.value.get('start'), self.value.get('stop')
 
-    def _parse_to_year(self, value):
+    @property
+    def delta(self):
+        if self.modifier == self.MOD_SPAN:
+            start, stop = (self._parse_to_datetime(x) for x in self.boundaries)
+            assert start and stop
+            # TODO format properly for humans
+            return (stop - start).days
+
+    def _parse_to_datetime(self, value):
         if isinstance(value, int):
-            value = str(int)
+            return datetime(value)
         if not isinstance(value, str):
             raise TypeError('expected a str, got {!r}'.format(value))
         # supplying default to avoid bug when the default day (31) was out
         # of range for given month (e.g. 30th is the last possible DoM).
         #print('    parse_date(', repr(value),')')
-        return parse_date(value, default=datetime(1,1,1)).year
+        return parse_date(value, default=datetime(1,1,1))
+
+    def _parse_to_year(self, value):
+        return self._parse_to_datetime(value).year
