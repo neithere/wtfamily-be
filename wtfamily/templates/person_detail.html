@@ -1,9 +1,32 @@
 {% extends 'base.html' %}
 
 {% macro life_years(person) %}
-    {% if person.birth %}✶{{ person.birth }}{% endif %}
-    &nbsp;
-    {% if person.death %}✝{{ person.death }}{% endif %}
+  {% if person.birth %}✶{{ person.birth }}{% endif %}
+  &nbsp;
+  {% if person.death %}✝{{ person.death }}{% endif %}
+{% endmacro %}
+
+{% macro event_type(type) %}
+  {% set glyphicon = '' %}
+  {% if type in ('Residence', 'Census') %}
+    {% set icon = 'home' %}
+  {% elif type in ('Travel', 'Поездка') %}
+    {% set icon = 'road' %}
+  {% elif type in ('Education', 'Graduation', 'Degree') %}
+    {% set icon = 'education' %}
+  {% elif type == 'Occupation' %}
+    {% set icon = 'briefcase' %}
+  {% elif type in ('Award', 'Nobility Title') %}
+    {% set icon = 'certificate' %}
+  {% elif type == 'Military Sjjvice' %}
+    {% set icon = 'flag' %}
+  {% endif %}
+
+  {% if icon -%}
+    <span class="glyphicon glyphicon-{{ icon }}" aria-hidden="true"></span>
+  {%- endif -%}
+  &nbsp;
+  {{- type }}
 {% endmacro %}
 
 {% block title -%}{{ obj.name }}{%- endblock %}
@@ -67,7 +90,7 @@
             <a href="{{ url_for('family_detail', obj_id=family.id) }}">
                 Семья родителей
                 {%- if obj.get_parent_families()|list|length > 1 %}
-                    ({{ family.father.first_name }} + {{ family.mother.first_name }})
+                    ({{ family.father.first_name or '?' }} + {{ family.mother.first_name or '?' }})
                 {% endif -%}
             </a>
         </h2>
@@ -123,9 +146,13 @@
                 ?
             {% endif %}
 
-            <a href="{{ url_for('person_detail', obj_id=partner.id) }}">
-              {{ partner or '?' }}
-            </a>
+            {% if partner %}
+              <a href="{{ url_for('person_detail', obj_id=partner.id) }}">
+                {{ partner or '?' }}
+              </a>
+            {% else %}
+              неизвест.
+            {% endif %}
 
             {{ life_years(partner) }}
         </p>
@@ -141,7 +168,21 @@
                 {% for family in child.get_families() %}
                   <p style="padding-left: 2em;">
                       {% set child_partner = family.get_partner_for(child) %}
-                      + <a href="{{ url_for('person_detail', obj_id=child_partner.id) }}">{{ child_partner }}</a>
+                      +
+                      {% if child_partner %}
+                        <a href="{{ url_for('person_detail', obj_id=child_partner.id) }}">{{ child_partner }}</a>
+                      {% else %}
+                        неизвест.
+                        {#
+                        {% if child.is_male %}
+                          неизвестная супруга
+                        {% elif child.is_female %}
+                          неизвестный супруг
+                        {% else %}
+                          неизвестный партнер
+                        {% endif %}
+                        #}
+                      {% endif %}
                       {% if family.children %}
                         ({{ family.children|list|length }} детей)
                       {% endif %}
@@ -172,6 +213,7 @@
     <th>Цитаты</th>
   </tr>
 {% set prev_place = None %}
+{% set prev_date = None %}
 {% for event in obj.events|sort(attribute='date') %}
   <tr>
     <td>
@@ -188,13 +230,27 @@
       {% endif %}
     </td>
     <td style="min-width: 24ex;">
-      {{ event.date }}
-      {% if event.date.delta %}
-          ({{ event.date.delta }} дней)
+      {% if event.date %}
+          {{ event.date }}
+
+          {% if prev_date and event.date.delta_compared(prev_date) %}
+            <p class="text-muted">
+              {% if event.date.is_approximate or prev_date.is_approximate %}
+                примерно
+              {% endif %}
+              {{ event.date.delta_compared(prev_date) | format_timedelta(add_direction=True, granularity='day', locale='ru') }}
+            </p>
+          {% endif %}
+
+          {% if event.date.delta %}
+            {# (в течение {{ event.date.delta }} дней) #}
+            ({{ event.date.delta | format_timedelta(granularity='day', locale='ru') }})
+          {% endif %}
+
       {% endif %}
     </td>
     <td>
-      <span class="label label-primary">{{ event.type }}</span>
+      {{ event_type(event.type) }}
     </td>
     <td>
       <small>{{ event.summary }}</small>
@@ -214,6 +270,9 @@
   </tr>
   {% if event.place %}
     {% set prev_place = event.place %}
+  {% endif %}
+  {% if event.date %}
+    {% set prev_date = event.date %}
   {% endif %}
 {% endfor %}
 </table>

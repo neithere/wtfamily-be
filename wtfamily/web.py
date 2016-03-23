@@ -2,6 +2,7 @@ from collections import OrderedDict
 import json
 #import os
 
+import babel.dates
 from confu import Configurable
 from flask import (
     Flask, abort, render_template, url_for, g, request,
@@ -55,6 +56,8 @@ class WTFamilyWebApp(Configurable):
         self.flask_app.route('/familytree.json')(familytreejs_json)
         self.flask_app.route('/familytree-bp')(familytree_primitives)
         self.flask_app.route('/familytree-bp/data')(familytree_primitives_data)
+
+        self.flask_app.template_filter('format_timedelta')(babel.dates.format_timedelta)
 
         self.flask_app.run(debug=self.debug)
 

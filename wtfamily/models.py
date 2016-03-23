@@ -1,7 +1,8 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 import functools
 import re
 
+import babel.dates
 from cached_property import cached_property
 from flask import g
 from dateutil.parser import parse as parse_date
@@ -200,6 +201,10 @@ class Person(Entity):
     }
     NAME_TEMPLATE = '{first} {patronymic} {primary} ({nonpatronymic})'
 
+    # these are for templates, etc.
+    GENDER_MALE = 'M'
+    GENDER_FEMALE = 'F'
+
     def __repr__(self):
         #return 'Person {} {}'.format(self.name, self._data)
         return '{}'.format(self.name)
@@ -381,6 +386,14 @@ class Person(Entity):
     @property
     def gender(self):
         return self._data['gender']
+
+    @property
+    def is_male(self):
+        return self.gender == self.GENDER_MALE
+
+    @property
+    def is_female(self):
+        return self.gender == self.GENDER_FEMALE
 
 
 class Event(Entity):
@@ -854,6 +867,10 @@ class DateRepresenter:
         return self.modifier in self.COMPOUND_MODIFIERS
 
     @property
+    def is_approximate(self):
+        return self.is_estimated or self.modifier == self.MOD_RANGE
+
+    @property
     def boundaries(self):
         assert self.is_compound
         return self.value.get('start'), self.value.get('stop')
@@ -864,7 +881,26 @@ class DateRepresenter:
             start, stop = (self._parse_to_datetime(x) for x in self.boundaries)
             assert start and stop
             # TODO format properly for humans
-            return (stop - start).days
+            return stop - start
+
+    @property
+    def earliest_datetime(self):
+        if self.is_compound:
+            value = self.boundaries[0]
+        else:
+            value = self.value
+        return self._parse_to_datetime(value)
+
+    @property
+    def latest_datetime(self):
+        if self.is_compound:
+            value = self.boundaries[-1]
+        else:
+            value = self.value
+        return self._parse_to_datetime(value)
+
+    def delta_compared(self, other):
+        return self.earliest_datetime - other.latest_datetime
 
     def _parse_to_datetime(self, value):
         if isinstance(value, int):
