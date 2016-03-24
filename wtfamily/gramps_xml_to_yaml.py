@@ -55,7 +55,7 @@ GRAMPS_ENTITIES = (
 SINGLE_VALUE_FIELDS = (
     # generic
     'id',
-    'handle',
+    'handle',    # Gramps-specific internal ID
     'change',    # last changed timestamp
     'priv',      # is this a private record?
 
@@ -171,102 +171,105 @@ BASE_ENTITY = {
     'id': str,
     'handle': str,
 }
+PLACE_SCHEMA = {
+    opt_key('ptitle'): str,
+    opt_key('pname'): [
+        {
+            'value': str,
+            opt_key('lang'): str,
+            opt_key('dateval'): [ DATEVAL ],
+            opt_key('datespan'): [ DATESPAN ],
+            opt_key('daterange'): [ DATERANGE ],
+        },
+    ],
+    opt_key('coord'): {'long': str, 'lat': str},
+    #opt_key('alt_name'): [str],
+    'change': datetime.datetime,
+    'type': str,
+    opt_key('priv'): str,    # TODO: True/False
+    opt_key('url'): LIST_OF_URLS,
+
+    opt_key('placeref'): [
+        {
+            'hlink': str,
+            opt_key('dateval'): [ DATEVAL ],
+            opt_key('datespan'): [ DATESPAN ],
+            opt_key('daterange'): [ DATERANGE ],
+        },
+    ],
+    opt_key('citationref'): LIST_OF_HLINKS,  # TODO LIST_OF_IDS
+    opt_key('noteref'): LIST_OF_HLINKS,      # TODO LIST_OF_IDS
+}
+PERSON_SCHEMA = {
+    'name': [
+        IsA(str)
+        | {
+            'type': str,
+            opt_key('first'): str,
+            opt_key('surname'): [
+                IsA(str)
+                | {
+                    'text': str,
+                    opt_key('derivation'): str,
+                    opt_key('prim'): str,       # TODO True/False (primary? flag)
+                },
+            ],
+            opt_key('nick'): str,
+            opt_key('citationref'): LIST_OF_HLINKS,
+            opt_key('priv'): str,     # TODO bool
+            opt_key('alt'): str,     # TODO bool
+            opt_key('group'): str,    # group as...
+            opt_key('dateval'): [ DATEVAL ],
+            opt_key('group'): str,    # an individual namemap
+        },
+    ],
+    'gender': one_of(['M', 'F']),
+
+    opt_key('childof'): LIST_OF_HLINKS,
+    opt_key('parentin'): LIST_OF_HLINKS,
+
+    opt_key('url'): LIST_OF_URLS,
+    opt_key('priv'): str,    # TODO bool
+    opt_key('url'): LIST_OF_URLS,
+    opt_key('address'): [ ADDRESS ],
+
+    'change': datetime.datetime,
+
+    opt_key('objref'): [
+        {
+            'hlink': str,
+            opt_key('region'): [
+                {
+                    'corner1_y': str,
+                    'corner2_y': str,
+                    'corner1_x': str,
+                    'corner2_x': str,
+                },
+            ],
+        },
+    ],
+    opt_key('eventref'): [
+        {
+            'hlink': str,
+            opt_key('role'): str,
+            opt_key('attribute'): [ ATTRIBUTE ],
+        },
+    ],
+    opt_key('noteref'): LIST_OF_HLINKS,               # TODO LIST_OF_IDS_WITH_ROLES
+    opt_key('citationref'): LIST_OF_HLINKS,           # TODO LIST_OF_IDS_WITH_ROLES
+    opt_key('personref'): [
+        {
+            'rel': str,    # напр., "крёстный отец"
+            'hlink': str,
+            opt_key('citationref'): LIST_OF_HLINKS,
+        }
+    ],
+    opt_key('attribute'): [ ATTRIBUTE ],
+}
+
 SCHEMATA = {
-    'gramps:places': {
-        opt_key('ptitle'): str,
-        opt_key('pname'): [
-            {
-                'value': str,
-                opt_key('lang'): str,
-                opt_key('dateval'): [ DATEVAL ],
-                opt_key('datespan'): [ DATESPAN ],
-                opt_key('daterange'): [ DATERANGE ],
-            },
-        ],
-        opt_key('coord'): {'long': str, 'lat': str},
-        #opt_key('alt_name'): [str],
-        'change': datetime.datetime,
-        'type': str,
-        opt_key('priv'): str,    # TODO: True/False
-        opt_key('url'): LIST_OF_URLS,
-
-        opt_key('placeref'): [
-            {
-                'hlink': str,
-                opt_key('dateval'): [ DATEVAL ],
-                opt_key('datespan'): [ DATESPAN ],
-                opt_key('daterange'): [ DATERANGE ],
-            },
-        ],
-        opt_key('citationref'): LIST_OF_HLINKS,  # TODO LIST_OF_IDS
-        opt_key('noteref'): LIST_OF_HLINKS,      # TODO LIST_OF_IDS
-    },
-    'gramps:people': {
-        'name': [
-            IsA(str)
-            | {
-                'type': str,
-                opt_key('first'): str,
-                opt_key('surname'): [
-                    IsA(str)
-                    | {
-                        'text': str,
-                        opt_key('derivation'): str,
-                        opt_key('prim'): str,       # TODO True/False (primary? flag)
-                    },
-                ],
-                opt_key('nick'): str,
-                opt_key('citationref'): LIST_OF_HLINKS,
-                opt_key('priv'): str,     # TODO bool
-                opt_key('alt'): str,     # TODO bool
-                opt_key('group'): str,    # group as...
-                opt_key('dateval'): [ DATEVAL ],
-                opt_key('group'): str,    # an individual namemap
-            },
-        ],
-        'gender': one_of(['M', 'F']),
-
-        opt_key('childof'): LIST_OF_HLINKS,
-        opt_key('parentin'): LIST_OF_HLINKS,
-
-        opt_key('url'): LIST_OF_URLS,
-        opt_key('priv'): str,    # TODO bool
-        opt_key('url'): LIST_OF_URLS,
-        opt_key('address'): [ ADDRESS ],
-
-        'change': datetime.datetime,
-
-        opt_key('objref'): [
-            {
-                'hlink': str,
-                opt_key('region'): [
-                    {
-                        'corner1_y': str,
-                        'corner2_y': str,
-                        'corner1_x': str,
-                        'corner2_x': str,
-                    },
-                ],
-            },
-        ],
-        opt_key('eventref'): [
-            {
-                'hlink': str,
-                opt_key('role'): str,
-                opt_key('attribute'): [ ATTRIBUTE ],
-            },
-        ],
-        opt_key('noteref'): LIST_OF_HLINKS,               # TODO LIST_OF_IDS_WITH_ROLES
-        opt_key('citationref'): LIST_OF_HLINKS,           # TODO LIST_OF_IDS_WITH_ROLES
-        opt_key('personref'): [
-            {
-                'rel': str,    # напр., "крёстный отец"
-                'hlink': str,
-                opt_key('citationref'): LIST_OF_HLINKS,
-            }
-        ],
-        opt_key('attribute'): [ ATTRIBUTE ],
-    },
+    'gramps:places': PLACE_SCHEMA,
+    'gramps:people': PERSON_SCHEMA,
 }
 for k in SCHEMATA:
     SCHEMATA[k].update(BASE_ENTITY)
