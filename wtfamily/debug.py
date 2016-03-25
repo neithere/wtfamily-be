@@ -28,6 +28,7 @@ class WTFamilyDebug(Configurable):
         return [self.shell]
 
     def shell(self):
+        namespace = {}
 
         def _reload_relevant_modules_but_keep_storage():
             _reload_relevant_modules(keep_storage=True)
@@ -48,22 +49,22 @@ class WTFamilyDebug(Configurable):
             # monkey-patch to avoid flask.g
             models.Entity._get_root_storage = lambda: storage_obj
 
+            for m in RELEVANT_MODULES:
+                for k, v in m.__dict__.items():
+                    if isinstance(v, type) and v.__module__ == m.__name__:
+                        namespace[k] = v
+
         _reload_relevant_modules()
 
-        namespace = {
+        namespace.update({
             's': models.Entity._get_root_storage,
             'm': models,
             'r': _reload_relevant_modules_but_keep_storage,
             'reload': _reload_relevant_modules_but_keep_storage,
             'reload_full': _reload_relevant_modules,
-        }
+        })
 
-        for m in RELEVANT_MODULES:
-            for k, v in m.__dict__.items():
-                if isinstance(v, type) and v.__module__ == m.__name__:
-                    namespace[k] = v
-
-        print('Locals:', list(namespace))
+        print('Locals:', ', '.join(namespace))
 
         try:
             import readline
