@@ -39,6 +39,9 @@ class Storage(Configurable):
 
     @argh.aliases('check')
     def check_consistency(self):
+
+        self._check_higher_level_consistency()
+
         # TODO:
         # for each entity
         #    for each object
@@ -46,6 +49,20 @@ class Storage(Configurable):
         #            for each value
         #                does this ID exist?  warn if not.
         raise NotImplementedError
+
+    def _check_higher_level_consistency(self):
+        "HACK!"
+        # FIXME tight coupling
+        import models
+
+        # patch it with our current instance
+        models.Entity._get_root_storage = lambda: self
+
+        entity_subclasses = {v for v in models.__dict__.values() if
+                             isinstance(v, type) and issubclass(v, models.Entity)}
+
+        for entity_class in entity_subclasses:
+            entity_class.find_problems()
 
     def add(self, entity_type, pk, item, upsert=False, commit=True):
         if commit:

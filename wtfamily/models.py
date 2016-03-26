@@ -2,18 +2,257 @@ from datetime import datetime, timedelta
 import functools
 import re
 
-import babel.dates
 from cached_property import cached_property
 from flask import g
 from dateutil.parser import parse as parse_date
 import geopy.distance
+from monk import (
+    ValidationError,
+    IsA, Anything, Equals, Any,
+    validate, opt_key, optional, one_of,
+)
 
 # TODO: remove this
 import show_people as _dbi
 
 
-EVENT_TYPE_BIRTH = 'Birth'
-EVENT_TYPE_DEATH = 'Death'
+class NoKey(object):
+    """
+    Syntax sugar for better readability of Monk schemata::
+
+        {
+            opt_key('foo'): str,
+            maybe-'foo': str,
+            maybe-'foo': str,
+        }
+    """
+    def __or__(self, other):
+        return opt_key(other)
+    def __sub__(self, other):
+        return opt_key(other)
+nil = maybe = NoKey()
+
+
+COMMON_SCHEMA = {
+    'id': str,
+    maybe-'handle': str,        # Gramps-specific internal ID
+    maybe-'change': datetime,   # last changed timestamp
+    maybe-'priv': False,        # is this a private record?
+}
+ID_OR_HLINK = one_of(['id', 'hlink'])
+
+
+
+
+LIST_OF_IDS = [str]                  # TODO use this (see above)
+LIST_OF_IDS = [{ID_OR_HLINK: str}]    # TODO drop this (need ID manager first)
+LIST_OF_IDS_WITH_ROLES = [
+    {
+        ID_OR_HLINK: str,       # TODO ID instead of hlink
+        maybe-'role': str,
+    }
+]
+LIST_OF_URLS = [
+    {
+        'type': str,
+        'href': str,
+        maybe-'description': str,
+    },
+]
+ADDRESS = Anything()    # TODO it's a complex type
+
+GRAMPS_DATEVAL = {
+    'val': str,
+    maybe-'type': one_of(['before', 'after', 'about']),
+    maybe-'quality': one_of(['estimated', 'calculated']),
+}
+GRAMPS_DATESPAN = {
+    'start': str,
+    'stop': str,
+    maybe-'quality': one_of(['estimated', 'calculated']),
+}
+GRAMPS_DATERANGE = {
+    'start': str,
+    'stop': str,
+    maybe-'quality': one_of(['estimated', 'calculated']),
+}
+# this is *our* native, not gramps
+GRAMPS_DATE_SCHEMA = one_of([GRAMPS_DATEVAL, GRAMPS_DATESPAN, GRAMPS_DATERANGE])
+
+DATE_SCHEMA = {
+    maybe-'modifier': one_of(['span', 'range']),
+    maybe-'value': IsA(str) | {
+        'start': str,
+        'stop': str,
+    },
+    maybe-'quality': str,    # TODO: strict enum
+    maybe-'type': one_of(['before', 'after', 'about']),
+}
+
+ATTRIBUTE = {
+    'type': str,
+    'value': str,
+    maybe-'citationref': LIST_OF_IDS,
+}
+
+GRAMPS_REF_SCHEMA = {
+    ID_OR_HLINK: str,
+    maybe-'dateval': [ GRAMPS_DATEVAL ],
+    maybe-'datespan': [ GRAMPS_DATESPAN ],
+    maybe-'daterange': [ GRAMPS_DATERANGE ],
+}
+REF_SCHEMA = {
+    ID_OR_HLINK: str,
+    maybe-'dateval': [DATE_SCHEMA],
+}
+OBJREF_SCHEMA = {
+    ID_OR_HLINK: str,
+    maybe-'region': [
+        {
+            'corner1_y': str,
+            'corner2_y': str,
+            'corner1_x': str,
+            'corner2_x': str,
+        },
+    ],
+}
+
+FAMILY_SCHEMA = {
+    maybe-'father': REF_SCHEMA,
+    maybe-'mother': REF_SCHEMA,
+    maybe-'rel': [dict],    # TODO: strict, more concrete
+    maybe-'citationref': [REF_SCHEMA],
+    maybe-'noteref': [REF_SCHEMA],
+    maybe-'childref': [
+        {
+            'id': str,
+            maybe-'citationref': [REF_SCHEMA],
+            maybe-'frel': str,    # TODO enum
+            maybe-'mrel': str,    # TODO enum
+            maybe-'noteref': [REF_SCHEMA],
+        }
+    ],
+    maybe-'eventref': [
+        {
+            'id': str,
+            'role': str,
+        }
+    ],
+    maybe-'attribute': [ATTRIBUTE],
+}
+#   TYPE_CHOICES = ('City', 'District', 'Region')
+PLACE_SCHEMA = {
+    maybe-'ptitle': str,
+    maybe-'pname': [
+        {
+            'value': str,
+            maybe-'lang': str,
+            maybe-'date': [ DATE_SCHEMA ],
+            # TODO: remove these:
+            maybe-'dateval': [ GRAMPS_DATEVAL ],
+            maybe-'datespan': [ GRAMPS_DATESPAN ],
+            maybe-'daterange': [ GRAMPS_DATERANGE ],
+        },
+    ],
+    maybe-'coord': {'long': str, 'lat': str},
+    #maybe-'alt_name': [str],
+    maybe-'change': datetime,
+    'type': str,    # TODO: strict check?
+    #'type': one_of(TYPE_CHOICES),
+    maybe-'url': LIST_OF_URLS,
+
+    maybe-'placeref': [
+
+        # FIXME fix import script to upgrade data to 'value'
+        #       (seen in Place.placeref.dateval.0)
+        #REF_SCHEMA
+        Any([ REF_SCHEMA, GRAMPS_REF_SCHEMA ]),
+    ],
+    maybe-'citationref': LIST_OF_IDS,  # TODO LIST_OF_IDS
+    maybe-'noteref': LIST_OF_IDS,      # TODO LIST_OF_IDS
+}
+PERSON_SCHEMA = {
+    'name': [
+        IsA(str)
+        | {
+            'type': str,
+            maybe-'first': str,
+            maybe-'surname': [
+                IsA(str)
+                | {
+                    'text': str,
+                    maybe-'derivation': str,
+                    maybe-'prim': str,       # TODO True/False (primary? flag)
+                },
+            ],
+            maybe-'nick': str,
+            maybe-'citationref': LIST_OF_IDS,
+            maybe-'priv': bool,
+            maybe-'alt': str,     # TODO bool
+            maybe-'group': str,    # group as...
+            maybe-'dateval': [ GRAMPS_DATEVAL ],    # XXX why not DATE_SCHEMA?
+            maybe-'group': str,    # an individual namemap
+        },
+    ],
+    'gender': one_of(['M', 'F']),
+
+    maybe-'childof': LIST_OF_IDS,
+    maybe-'parentin': LIST_OF_IDS,
+
+    maybe-'url': LIST_OF_URLS,
+    maybe-'address': [ ADDRESS ],
+
+    maybe-'change': datetime,
+
+    maybe-'objref': [OBJREF_SCHEMA],
+    maybe-'eventref': [
+        {
+            ID_OR_HLINK: str,
+            maybe-'role': str,
+            maybe-'attribute': [ ATTRIBUTE ],
+        },
+    ],
+    maybe-'noteref': LIST_OF_IDS,               # TODO LIST_OF_IDS_WITH_ROLES
+    maybe-'citationref': LIST_OF_IDS,           # TODO LIST_OF_IDS_WITH_ROLES
+    maybe-'personref': [
+        {
+            'rel': str,    # напр., "крёстный отец"
+            ID_OR_HLINK: str,
+            maybe-'citationref': LIST_OF_IDS,
+        }
+    ],
+    maybe-'attribute': [ ATTRIBUTE ],
+}
+SOURCE_SCHEMA = {
+}
+CITATION_SCHEMA = {
+    'sourceref': REF_SCHEMA,
+    maybe-'noteref': [REF_SCHEMA],
+    maybe-'objref': [OBJREF_SCHEMA],
+    maybe-'date': DATE_SCHEMA,
+    maybe-'page': str,
+    maybe-'confidence': str,
+}
+EVENT_SCHEMA = {
+}
+NOTE_SCHEMA = {
+}
+NAME_MAP_SCHEMA = {
+}
+NAME_FORMAT_SCHEMA = {
+}
+MEDIA_OBJECT_SCHEMA = {
+}
+
+
+extended_schemata = (
+    FAMILY_SCHEMA,
+    PLACE_SCHEMA,
+    PERSON_SCHEMA,
+    CITATION_SCHEMA,
+)
+for schema in extended_schemata:
+    schema.update(COMMON_SCHEMA)
 
 
 def as_list(f):
@@ -24,12 +263,20 @@ def as_list(f):
     return inner
 
 
+def icount(iterable):
+    return sum(1 for _ in iterable)
+
+
 class Entity:
     entity_name = NotImplemented
     sort_key = None
+    schema = COMMON_SCHEMA
 
     def __init__(self, data):
         self._data = data
+
+        if __debug__:
+            self.validate()
 
     def __eq__(self, other):
         if type(self) == type(other) and self.id == other.id:
@@ -137,6 +384,14 @@ class Entity:
         for item in cls._storage().find_by_index(key, value):
             yield cls(item)
 
+    @classmethod
+    def count(cls):
+        return icount(cls.find())
+
+    @classmethod
+    def find_problems(cls):
+        print("Don't know how to find problems for {}".format(cls.entity_name))
+
     @property
     def id(self):
         return self._data['id']
@@ -145,9 +400,19 @@ class Entity:
     def handle(self):
         return self._data['handle']
 
+    def validate(self):
+        try:
+            validate(self.schema, self._data)
+        except ValidationError as e:
+            import pprint
+            pprint.pprint(self.schema)
+            pprint.pprint(self._data)
+            raise e from None
+
 
 class Family(Entity):
     entity_name = 'families'
+    schema = FAMILY_SCHEMA
 
     def __repr__(self):
         return '{} + {}'.format(self.father or '?',
@@ -196,6 +461,7 @@ class Family(Entity):
 
 class Person(Entity):
     entity_name = 'people'
+    schema = PERSON_SCHEMA
     REFERENCES = {
         'Citation': 'citationref.id',
     }
@@ -363,14 +629,14 @@ class Person(Entity):
     @property
     def birth(self):
         for event in self.events:
-            if event.type == EVENT_TYPE_BIRTH:
+            if event.type == Event.TYPE_BIRTH:
                 return event.date
         return DateRepresenter()
 
     @property
     def death(self):
         for event in self.events:
-            if event.type == EVENT_TYPE_DEATH:
+            if event.type == Event.TYPE_DEATH:
                 return event.date
         return DateRepresenter()
 
@@ -399,10 +665,14 @@ class Person(Entity):
 class Event(Entity):
     entity_name = 'events'
     sort_key = lambda item: item.date
+    schema = EVENT_SCHEMA
     REFERENCES = {
         'Place': 'place.id',
         'Citation': 'citationref.id',
     }
+
+    TYPE_BIRTH = 'Birth'
+    TYPE_DEATH = 'Death'
 
     def __repr__(self):
         #return 'Event {}'.format(self._data)
@@ -447,13 +717,12 @@ class Event(Entity):
         return self._find_refs('citationref', Citation)
 
     @classmethod
-    def find(cls, conditions=None):
-        for elem in cls._find(conditions):
-            # exclude orphaned events (e.g. if the person was skipped
+    def find_problems(cls):
+        for elem in cls._find():
+            # detect orphaned events (e.g. if the person was skipped
             # on export for whatever reason)
-            # XXX this may do a big Person query for each event
-            if list(elem.people):
-                yield elem
+            if not list(elem.people):
+                print('ORPHANED EVENT: {} {}'.format(elem.id, elem))
 
 
 class Place(Entity):
@@ -461,6 +730,7 @@ class Place(Entity):
     REFERENCES = {
         'Citation': 'citationref.id',
     }
+    schema = PLACE_SCHEMA
 
     def __repr__(self):
         return '{0.name}'.format(self)
@@ -583,6 +853,7 @@ class Place(Entity):
 
 class Source(Entity):
     entity_name = 'sources'
+    schema = SOURCE_SCHEMA
     sort_key = lambda item: item.title
 
     def __repr__(self):
@@ -615,6 +886,7 @@ class Source(Entity):
 
 class Citation(Entity):
     entity_name = 'citations'
+    schema = CITATION_SCHEMA
 
     REFERENCES = {
         'Source': 'sourceref.id',
@@ -662,6 +934,7 @@ class Citation(Entity):
 
 class Note(Entity):
     entity_name = 'notes'
+    schema = NOTE_SCHEMA
 
     @property
     def text(self):
@@ -670,6 +943,10 @@ class Note(Entity):
 
 class NameMap(Entity):
     entity_name = 'namemaps'
+    schema = NAME_MAP_SCHEMA
+
+    def __repr__(self):
+        return '<{} "{}" → "{}">'.format(self.type, self.key, self.value)
 
     @property
     def type(self):
@@ -692,10 +969,12 @@ class NameMap(Entity):
 
 class NameFormat(Entity):
     entity_name = 'name-formats'
+    schema = NAME_FORMAT_SCHEMA
 
 
 class MediaObject(Entity):
     entity_name = 'objects'
+    schema = MEDIA_OBJECT_SCHEMA
 
 
 def _extract_refs(ref):
