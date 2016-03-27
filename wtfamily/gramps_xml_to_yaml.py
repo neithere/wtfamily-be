@@ -100,6 +100,9 @@ SINGLE_VALUE_FIELDS = (
 
     # people
     'gender',
+
+    # media objects
+    'file',
 )
 SINGLE_VALUE_FIELDS_PER_ENTITY = {
     'gramps:places': ('name',),
@@ -107,6 +110,7 @@ SINGLE_VALUE_FIELDS_PER_ENTITY = {
 HLINK_FIELDS = (
     'sourceref',
     'citationref',
+    'reporef',
     'placeref',
     'eventref',
     'noteref',

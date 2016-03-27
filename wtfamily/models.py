@@ -16,21 +16,17 @@ from monk import (
 import show_people as _dbi
 
 
-class NoKey(object):
+class OptionalKey(object):
     """
     Syntax sugar for better readability of Monk schemata::
 
-        {
-            opt_key('foo'): str,
-            maybe-'foo': str,
-            maybe-'foo': str,
-        }
+        { opt_key('foo'): str }
+        { maybe-'foo': str }
     """
-    def __or__(self, other):
-        return opt_key(other)
     def __sub__(self, other):
         return opt_key(other)
-nil = maybe = NoKey()
+
+maybe = OptionalKey()
 
 
 COMMON_SCHEMA = {
@@ -61,6 +57,9 @@ LIST_OF_URLS = [
 ]
 ADDRESS = Anything()    # TODO it's a complex type
 
+GRAMPS_DATESTR = {
+    'val': str,
+}
 GRAMPS_DATEVAL = {
     'val': str,
     maybe-'type': one_of(['before', 'after', 'about']),
@@ -77,10 +76,11 @@ GRAMPS_DATERANGE = {
     maybe-'quality': one_of(['estimated', 'calculated']),
 }
 # this is *our* native, not gramps
-GRAMPS_DATE_SCHEMA = one_of([GRAMPS_DATEVAL, GRAMPS_DATESPAN, GRAMPS_DATERANGE])
+GRAMPS_DATE_SCHEMA = one_of([GRAMPS_DATEVAL, GRAMPS_DATESPAN, GRAMPS_DATERANGE,
+                             GRAMPS_DATESTR])
 
 DATE_SCHEMA = {
-    maybe-'modifier': one_of(['span', 'range']),
+    maybe-'modifier': one_of(['span', 'range', 'before', 'after', 'about']),
     maybe-'value': IsA(str) | {
         'start': str,
         'stop': str,
@@ -115,6 +115,15 @@ OBJREF_SCHEMA = {
             'corner2_x': str,
         },
     ],
+}
+
+# Seems to be either missing (false) or `['1']` (true)
+LEGACY_BOOL_SCHEMA = [ Equals('1') ]
+
+URL_SCHEMA = {
+    'href': str,
+    'type': str,    # TODO enum
+    maybe-'description': str,
 }
 
 FAMILY_SCHEMA = {
@@ -224,6 +233,13 @@ PERSON_SCHEMA = {
     maybe-'attribute': [ ATTRIBUTE ],
 }
 SOURCE_SCHEMA = {
+    'stitle': str,
+    maybe-'spubinfo': str,
+    maybe-'sabbrev': str,
+    maybe-'sauthor': str,
+    maybe-'noteref': [ REF_SCHEMA ],
+    maybe-'objref': [ OBJREF_SCHEMA ],
+    maybe-'reporef': [ dict ],    # TODO: strict (extended REF_SCHEMA)
 }
 CITATION_SCHEMA = {
     'sourceref': REF_SCHEMA,
@@ -234,22 +250,72 @@ CITATION_SCHEMA = {
     maybe-'confidence': str,
 }
 EVENT_SCHEMA = {
+    'type': str,    # TODO enum
+    maybe-'date': DATE_SCHEMA,
+    maybe-'place': [REF_SCHEMA],
+    maybe-'description': str,
+    maybe-'citationref': [REF_SCHEMA],
+    maybe-'noteref': [REF_SCHEMA],
+    maybe-'objref': [OBJREF_SCHEMA],
+    maybe-'datestr': [GRAMPS_DATESTR],    # TODO get rid of this
+    maybe-'attribute': [ATTRIBUTE],
 }
 NOTE_SCHEMA = {
+    'text': str,
+    'type': str,            # TODO enum
+    maybe-'style': list,    # TODO strict? it contains stuff like (char range + font info)
+    maybe-'format': LEGACY_BOOL_SCHEMA,
 }
 NAME_MAP_SCHEMA = {
+    'type': str,    # TODO enum
+    'key': str,
+    'value': str,
 }
 NAME_FORMAT_SCHEMA = {
+    # XXX why all these fields are lists?
+    'name': [str],
+    'fmt_str': [str],
+    'number': [str],    # apparently for sorting
+    'active': LEGACY_BOOL_SCHEMA,
 }
 MEDIA_OBJECT_SCHEMA = {
+    'file': {
+        'checksum': str,
+        'description': str,
+        'mime': str,
+        'src': str,
+    },
+    maybe-'date': DATE_SCHEMA,
+    maybe-'citationref': [REF_SCHEMA],
+}
+REPOSITORY_SCHEMA = {
+    'rname': str,
+    'type': str,
+    maybe-'url': [URL_SCHEMA],
+    maybe-'address': [
+        {
+            'state': list,   # TODO strict
+            'city': list,    # TODO strict
+            'dateval': [GRAMPS_DATEVAL],
+            'text': str,
+        },
+    ],
 }
 
 
 extended_schemata = (
     FAMILY_SCHEMA,
     PLACE_SCHEMA,
+    EVENT_SCHEMA,
     PERSON_SCHEMA,
+    SOURCE_SCHEMA,
     CITATION_SCHEMA,
+    NOTE_SCHEMA,
+    MEDIA_OBJECT_SCHEMA,
+    REPOSITORY_SCHEMA,
+    # NOTE: these don't have IDs!
+#   NAME_FORMAT_SCHEMA,
+#   NAME_MAP_SCHEMA,
 )
 for schema in extended_schemata:
     schema.update(COMMON_SCHEMA)
@@ -275,6 +341,7 @@ class Entity:
     def __init__(self, data):
         self._data = data
 
+        # XXX degrades performance, don't use in production
         if __debug__:
             self.validate()
 
@@ -326,12 +393,20 @@ class Entity:
 
     def _find_refs(self, key, model):
         try:
-            pks = _extract_refs(self._data[key])
+            refs = self._data[key]
         except KeyError:
             return []
-        pks = pks if isinstance(pks, list) else [pks]
-        return model.find_by_pks(pks)
 
+        try:
+            pks = _extract_refs(refs)
+        except KeyError:
+            print('malformed refs?', refs)
+            raise
+
+        if not isinstance(pks, list):
+            pks = [pks]
+
+        return model.find_by_pks(pks)
 
     @classmethod
     def references_to(cls, other, indexed=True):
@@ -409,6 +484,10 @@ class Entity:
             pprint.pprint(self._data)
             raise e from None
 
+    @property
+    def sortkey(self):
+        return self.id
+
 
 class Family(Entity):
     entity_name = 'families'
@@ -457,6 +536,14 @@ class Family(Entity):
             return self.father
         else:
             return self.mother
+
+    @property
+    def sortkey(self):
+        if self.father:
+            return '{}#{}'.format(self.father.group_name, self.father.name)
+        if self.mother:
+            return '{}#{}'.format(self.mother.group_name, self.mother.name)
+        return self.id
 
 
 class Person(Entity):
@@ -564,6 +651,10 @@ class Person(Entity):
     @property
     def citations(self):
         return self._find_refs('citationref', Citation)
+
+    @property
+    def media(self):
+        return self._find_refs('objref', MediaObject)
 
     def get_parent_families(self):
         return self._find_refs('childof', Family)
@@ -676,7 +767,7 @@ class Event(Entity):
 
     def __repr__(self):
         #return 'Event {}'.format(self._data)
-        return 'Event {0.date} {0.type} {0.summary} {0.place}'.format(self)
+        return '{0.date} {0.type} {0.summary} {0.place}'.format(self)
 
     @property
     def type(self):
@@ -881,7 +972,7 @@ class Source(Entity):
 
     @property
     def repository(self):
-        return '(Repository {})'.format(self._data.get('reporef'))
+        return self._find_refs('reporef', Repository)
 
 
 class Citation(Entity):
@@ -931,6 +1022,10 @@ class Citation(Entity):
     def people(self):
         return Person.references_to(self)
 
+    @property
+    def media(self):
+        return self._find_refs('objref', MediaObject)
+
 
 class Note(Entity):
     entity_name = 'notes'
@@ -939,6 +1034,10 @@ class Note(Entity):
     @property
     def text(self):
         return self._data['text']
+
+    @property
+    def media(self):
+        return self._find_refs('objref', MediaObject)
 
 
 class NameMap(Entity):
@@ -976,6 +1075,37 @@ class MediaObject(Entity):
     entity_name = 'objects'
     schema = MEDIA_OBJECT_SCHEMA
 
+    @property
+    def src(self):
+        return self._data['file']['src']
+
+    @property
+    def description(self):
+        return self._data['file']['description']
+
+    @property
+    def mime(self):
+        return self._data['file']['mime']
+
+    @property
+    def date(self):
+        value = self._data.get('date')
+        if value:
+            return DateRepresenter(**value)
+        else:
+            return ''
+
+    def __repr__(self):
+        return '<{0.description} ({0.date}): {0.mime} {0.src}>'.format(self)
+
+
+class Repository(Entity):
+    entity_name = 'repositories'
+    schema = REPOSITORY_SCHEMA
+
+    def __repr__(self):
+        return '<Repository {type} {rname}>'.format(**self._data)
+
 
 def _extract_refs(ref):
     """
@@ -1004,7 +1134,6 @@ def _format_date(obj_data):
     if date:
         return str(DateRepresenter(**date))
     return ''
-
 
 def _normalize_coords_to_pure_degrees(coords):
     if isinstance(coords, float):

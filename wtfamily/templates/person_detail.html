@@ -292,6 +292,17 @@
             }}">{{ citation.source }}: {{ citation }}</a></dd>
         {% endfor %}
     {% endif %}
+
+    {% if obj.media %}
+      <dt>Файлы</dt>
+        {% for media_obj in obj.media %}
+        <dd>
+          {{ media_obj.description }} ({{ media_obj.date }})
+          {{ media_obj.mime }}
+          {{ media_obj.src }}
+        </dd>
+        {% endfor %}
+    {% endif %}
 </dl>
 
 

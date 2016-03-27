@@ -31,6 +31,18 @@
                 <p><small>{{ note.text|replace('\n','<br>')|safe }}</small></p>
               </blockquote>
             {% endfor %}
+
+            {% if citation.media %}
+              <dt>Файлы</dt>
+              {% for media_obj in citation.media %}
+              <dd>
+                {{ media_obj.description }} ({{ media_obj.date }})
+                {{ media_obj.mime }}
+                {{ media_obj.src }}
+              </dd>
+              {% endfor %}
+            {% endif %}
+
         </li>
     {% endfor %}
     </ul>

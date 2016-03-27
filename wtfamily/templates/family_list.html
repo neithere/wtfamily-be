@@ -6,45 +6,64 @@
 
 {% block content %}
 
-<dl class="dl-horizontal">
-{% for obj in object_list %}
-    <dt>
-        <a href="{{ url_for('family_detail', obj_id=obj.id) }}">{{ obj.id }}</a>
-        {{ obj._data.rel.type }}
-    </dt>
+<table class="table table-striped table-hover">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Father</th>
+      <th>Mother</th>
+      <th>Events</th>
+      <th>Children</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for obj in object_list|sort(attribute='sortkey') %}
+    <tr>
+      <td>
+          <a href="{{ url_for('family_detail', obj_id=obj.id) }}">{{ obj.id }}</a>
+          {{ obj._data.rel.type }}
+      </td>
 
-    <dd>
-      {% if obj.father %}
-        <a href="{{ url_for('person_detail', obj_id=obj.father.id) }}">{{ obj.father }}</a>
-        <span class="text-muted">{{ obj.father.birth or '' }}</span>
-      {% else %}
-        ?
-      {% endif %}
+      <td>
+        {% if obj.father %}
+          <a href="{{ url_for('person_detail', obj_id=obj.father.id) }}">{{ obj.father }}</a>
+          <span class="text-muted">{{ obj.father.birth or '' }}</span>
+        {% else %}
+          ?
+        {% endif %}
+      </td>
 
-      и
+      <td>
+        {% if obj.mother %}
+          <a href="{{ url_for('person_detail', obj_id=obj.mother.id) }}">{{ obj.mother }}</a>
+          <span class="text-muted">{{ obj.mother.birth or '' }}</span>
+        {% else %}
+          ?
+        {% endif %}
+      </td>
 
-      {% if obj.mother %}
-        <a href="{{ url_for('person_detail', obj_id=obj.mother.id) }}">{{ obj.mother }}</a>
-        <span class="text-muted">{{ obj.mother.birth or '' }}</span>
-      {% else %}
-        ?
-      {% endif %}
-    </dd>
+      <td>
+        <ul>
+        {% for event in obj.events %}
+          <li><a href="{{ url_for('event_detail', obj_id=event.id) }}">{{ event }}</a></li>
+        {% endfor %}
+        </ul>
+      </td>
 
-    {#
-    <dd>
-      <ul>
-      {% for child in obj.children %}
-        <li>{{ child }}</li>
-      {% endfor %}
-      </ul>
-    </dd>
+      <td>
+        <ul>
+        {% for child in obj.children %}
+          <li>{{ child }}</li>
+        {% endfor %}
+        </ul>
+      </td>
 
-    <dd>
-      <code>{{ obj._data|pprint }}</code>
-    </dd>
-    #}
-{% endfor %}
-</dl>
+      {#
+      <td>
+        <code>{{ obj._data|pprint }}</code>
+      </td>
+      #}
+  {% endfor %}
+</table>
 
 {% endblock %}

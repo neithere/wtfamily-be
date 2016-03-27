@@ -9,7 +9,16 @@ from flask import (
 )
 #from werkzeug import LocalProxy
 
-from models import Person, Event, Family, Place, Source, Citation, NameMap
+from models import (
+    Person,
+    Event,
+    Family,
+    Place,
+    Source,
+    Citation,
+    NameMap,
+    MediaObject,
+)
 from storage import Storage
 
 
@@ -43,6 +52,8 @@ class WTFamilyWebApp(Configurable):
         self.flask_app.route('/source/<obj_id>')(source_detail)
         self.flask_app.route('/citation/')(citation_list)
         self.flask_app.route('/citation/<obj_id>')(citation_detail)
+        self.flask_app.route('/media/')(media_list)
+        self.flask_app.route('/media/<obj_id>')(media_detail)
 
         self.flask_app.route('/map/heat')(map_heatmap)
         self.flask_app.route('/map/circles')(map_circles)
@@ -169,6 +180,18 @@ def citation_detail(obj_id):
         # skipped on export
         abort(404)
     return render_template('citation_detail.html', obj=obj)
+
+
+def media_list():
+    object_list = MediaObject.find()
+    return render_template('media_list.html', object_list=object_list)
+
+
+def media_detail(obj_id):
+    obj = MediaObject.get(obj_id)
+    if not obj:
+        abort(404)
+    return render_template('media_detail.html', obj=obj)
 
 
 #@app.route('/map/heat')
