@@ -59,9 +59,10 @@ SINGLE_VALUE_FIELDS = (
     'change',    # last changed timestamp
     'priv',      # is this a private record?
 
-    'dateval',
-    'daterange',
-    'datespan',
+    'date',      # ours
+    'dateval',   # gramps
+    'daterange', # gramps
+    'datespan',  # gramps
 
     # citations
     'sourceref',
@@ -284,6 +285,7 @@ GLOBAL_FIELD_PROCESSORS = {
     'datespan': _normalize_datespan,
     'daterange': _normalize_daterange,
     'priv': _normalize_bool,
+    'alt': _normalize_bool,    # in Person.name
 }
 
 GLOBAL_FIELD_RENAME = {
@@ -309,9 +311,8 @@ class Converter:
     def __call__(self, node, entity_name=None):
         item = {}
         for k, v in self._get_fields_from_node(node, entity_name):
-            field, value = self._normalize_field_name_and_value(k, v,
-                                                                entity_name, item)
-            item[field] = value
+            field, value = self._normalize_field_name_and_value(k, v)
+            item[field] = self._what_to_add_to_data(field, value, entity_name, item)
 
         pk_field = PK_FIELD_FOR_ENTITY.get(entity_name, PK_FIELD_DEFAULT)
 
@@ -321,7 +322,7 @@ class Converter:
 
         return pk, item
 
-    def _normalize_field_name_and_value(self, raw_key, value, entity_name, data_so_far):
+    def _normalize_field_name_and_value(self, raw_key, value):
 
         transform = GLOBAL_FIELD_PROCESSORS.get(raw_key)
         if transform:
@@ -329,20 +330,21 @@ class Converter:
 
         field = GLOBAL_FIELD_RENAME.get(raw_key, raw_key)
 
-        # TODO: split another method here
+        return field, value
 
+    def _what_to_add_to_data(self, field_name, value, entity_name, data_so_far):
         is_single_value = (
-            raw_key in SINGLE_VALUE_FIELDS
-            or raw_key in SINGLE_VALUE_FIELDS_PER_ENTITY.get(entity_name, []))
+            field_name in SINGLE_VALUE_FIELDS
+            or field_name in SINGLE_VALUE_FIELDS_PER_ENTITY.get(entity_name, []))
         if is_single_value:
-            assert raw_key not in data_so_far
-            return field, value
+            assert field_name not in data_so_far
+            return value
         else:
-            existing_value = data_so_far.get(field, [])
+            existing_value = data_so_far.get(field_name, [])
             if value:
-                return field, existing_value + [value]
+                return existing_value + [value]
             else:
-                return field, existing_value
+                return existing_value
 
     def _get_fields_from_node(self, entity_node, entity_name):
         """
@@ -397,11 +399,18 @@ class Converter:
             field_name = _strip_namespace(field_node.tag)
 
             assert not (field_node.attrib and (field_node.text.strip() if field_node.text else None))
-            value = field_node.attrib.copy() or field_node.text
 
+            if field_node.attrib:
+                value = {}
+                for nested_field, nested_value in field_node.attrib.items():
+                    nested_field, nested_value = self._normalize_field_name_and_value(nested_field, nested_value)
+                    value[nested_field] = nested_value
+            else:
+                value = field_node.text
 
             if len(field_node):
                 # XXX tag-specific logic
+
                 if entity_name == 'gramps:people' and field_name == 'name':
                     if isinstance(value, str):
                         value = {'text': value}
@@ -417,6 +426,9 @@ class Converter:
                             nested_value = subfield_node.text
 
                         nested_field, nested_value = self._normalize_field_name_and_value(
+                            nested_field, nested_value)
+
+                        nested_value = self._what_to_add_to_data(
                             nested_field, nested_value, entity_name, value)
 
                         if nested_value not in (None, []):
@@ -430,9 +442,6 @@ class Converter:
                         value.setdefault(subfield_shortname, []).append(subdata)
                 # XXX / tag-specific logic
 
-            # HACK, should be declarative
-            if 'priv' in value:
-                value['priv'] = bool(value['priv'])
 
             yield field_name, value
 

@@ -194,7 +194,7 @@ PERSON_NAME_SCHEMA = {
     maybe-'nick': str,
     maybe-'citationref': LIST_OF_IDS,
     maybe-'priv': bool,
-    maybe-'alt': str,
+    maybe-'alt': bool,
     maybe-'group': str,    # group as...
     maybe-'date': DATE_SCHEMA,
     maybe-'group': str,    # an individual namemap
