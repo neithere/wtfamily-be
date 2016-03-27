@@ -419,7 +419,11 @@ class Converter:
                         nested_field = _strip_namespace(subfield_node.tag)
 
                         if nested_field in complex_fields:
-                            nested_value = subfield_node.attrib.copy()
+                            nested_value = {}
+                            for _f, _v in subfield_node.attrib.items():
+                                _f, _v = self._normalize_field_name_and_value(_f, _v)
+                                nested_value[_f] = _v
+                            print('    from attribs:', nested_value)
                             if subfield_node.text:
                                 nested_value.update(text=subfield_node.text)
                         else:

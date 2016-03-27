@@ -188,7 +188,7 @@ PERSON_NAME_SCHEMA = {
         | {
             'text': str,
             maybe-'derivation': str,
-            maybe-'prim': str,       # TODO True/False (primary? flag)
+            maybe-'prim': bool,       # is primary?
         },
     ],
     maybe-'nick': str,
