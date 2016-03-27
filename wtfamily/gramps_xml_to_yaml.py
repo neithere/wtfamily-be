@@ -101,6 +101,11 @@ SINGLE_VALUE_FIELDS = (
     # people
     'gender',
 
+    # people.name
+    'first',
+    'nick',
+    'group',
+
     # media objects
     'file',
 )
@@ -304,18 +309,9 @@ class Converter:
     def __call__(self, node, entity_name=None):
         item = {}
         for k, v in self._get_fields_from_node(node, entity_name):
-            transform = GLOBAL_FIELD_PROCESSORS.get(k)
-            if transform:
-                v = transform(v)
-
-            field = GLOBAL_FIELD_RENAME.get(k, k)
-            is_single_value = (k in SINGLE_VALUE_FIELDS
-                or k in SINGLE_VALUE_FIELDS_PER_ENTITY.get(entity_name, []))
-            if is_single_value:
-                assert k not in item
-                item[field] = v
-            else:
-                item.setdefault(field, []).append(v)
+            field, value = self._normalize_field_name_and_value(k, v,
+                                                                entity_name, item)
+            item[field] = value
 
         pk_field = PK_FIELD_FOR_ENTITY.get(entity_name, PK_FIELD_DEFAULT)
 
@@ -324,6 +320,29 @@ class Converter:
         self._alias_handle_to_id(handle, pk)
 
         return pk, item
+
+    def _normalize_field_name_and_value(self, raw_key, value, entity_name, data_so_far):
+
+        transform = GLOBAL_FIELD_PROCESSORS.get(raw_key)
+        if transform:
+            value = transform(value)
+
+        field = GLOBAL_FIELD_RENAME.get(raw_key, raw_key)
+
+        # TODO: split another method here
+
+        is_single_value = (
+            raw_key in SINGLE_VALUE_FIELDS
+            or raw_key in SINGLE_VALUE_FIELDS_PER_ENTITY.get(entity_name, []))
+        if is_single_value:
+            assert raw_key not in data_so_far
+            return field, value
+        else:
+            existing_value = data_so_far.get(field, [])
+            if value:
+                return field, existing_value + [value]
+            else:
+                return field, existing_value
 
     def _get_fields_from_node(self, entity_node, entity_name):
         """
@@ -386,22 +405,22 @@ class Converter:
                 if entity_name == 'gramps:people' and field_name == 'name':
                     if isinstance(value, str):
                         value = {'text': value}
-                    for subfield in field_node:
-                        nested_field = _strip_namespace(subfield.tag)
-
-                        plaintext_fields = 'first', 'nick', 'group'
-
+                    for subfield_node in field_node:
                         complex_fields = 'surname', 'citationref', 'dateval'
+                        nested_field = _strip_namespace(subfield_node.tag)
 
-                        if nested_field in plaintext_fields:
-                            value[nested_field] = subfield.text
-                        elif nested_field in complex_fields:
-                            subdata = subfield.attrib.copy()
-                            if subfield.text:
-                                subdata.update(text=subfield.text)
-                            value.setdefault(nested_field, []).append(subdata)
+                        if nested_field in complex_fields:
+                            nested_value = subfield_node.attrib.copy()
+                            if subfield_node.text:
+                                nested_value.update(text=subfield_node.text)
                         else:
-                            assert 0, 'not sure what to do with '+ subfield.tag + ', should test'
+                            nested_value = subfield_node.text
+
+                        nested_field, nested_value = self._normalize_field_name_and_value(
+                            nested_field, nested_value, entity_name, value)
+
+                        if nested_value not in (None, []):
+                            value[nested_field] = nested_value
                 else:
                     if isinstance(value, str):
                         value = {'text': value}

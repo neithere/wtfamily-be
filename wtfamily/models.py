@@ -180,28 +180,28 @@ PLACE_SCHEMA = {
     maybe-'citationref': LIST_OF_IDS,  # TODO LIST_OF_IDS
     maybe-'noteref': LIST_OF_IDS,      # TODO LIST_OF_IDS
 }
-PERSON_SCHEMA = {
-    'name': [
+PERSON_NAME_SCHEMA = {
+    'type': str,
+    maybe-'first': str,
+    maybe-'surname': [
         IsA(str)
         | {
-            'type': str,
-            maybe-'first': str,
-            maybe-'surname': [
-                IsA(str)
-                | {
-                    'text': str,
-                    maybe-'derivation': str,
-                    maybe-'prim': str,       # TODO True/False (primary? flag)
-                },
-            ],
-            maybe-'nick': str,
-            maybe-'citationref': LIST_OF_IDS,
-            maybe-'priv': bool,
-            maybe-'alt': str,     # TODO bool
-            maybe-'group': str,    # group as...
-            maybe-'dateval': [ GRAMPS_DATEVAL ],    # XXX why not DATE_SCHEMA?
-            maybe-'group': str,    # an individual namemap
+            'text': str,
+            maybe-'derivation': str,
+            maybe-'prim': str,       # TODO True/False (primary? flag)
         },
+    ],
+    maybe-'nick': str,
+    maybe-'citationref': LIST_OF_IDS,
+    maybe-'priv': bool,
+    maybe-'alt': str,
+    maybe-'group': str,    # group as...
+    maybe-'date': DATE_SCHEMA,
+    maybe-'group': str,    # an individual namemap
+}
+PERSON_SCHEMA = {
+    'name': [
+        PERSON_NAME_SCHEMA,
     ],
     'gender': one_of(['M', 'F']),
 
