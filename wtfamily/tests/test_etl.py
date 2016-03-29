@@ -28,7 +28,9 @@ def test_empty_file():
 def test_empty_tree():
     xml_root = ElementTree.fromstring(FIXTURE_EMPTY_TREE)
     results = gramps_xml_to_yaml.transform(xml_root)
-    assert list(results) == []
+    results = list(results)
+    expected = []
+    assert expected == results
 
 
 def test_note():
@@ -48,7 +50,8 @@ def test_note():
     ''')
     xml_root = ElementTree.fromstring(fixture)
     results = gramps_xml_to_yaml.transform(xml_root)
-    assert list(results) == [
+    results = list(results)
+    expected = [
         (
             'notes',
             'N0000',
@@ -82,6 +85,7 @@ def test_note():
             }
         ),
     ]
+    assert expected == results
 
 
 def test_event_simple():
@@ -96,7 +100,8 @@ def test_event_simple():
     ''')
     xml_root = ElementTree.fromstring(fixture)
     results = gramps_xml_to_yaml.transform(xml_root)
-    assert list(results) == [
+    results = list(results)
+    expected = [
         (
             'events',
             'E0284',
@@ -113,6 +118,7 @@ def test_event_simple():
             },
          )
     ]
+    assert expected == results
 
 
 def test_event_with_refs():
@@ -215,7 +221,7 @@ def test_event_with_refs():
             }
         ),
     ]
-    assert list(results) == expected
+    assert expected == results
 
 
 def test_event_with_more_refs():
@@ -392,4 +398,205 @@ def test_event_with_more_refs():
             }
         ),
     ]
-    assert list(results) == expected
+    print('expected', expected)
+    print('actual', results)
+    assert expected == results
+
+def test_person():
+    fixture = FIXTURE_TEMPLATE.format('''
+    <people>
+      <person handle="_cdeb90490341f84abadc55e8d91" change="1449969693" id="auz_dawid_16xx">
+        <gender>M</gender>
+        <name type="Birth Name">
+          <first>Dawid</first>
+          <surname>Auzbikowicz</surname>
+          <citationref hlink="_cddaedd03665299d651197a0fe6"/>
+        </name>
+        <name alt="1" type="Also Known As">
+          <first>Dovydas</first>
+          <surname>Aušbikavičius</surname>
+          <citationref hlink="_cdeb94216051f214c757700c346"/>
+        </name>
+        <name alt="1" type="Birth Name">
+          <first>Давид</first>
+          <surname>Аужбикович</surname>
+          <citationref hlink="_ce1cdbe42fe524f207c999d4eb1"/>
+        </name>
+        <name alt="1" type="Birth Name">
+          <first>Давид</first>
+          <surname prim="0" derivation="Patronymic">Янович</surname>
+          <surname derivation="Inherited">Авжбикович</surname>
+          <citationref hlink="_ce35c88075632b9af0ee2dd0d12"/>
+        </name>
+        <eventref hlink="_ce35c891d5765c1d82d4a5956e0" role="Primary"/>
+        <childof hlink="_ce1cdf318723d6ab165ed97cdec"/>
+        <parentin hlink="_ce1ce08bf4d326669280e0a18ea"/>
+      </person>
+    </people>
+    <families>
+      <family handle="_ce1cdf318723d6ab165ed97cdec" change="1416396371" id="F0091">
+        <rel type="Unknown"/>
+        <childref hlink="_cdeb90490341f84abadc55e8d91"/>
+      </family>
+      <family handle="_ce1ce08bf4d326669280e0a18ea" change="1416396433" id="F0092">
+        <rel type="Unknown"/>
+        <father hlink="_cdeb90490341f84abadc55e8d91"/>
+      </family>
+    </families>
+    <events>
+      <event handle="_ce35c891d5765c1d82d4a5956e0" change="1417065430" id="E0318">
+        <type>Property</type>
+        <dateval val="1677-10-02"/>
+        <description>Давид купил часть имения Авжбиково (включая Андрунишки, Петринишки, Кайсютвишки) у браты Соломона и его жены Анны</description>
+        <citationref hlink="_ce35c88075632b9af0ee2dd0d12"/>
+      </event>
+    </events>
+    <citations>
+      <citation handle="_ce35c88075632b9af0ee2dd0d12" change="1417066939" id="C0053">
+        <dateval val="1677-10-02"/>
+        <page>Листы 28—29об.</page>
+        <confidence>2</confidence>
+      </citation>
+    </citations>
+    ''')
+    xml_root = ElementTree.fromstring(fixture)
+    results = gramps_xml_to_yaml.transform(xml_root)
+    results = list(results)
+    expected = [
+        (
+            'events',
+            'E0318',
+            {
+                'change': datetime.datetime(2014, 11, 27, 5, 17, 10),
+                'citationref': [
+                    {
+                        'id': 'C0053'
+                    }
+                ],
+                'date': {
+                    'value': '1677-10-02'
+                },
+                'description': 'Давид купил часть имения Авжбиково (включая Андрунишки, '
+                'Петринишки, Кайсютвишки) у браты Соломона и его жены Анны',
+                'handle': '_ce35c891d5765c1d82d4a5956e0',
+                'id': 'E0318',
+                'type': 'Property'
+            }
+        ),
+        (
+            'people',
+            'auz_dawid_16xx',
+            {
+                'id': 'auz_dawid_16xx',
+                'handle': '_cdeb90490341f84abadc55e8d91',
+                'gender': 'M',
+                'eventref': [
+                    { 'id': 'E0318', 'role': 'Primary' }
+                ],
+                'childof': [
+                    { 'id': 'F0091' }
+                ],
+                'parentin': [
+                    { 'id': 'F0092' }
+                ],
+                'name': [
+                    {
+                        'type': 'Birth Name',
+                        'first': 'Dawid',
+                        'surname': [
+                            { 'text': 'Auzbikowicz' }
+                        ],
+                        'citationref': [
+                            { 'hlink': '_cddaedd03665299d651197a0fe6' }
+                        ],
+                    },
+                    {
+                        'type': 'Also Known As',
+                        'alt': True,
+                        'first': 'Dovydas',
+                        'surname': [
+                            { 'text': 'Aušbikavičius' }
+                        ],
+                        'citationref': [
+                            { 'hlink': '_cdeb94216051f214c757700c346' }
+                        ],
+                    },
+                    {
+                        'type': 'Birth Name',
+                        'alt': True,
+                        'first': 'Давид',
+                        'surname': [
+                            { 'text': 'Аужбикович' }
+                        ],
+                        'citationref': [
+                            { 'hlink': '_ce1cdbe42fe524f207c999d4eb1' }
+                        ],
+                    },
+                    {
+                        'type': 'Birth Name',
+                        'alt': True,
+                        'first': 'Давид',
+                        'surname': [
+                            {
+                                'prim': True,
+                                'derivation': 'Patronymic',
+                                'text': 'Янович',
+                            },
+                            {
+                                'derivation': 'Inherited',
+                                'text': 'Авжбикович',
+                            }
+                        ],
+                        'citationref': [
+                            { 'hlink': '_ce35c88075632b9af0ee2dd0d12' }
+                        ],
+                    }
+                ],
+                'change': datetime.datetime(2015, 12, 13, 1, 21, 33),
+            }
+        ),
+        (
+            'families',
+            'F0091',
+            {
+                'id': 'F0091',
+                'handle': '_ce1cdf318723d6ab165ed97cdec',
+                'childref': [
+                    { 'id': 'auz_dawid_16xx' }
+                ],
+                'rel': [
+                    { 'type': 'Unknown' }
+                ],
+                'change': datetime.datetime(2014, 11, 19, 11, 26, 11),
+            }
+        ),
+        (
+            'families',
+            'F0092',
+            {
+                'id': 'F0092',
+                'handle': '_ce1ce08bf4d326669280e0a18ea',
+                'father': {
+                    'id': 'auz_dawid_16xx'
+                },
+                'rel': [
+                    { 'type': 'Unknown' }
+                ],
+                'change': datetime.datetime(2014, 11, 19, 11, 27, 13),
+            }
+        ),
+        (
+            'citations',
+            'C0053',
+            {
+                'id': 'C0053',
+                'handle': '_ce35c88075632b9af0ee2dd0d12',
+                'confidence': '2',
+                'date': { 'value': '1677-10-02' },
+                'page': 'Листы 28—29об.',
+                'change': datetime.datetime(2014, 11, 27, 5, 42, 19),
+            }
+        )
+
+    ]
+    assert expected == results
