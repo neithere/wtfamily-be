@@ -39,11 +39,11 @@ def _strip_namespace_label(entity_name):
     return entity_name.replace(GRAMPS_NAMESPACE_LABEL + ':', '')
 
 GRAMPS_ENTITIES = (
+    'gramps:sources',
     'gramps:name-formats',
     'gramps:events',
     'gramps:people',
     'gramps:families',
-    'gramps:sources',
     'gramps:places',
     'gramps:objects',
     'gramps:repositories',
@@ -286,6 +286,7 @@ GLOBAL_FIELD_PROCESSORS = {
     'daterange': _normalize_daterange,
     'priv': _normalize_bool,
     'alt': _normalize_bool,    # in Person.name
+    'prim': _normalize_bool,
 }
 
 GLOBAL_FIELD_RENAME = {

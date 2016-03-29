@@ -1,0 +1,395 @@
+import datetime
+import pytest
+from xml.etree import ElementTree
+
+import gramps_xml_to_yaml
+
+
+FIXTURE_EMPTY_STRING = ''
+FIXTURE_EMPTY_TREE = '<xml></xml>'
+FIXTURE_TEMPLATE = '''<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE database PUBLIC "-//Gramps//DTD Gramps XML 1.7.1//EN"
+"http://gramps-project.org/xml/1.7.1/grampsxml.dtd">
+<database xmlns="http://gramps-project.org/xml/1.7.1/">
+  <header>
+    <created date="2016-03-27" version="4.2.2"/>
+    <mediapath>/tmp/gramps_media</mediapath>
+  </header>
+  {}
+</database>
+'''
+
+
+def test_empty_file():
+    with pytest.raises(ElementTree.ParseError):
+        ElementTree.fromstring(FIXTURE_EMPTY_STRING)
+
+
+def test_empty_tree():
+    xml_root = ElementTree.fromstring(FIXTURE_EMPTY_TREE)
+    results = gramps_xml_to_yaml.transform(xml_root)
+    assert list(results) == []
+
+
+def test_note():
+    fixture = FIXTURE_TEMPLATE.format('''
+      <notes>
+        <note handle="_cddae8db682509900d8c4a0717b" change="1414625582" id="N0000" type="Source text">
+          <text>P. Salomon Jakubowicz z Aużbików dym\nP. Augustyn Auzbikowicz z tejże dym</text>
+        </note>
+        <note handle="_ce686c5c01a728667eb09a861b0" change="1418424311" id="N0075" type="Citation">
+          <text>Учительница Валентина Ксаверьевна Аузбиковичъ</text>
+          <style name="bold">
+            <range start="0" end="10"/>
+            <range start="175" end="208"/>
+          </style>
+        </note>
+      </notes>
+    ''')
+    xml_root = ElementTree.fromstring(fixture)
+    results = gramps_xml_to_yaml.transform(xml_root)
+    assert list(results) == [
+        (
+            'notes',
+            'N0000',
+            {
+                'id': 'N0000',
+                'handle': '_cddae8db682509900d8c4a0717b',
+                'text': 'P. Salomon Jakubowicz z Aużbików dym\n'
+                        'P. Augustyn Auzbikowicz z tejże dym',
+                'type': 'Source text',
+                'change': datetime.datetime(2014, 10, 29, 23, 33, 2),
+            },
+        ),
+        (
+            'notes',
+            'N0075',
+            {
+                'change': datetime.datetime(2014, 12, 12, 22, 45, 11),
+            'handle': '_ce686c5c01a728667eb09a861b0',
+            'id': 'N0075',
+            'style': [
+                {
+                    'name': 'bold',
+                    'range': [
+                        {'end': '10', 'start': '0'},
+                        {'end': '208', 'start': '175'}
+                    ]
+                }
+            ],
+            'text': 'Учительница Валентина Ксаверьевна Аузбиковичъ',
+            'type': 'Citation',
+            }
+        ),
+    ]
+
+
+def test_event_simple():
+    fixture = FIXTURE_TEMPLATE.format('''
+      <events>
+        <event handle="_ce256047ba8422bdb7afcf17f0c" change="1447556305" id="E0284">
+          <type>Education</type>
+          <datespan start="1882-08-19" stop="1886-06-15"/>
+          <description>Витебская женская гимназия</description>
+        </event>
+      </events>
+    ''')
+    xml_root = ElementTree.fromstring(fixture)
+    results = gramps_xml_to_yaml.transform(xml_root)
+    assert list(results) == [
+        (
+            'events',
+            'E0284',
+            {
+                'id': 'E0284',
+                'handle': '_ce256047ba8422bdb7afcf17f0c',
+                'type': 'Education',
+                'date': {
+                    'modifier': 'span',
+                    'value': {'start': '1882-08-19', 'stop': '1886-06-15'},
+                },
+                'description': 'Витебская женская гимназия',
+                'change': datetime.datetime(2015, 11, 15, 2, 58, 25),
+            },
+         )
+    ]
+
+
+def test_event_with_refs():
+    """
+    References are resolved.  Hlinks (internal IDs specific to Gramps)
+    are converted to permanent IDs.
+    """
+    fixture = FIXTURE_TEMPLATE.format('''
+      <places>
+        <placeobj handle="_ce255ff558060243e85c7afafdd" change="1416946456" id="P0094" type="City">
+          <ptitle>Витебск</ptitle>
+          <pname value="Витебск"/>
+          <coord long="30.166667" lat="55.183333"/>
+        </placeobj>
+      </places>
+      <events>
+        <event handle="_ce256047ba8422bdb7afcf17f0c" change="1447556305" id="E0284">
+          <type>Education</type>
+          <datespan start="1882-08-19" stop="1886-06-15"/>
+          <place hlink="_ce255ff558060243e85c7afafdd"/>
+          <description>Витебская женская гимназия</description>
+          <citationref hlink="_ce686c6f00d129987dfd2557a69"/>
+          <citationref hlink="_d2a5a5f906a63c6daa03719fa9e"/>
+        </event>
+      </events>
+      <citations>
+        <citation handle="_ce686c6f00d129987dfd2557a69" change="1418424441" id="C0084">
+          <dateval val="1888"/>
+          <page>На 1888 год, с.98</page>
+          <confidence>2</confidence>
+        </citation>
+        <citation handle="_d2a5a5f906a63c6daa03719fa9e" change="1447556536" id="C0239">
+          <dateval val="1888"/>
+          <page>(n/a)</page>
+          <confidence>2</confidence>
+        </citation>
+      </citations>
+    ''')
+    xml_root = ElementTree.fromstring(fixture)
+    results = gramps_xml_to_yaml.transform(xml_root)
+    results = list(results)
+    expected = [
+        (
+            'events',
+            'E0284',
+            {
+                'id': 'E0284',
+                'handle': '_ce256047ba8422bdb7afcf17f0c',
+                'type': 'Education',
+                'date': {
+                    'modifier': 'span',
+                    'value': {'start': '1882-08-19', 'stop': '1886-06-15'},
+                },
+                'description': 'Витебская женская гимназия',
+                'change': datetime.datetime(2015, 11, 15, 2, 58, 25),
+                'place': [
+                    {'id': 'P0094'},
+                ],
+                'citationref': [
+                    {'id': 'C0084'},
+                    {'id': 'C0239'},
+                ],
+            },
+        ),
+        (
+            'places',
+            'P0094',
+            {
+                'change': datetime.datetime(2014, 11, 25, 20, 14, 16),
+                'coord': {'lat': '55.183333', 'long': '30.166667'},
+                'handle': '_ce255ff558060243e85c7afafdd',
+                'id': 'P0094',
+                'pname': [{'value': 'Витебск'}],
+                'ptitle': 'Витебск',
+                'type': 'City'
+            }
+        ),
+        (
+            'citations',
+            'C0084',
+            {
+                'change': datetime.datetime(2014, 12, 12, 22, 47, 21),
+                'confidence': '2',
+                'date': {'value': '1888'},
+                'handle': '_ce686c6f00d129987dfd2557a69',
+                'id': 'C0084',
+                'page': 'На 1888 год, с.98'
+            }
+        ),
+        (
+            'citations',
+            'C0239',
+            {
+                'change': datetime.datetime(2015, 11, 15, 3, 2, 16),
+                'confidence': '2',
+                'date': {'value': '1888'},
+                'handle': '_d2a5a5f906a63c6daa03719fa9e',
+                'id': 'C0239',
+                'page': '(n/a)'
+            }
+        ),
+    ]
+    assert list(results) == expected
+
+
+def test_event_with_more_refs():
+    """
+    References are resolved.  Hlinks (internal IDs specific to Gramps)
+    are converted to permanent IDs.
+    """
+    fixture = FIXTURE_TEMPLATE.format('''
+      <sources>
+        <source handle="_ce6851e9dc2741cfb6fe03a119a" change="1434907653" id="membook_vitebsk">
+          <stitle>Памятная книжка Витебской губернии</stitle>
+          <sabbrev>ПК Витеб. губ.</sabbrev>
+        </source>
+      </sources>
+      <places>
+        <placeobj handle="_ce255ff558060243e85c7afafdd" change="1416946456" id="P0094" type="City">
+          <ptitle>Витебск</ptitle>
+          <pname value="Витебск"/>
+          <coord long="30.166667" lat="55.183333"/>
+        </placeobj>
+      </places>
+      <events>
+        <event handle="_ce256047ba8422bdb7afcf17f0c" change="1447556305" id="E0284">
+          <type>Education</type>
+          <datespan start="1882-08-19" stop="1886-06-15"/>
+          <place hlink="_ce255ff558060243e85c7afafdd"/>
+          <description>Витебская женская гимназия</description>
+          <citationref hlink="_ce686c6f00d129987dfd2557a69"/>
+        </event>
+      </events>
+      <citations>
+        <citation handle="_ce686c6f00d129987dfd2557a69" change="1418424441" id="C0084">
+          <dateval val="1888"/>
+          <page>На 1888 год, с.98</page>
+          <confidence>2</confidence>
+          <noteref hlink="_ce686c5c01a728667eb09a861b0"/>
+          <objref hlink="_ce686b5cd8173717f5a3b935e61">
+           <region corner1_x="4" corner1_y="23" corner2_x="100" corner2_y="36"/>
+          </objref>
+          <sourceref hlink="_ce6851e9dc2741cfb6fe03a119a"/>
+        </citation>
+      </citations>
+      <objects>
+        <object handle="_ce686b5cd8173717f5a3b935e61" change="1425242618" id="O0052">
+          <file src="pamjatnaja-knizhka/vitebskaja/1888/p98.png" mime="image/png" checksum="48e78c814eb61ac1eef97b4bfdf69fb5" description="p98"/>
+        </object>
+      </objects>
+      <notes>
+        <note handle="_ce686c5c01a728667eb09a861b0" change="1418424311" id="N0075" type="Citation">
+          <text>Учительница Валентина Ксаверьевна Аузбиковичъ</text>
+        </note>
+      </notes>
+
+    ''')
+    xml_root = ElementTree.fromstring(fixture)
+    results = gramps_xml_to_yaml.transform(xml_root)
+    results = list(results)
+    expected = [
+        (
+            'sources',
+            'membook_vitebsk',
+            {
+                'id': 'membook_vitebsk',
+                'handle': '_ce6851e9dc2741cfb6fe03a119a',
+                'stitle': 'Памятная книжка Витебской губернии',
+                'sabbrev': 'ПК Витеб. губ.',
+                'change': datetime.datetime(2015, 6, 21, 17, 27, 33),
+            }
+        ),
+        (
+            'events',
+            'E0284',
+            {
+                'id': 'E0284',
+                'handle': '_ce256047ba8422bdb7afcf17f0c',
+                'type': 'Education',
+                'date': {
+                    'modifier': 'span',
+                    'value': {
+                        'start': '1882-08-19',
+                        'stop': '1886-06-15',
+                    },
+                },
+                'description': 'Витебская женская гимназия',
+                'change': datetime.datetime(2015, 11, 15, 2, 58, 25),
+                'place': [
+                    {
+                        'id': 'P0094',
+                    },
+                ],
+                'citationref': [
+                    {
+                        'id': 'C0084',
+                    },
+                ],
+            },
+        ),
+        (
+            'places',
+            'P0094',
+            {
+                'id': 'P0094',
+                'handle': '_ce255ff558060243e85c7afafdd',
+                'ptitle': 'Витебск',
+                'type': 'City',
+                'pname': [
+                    {
+                        'value': 'Витебск',
+                    },
+                ],
+                'coord': {'lat': '55.183333', 'long': '30.166667'},
+                'change': datetime.datetime(2014, 11, 25, 20, 14, 16),
+            }
+        ),
+        (
+            'objects',
+            'O0052',
+            {
+                'id': 'O0052',
+                'handle': '_ce686b5cd8173717f5a3b935e61',
+                'file': {
+                    'checksum': '48e78c814eb61ac1eef97b4bfdf69fb5',
+                    'description': 'p98',
+                    'mime': 'image/png',
+                    'src': 'pamjatnaja-knizhka/vitebskaja/1888/p98.png'
+                },
+                'change': datetime.datetime(2015, 3, 1, 20, 43, 38),
+            },
+        ),
+        (
+            'notes',
+            'N0075',
+            {
+                'id': 'N0075',
+                'handle': '_ce686c5c01a728667eb09a861b0',
+                'text': 'Учительница Валентина Ксаверьевна Аузбиковичъ',
+                'type': 'Citation',
+                'change': datetime.datetime(2014, 12, 12, 22, 45, 11),
+            },
+        ),
+        (
+            'citations',
+            'C0084',
+            {
+                'id': 'C0084',
+                'handle': '_ce686c6f00d129987dfd2557a69',
+                'confidence': '2',
+                'date': {
+                    'value': '1888'
+                },
+                'page': 'На 1888 год, с.98',
+                'sourceref': {
+                    'id': 'membook_vitebsk'
+                },
+                'noteref': [
+                    {
+                        'id': 'N0075'
+                    },
+                ],
+                'objref': [
+                    {
+                        'id': 'O0052',
+                        'region': [
+                            {
+                                'corner1_x': '4',
+                                'corner1_y': '23',
+                                'corner2_x': '100',
+                                'corner2_y': '36'
+                            }
+                        ]
+                    }
+                ],
+                'change': datetime.datetime(2014, 12, 12, 22, 47, 21),
+            }
+        ),
+    ]
+    assert list(results) == expected
