@@ -324,9 +324,7 @@ def familytreejs_json():
 
     pairs = map(_prepare_item, people)
     data = OrderedDict(p for p in pairs if p)
-    return json.dumps(data)
-#    return json.dumps({
-***REMOVED******REMOVED******REMOVED***#    })
+    return json.dumps(data)    # {john': {'name': 'John Doe'},}
 
 
 #@app.route('/familytree-bp')
