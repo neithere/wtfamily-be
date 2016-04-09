@@ -30,9 +30,6 @@ from monk import (
     validate, opt_key, optional, one_of,
 )
 
-# TODO: remove this
-import show_people as _dbi
-
 
 class OptionalKey(object):
     """
@@ -582,7 +579,7 @@ class Person(Entity):
 
     def _format_all_names(self, template=NAME_TEMPLATE):
         names = self._data['name']
-        return _dbi._format_names(names, template) or []
+        return self._format_names(names, template) or []
 
     def _format_one_name(self, template=NAME_TEMPLATE):
         return self._format_all_names(template)[0]
@@ -620,7 +617,7 @@ class Person(Entity):
             if 'group' in n:
                 yield n['group']
 
-            _, primary_surnames, _, _ = _dbi._get_name_parts(n)
+            _, primary_surnames, _, _ = self._get_name_parts(n)
             for surname in primary_surnames:
                 if not first_found_surname:
                     first_found_surname = surname
@@ -769,6 +766,84 @@ class Person(Entity):
     @property
     def is_female(self):
         return self.gender == self.GENDER_FEMALE
+
+    @classmethod
+    def _get_name_parts(cls, name_node):
+
+        first = name_node.get('first', '?')
+        primary_surnames = []
+        patronymic = []
+        nonpatronymic = []
+
+        surname_spec = name_node.get('surname', '?')
+
+        if isinstance(surname_spec, str):
+            surname_spec = [
+                {
+                    'text': surname_spec,
+                }
+            ]
+
+        if isinstance(surname_spec, dict):
+            surname_spec = [surname_spec]
+
+        for surname in surname_spec:
+            #print('surname:', surname)
+            if isinstance(surname, str):
+                surname = {
+                    'text': surname,
+                }
+            derivation = surname.get('derivation')
+            is_primary = surname.get('prim') != '0'
+            text = surname.get('text', '???')
+            if derivation == 'Patronymic':
+                patronymic.append(text)
+            elif is_primary:
+                primary_surnames.append(text)
+            else:
+                nonpatronymic.append(text)
+
+        return first, primary_surnames, patronymic, nonpatronymic
+
+    @classmethod
+    def _format_names(cls, name_node, template=NAME_TEMPLATE):
+        if not isinstance(name_node, list):
+            name_node = [name_node]
+        return [_format_name(n, template=template) for n in name_node]
+
+    @classmethod
+    def _format_name(cls, name_node, template=NAME_TEMPLATE):
+        #template = '{primary} ({nonpatronymic}), {first} {patronymic}'
+
+        first, primary_surnames, patronymic, nonpatronymic = _get_name_parts(name_node)
+
+        return template.format(
+            first = first,
+            primary = ', '.join(primary_surnames),
+            patronymic = ' '.join(patronymic),
+            nonpatronymic = ', '.join(nonpatronymic),
+        ).replace(' ()', '').strip()
+
+
+def _format_dateval(dateval):
+    if not dateval:
+        return
+    if 'val' in dateval:
+        val = dateval['val']
+    elif 'daterange' in dateval:
+        assert 0, dateval
+        val = '{}—{}'.format(
+            dateval['daterange'].get('start'),
+            dateval['daterange'].get('stop')
+        )
+    else:
+        val = '?'
+    vals = [
+        dateval.get('quality'),
+        dateval.get('type'),
+        val,
+    ]
+    return ' '.join([x for x in vals if x])
 
 
 class Event(Entity):

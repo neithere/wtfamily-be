@@ -415,7 +415,6 @@ class Converter:
             yield k, v
 
         for field_node in entity_node:
-            #print(t.blue('  {}  "{}"   {}'.format(child.tag, (child.text or '').strip(), child.attrib)))
             field_name = _strip_namespace(field_node.tag)
 
             assert not (field_node.attrib and (field_node.text.strip() if field_node.text else None))
@@ -443,7 +442,6 @@ class Converter:
                             for _f, _v in subfield_node.attrib.items():
                                 _f, _v = self._normalize_field_name_and_value(_f, _v)
                                 nested_value[_f] = _v
-                            print('    from attribs:', nested_value)
                             if subfield_node.text:
                                 nested_value.update(text=subfield_node.text)
                         else:

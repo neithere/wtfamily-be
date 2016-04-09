@@ -62,14 +62,10 @@ def main():
         'storage_conf': conf['storage'],
     })
 
-    import place_to_event_algo_test
-    algotest = place_to_event_algo_test.AlgoTest({'storage': storage})
-
     command_tree = {
         None: webapp.commands,
         'etl': etl.commands,
         'db': storage.commands,
-        'algotest': algotest.commands,
         'debug': debug.commands,
     }
     for namespace, commands in command_tree.items():
