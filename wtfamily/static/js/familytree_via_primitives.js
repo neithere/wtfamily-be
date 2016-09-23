@@ -1,104 +1,155 @@
-requirejs(['jquery-ui.min', 'primitives.min'], function(jQueryUI, Primitives) {
+requirejs.config({
+    baseUrl: '/static/js/lib',  // "foo" = "/static/js/lib/foo.js"
+    paths: {
+        //app: '/static/js'       // "/app/foo" = "/static/js/foo.js"
+        'jquery-ui': '/static/js/lib/jquery-ui-1.12.1/ui',
+    }
+});
 
-    function init_family_tree (items) {
-        //console.log(items);
-        var options = new primitives.orgdiagram.Config();
+define('jquery', ['jquery.min'], function() {
+    return jQuery;
+});
 
-        options.items = items;
+define('primitives', ['jquery', 'jquery-ui/widget', 'jquery-ui/widgets/button'], function(jQuery, jquery_ui) {
+    var deferred = $.Deferred();
+    var req2 = require(['primitives.min'], function(foo) {
+        deferred.resolve(primitives);
+    });
+    return deferred.promise();
+});
 
-        options.cursorItem = 0;
-        options.cursorItem = 2;
-        options.linesWidth = 1;
-        options.linesColor = "black";
-        options.hasSelectorCheckbox = primitives.common.Enabled.False;
-        options.normalLevelShift = 20;
-        options.dotLevelShift = 20;
-        options.lineLevelShift = 20;
-        options.normalItemsInterval = 10;
-        options.dotItemsInterval = 10;
-        options.lineItemsInterval = 10;
-        options.arrowsDirection = primitives.common.GroupByType.Children;
+define('FamilyTree', ['jquery', 'lodash.min', 'primitives'], function($, _, promisedPrimitives) {
 
+    function init(config) {
+        var url = config.url;
+        var params = config.params;
 
-        options.hasButtons = primitives.common.Enabled.True;
-        options.onButtonClick = function (e, data) {
-            var message = "User clicked '" + data.name + "' button for item '" + data.context.title + "'.";
-            window.open('/person/' + data.context.id, '_blank'); //, 'location=yes,height=570,width=520,scrollbars=yes,status=yes');
-        };
-
-        options.onItemRender = onItemRender;
-        options.templates = [getPersonTemplate()];
-
-        function onItemRender(event, data) {
-            var item_context = data.context;
-            var fields = ['title', 'id', 'description'];
-            $.each(fields, function(i, name) {
-                var element = data.element.find("[name=" + name + "]");
-                if (element.text() != item_context[name]) {
-                    element.text(item_context[name]);
-                }
-            });
-
-            // OMG, in preview mode this elem seems to be reused...
-            data.element.find('[name=title]').removeClass('gender-male').removeClass('gender-female');
-            if (item_context.gender == 'M') {
-                data.element.find('[name=title]').addClass('gender-male');
-            } else if (item_context.gender == 'F') {
-                data.element.find('[name=title]').addClass('gender-female');
-            }
-        }
-
-        function getPersonTemplate() {
-            var result = new primitives.orgdiagram.TemplateConfig();
-
-            result.itemTemplate =
-              '<div class="bp-item bp-corner-all bp-item-frame">'+
-                '<span name="title" class="bp-person-title">(TITLE)</span>'+
-                '<div name="description" class="bp-person-description">(DESC)</div>' +
-              '</div>';
-            result.itemSize = new primitives.common.Size(150, 80);
-            result.buttons = [
-                new primitives.orgdiagram.ButtonConfig('detail', 'ui-icon-person', 'Detail')
-            ];
-            result.minimizedItemSize = new primitives.common.Size(3, 3);
-            result.highlightPadding = new primitives.common.Thickness(2, 2, 2, 2);
-            return result;
-        }
-
-        $("#basicdiagram").famDiagram(options);
-
-        function focus_person(id) {
-            $("#basicdiagram").famDiagram({cursorItem: id});
-            $("#basicdiagram").famDiagram('update', primitives.orgdiagram.UpdateMode.Refresh)
-        }
-
-        var person_id = window.location.hash.slice(1);
-        if ( person_id ) {
-            focus_person(person_id);
-        }
+        $.getJSON(url, params).done(function(data) {
+            this.init_family_tree(data);
+        }.bind(this));
     };
 
-    $(window).load(function () {
-        // parse query string, use some params to filter data on back-end
-        var params = {};
-        window.location.search.replace(/[?&]+([^=&]+)=([^&]*)/gi, function(str,key,value) { params[key] = value; });
-        //var url = "{{ url_for('familytree_primitives_data') }}";
-        var url = "/familytree-bp/data";
-        var data = {
-            surname: params.surname,
-            ancestors_of: params.ancestors_of,
-            descendants_of: params.descendants_of,
-        };
-        $.getJSON(url, data).done(function(data) {
-            init_family_tree(data);
+    function init_family_tree(items) {
+        $.when(promisedPrimitives).then(function(primitives) {
+            var options = new primitives.orgdiagram.Config();
 
-            // NOTE: how to add items dynamically:
-            /*
-            diagram = $('#basicdiagram').data('uiFamDiagram')
-            diagram.options.items.push({title:'foeu',id:'Whut', parents:['akulina']})
-            diagram.update()
-            */
-        });
+            options.items = items;
+
+            options.cursorItem = 0;
+            options.cursorItem = 2;
+            options.linesWidth = 1;
+            options.linesColor = "black";
+            options.hasSelectorCheckbox = primitives.common.Enabled.False;
+            options.normalLevelShift = 20;
+            options.dotLevelShift = 20;
+            options.lineLevelShift = 20;
+            options.normalItemsInterval = 10;
+            options.dotItemsInterval = 10;
+            options.lineItemsInterval = 10;
+            options.arrowsDirection = primitives.common.GroupByType.Children;
+
+
+            options.hasButtons = primitives.common.Enabled.True;
+            options.onButtonClick = function (e, data) {
+                var message = "User clicked '" + data.name + "' button for item '" + data.context.title + "'.";
+                window.open('/person/' + data.context.id, '_blank'); //, 'location=yes,height=570,width=520,scrollbars=yes,status=yes');
+            };
+
+            options.onCursorChanged = function(e, data) {
+                var personData = data.context;
+                var personId = personData.id;
+                var url = "/familytree-bp/data";
+                var params = {
+                    relatives_of: personId
+                };
+
+                $.getJSON(url, params).done(function(relatives) {
+                    var diagram = $('#basicdiagram').data('uiFamDiagram');
+                    _.each(relatives, function(relative) {
+                        diagram.options.items.push(relative);
+                        //diagram.options.items.push({title:'foeu',id:'Whut', parents:['akulina']});
+                    }.bind(this));
+                    diagram.update();
+                }.bind(this));
+            }.bind(this);
+
+            options.onItemRender = onItemRender;
+            options.templates = [getPersonTemplate()];
+
+            function onItemRender(event, data) {
+                var item_context = data.context;
+                var fields = ['title', 'id', 'description'];
+                $.each(fields, function(i, name) {
+                    var element = data.element.find("[name=" + name + "]");
+                    if (element.text() != item_context[name]) {
+                        element.text(item_context[name]);
+                    }
+                });
+
+                // OMG, in preview mode this elem seems to be reused...
+                data.element.find('[name=title]').removeClass('gender-male').removeClass('gender-female');
+                if (item_context.gender == 'M') {
+                    data.element.find('[name=title]').addClass('gender-male');
+                } else if (item_context.gender == 'F') {
+                    data.element.find('[name=title]').addClass('gender-female');
+                }
+            }
+
+            function getPersonTemplate() {
+                var result = new primitives.orgdiagram.TemplateConfig();
+
+                result.itemTemplate =
+                  '<div class="bp-item bp-corner-all bp-item-frame">'+
+                    '<span name="title" class="bp-person-title">(TITLE)</span>'+
+                    '<div name="description" class="bp-person-description">(DESC)</div>' +
+                  '</div>';
+                result.itemSize = new primitives.common.Size(150, 80);
+                result.buttons = [
+                    new primitives.orgdiagram.ButtonConfig('detail', 'ui-icon-person', 'Detail')
+                ];
+                result.minimizedItemSize = new primitives.common.Size(3, 3);
+                result.highlightPadding = new primitives.common.Thickness(2, 2, 2, 2);
+                return result;
+            }
+
+            $("#basicdiagram").famDiagram(options);
+
+            function focus_person(id) {
+                $("#basicdiagram").famDiagram({cursorItem: id});
+                $("#basicdiagram").famDiagram('update', primitives.orgdiagram.UpdateMode.Refresh)
+            }
+
+            var person_id = window.location.hash.slice(1);
+            if ( person_id ) {
+                focus_person(person_id);
+            }
+        }).promise();
+    };
+
+    return {
+        init: init,
+        init_family_tree: init_family_tree
+    };
+});
+
+require(['FamilyTree'], function(FamilyTree) {
+
+    console.debug('preparing to initialize the family tree...');
+
+    // parse query string, use some params to filter data on back-end
+    var params = {};
+    window.location.search.replace(/[?&]+([^=&]+)=([^&]*)/gi, function(str,key,value) { params[key] = value; });
+    //var url = "{{ url_for('familytree_primitives_data') }}";
+    var url = "/familytree-bp/data";
+    var urlParams = {
+        surname: params.surname,
+        ancestors_of: params.ancestors_of,
+        descendants_of: params.descendants_of,
+        relatives_of: params.relatives_of,
+        single_person: params.single_person,
+    };
+    FamilyTree.init({
+        url: url,
+        params: urlParams
     });
-
 });

@@ -352,8 +352,19 @@ def familytree_primitives():
 
 #@app.route('/familytree-bp/data')
 def familytree_primitives_data():
-    people = sorted(Person.find(), key=lambda p: p.group_name)
     filter_surnames = set(x for x in request.values.get('surname', '').lower().split(',') if x)
+
+    # only show given individual
+    single_person = request.values.get('single_person')
+    if single_person:
+        people = [Person.get(single_person)]
+    else:
+        people = sorted(Person.find(), key=lambda p: p.group_name)
+
+    relatives_of = request.values.get('relatives_of')
+    if relatives_of:
+        central_person = Person.get(relatives_of)
+        people = central_person.related_people
 
     # only find ancestors of given person
     ancestors, descendants = None, None

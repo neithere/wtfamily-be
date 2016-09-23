@@ -78,12 +78,15 @@
       </article>
     </div>
 
+    {#
+
     <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
-    <script src="{{ url_for('static', filename='js/jquery.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/lib/jquery.min.js') }}"></script>
 
     <!-- Latest compiled and minified Bootstrap JavaScript -->
-    <script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/lib/bootstrap.min.js') }}"></script>
 
+    #}
     {% block foot %}
     {% endblock %}
   </body>
