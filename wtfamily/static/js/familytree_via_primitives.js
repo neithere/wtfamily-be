@@ -83,7 +83,8 @@ define('FamilyTree', ['jquery', 'lodash.min', 'primitives'], function($, _, prom
         };
 
         options.onCursorChanged = function(e, data) {
-            var cardElem = $(e.originalEvent.target).closest('.bp-item');
+            var target = $(e.originalEvent.target);
+            var cardElem = target.closest('.bp-item');
             var personData = data.context;
             var personId = personData.id;
 
