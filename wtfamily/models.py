@@ -16,7 +16,7 @@
 #
 #    You should have received a copy of the GNU Lesser General Public License
 #    along with WTFamily.  If not, see <http://gnu.org/licenses/>.
-from datetime import datetime, timedelta
+import datetime
 import functools
 import re
 
@@ -29,6 +29,10 @@ from monk import (
     IsA, Anything, Equals, Any,
     validate, opt_key, optional, one_of,
 )
+
+
+class ObjectNotFound(Exception):
+    pass
 
 
 class OptionalKey(object):
@@ -47,7 +51,7 @@ maybe = OptionalKey()
 COMMON_SCHEMA = {
     'id': str,
     maybe-'handle': str,        # Gramps-specific internal ID
-    maybe-'change': datetime,   # last changed timestamp
+    maybe-'change': datetime.datetime,   # last changed timestamp
     maybe-'priv': False,        # is this a private record?
 }
 ID_OR_HLINK = one_of(['id', 'hlink'])
@@ -130,11 +134,11 @@ OBJREF_SCHEMA = {
             'corner2_x': str,
         },
     ],
+    maybe-'noteref': [ REF_SCHEMA ],
 }
 
 # Seems to be either missing (false) or `['1']` (true)
 LEGACY_BOOL_SCHEMA = [ Equals('1') ]
-
 URL_SCHEMA = {
     'href': str,
     'type': str,    # TODO enum
@@ -180,7 +184,7 @@ PLACE_SCHEMA = {
     ],
     maybe-'coord': {'long': str, 'lat': str},
     #maybe-'alt_name': [str],
-    maybe-'change': datetime,
+    maybe-'change': datetime.datetime,
     'type': str,    # TODO: strict check?
     #'type': one_of(TYPE_CHOICES),
     maybe-'url': LIST_OF_URLS,
@@ -226,7 +230,7 @@ PERSON_SCHEMA = {
     maybe-'url': LIST_OF_URLS,
     maybe-'address': [ ADDRESS ],
 
-    maybe-'change': datetime,
+    maybe-'change': datetime.datetime,
 
     maybe-'objref': [OBJREF_SCHEMA],
     maybe-'eventref': [
@@ -353,6 +357,9 @@ class Entity:
     sort_key = None
     schema = COMMON_SCHEMA
 
+    # let them access the exception class by Entity (sub)class attribute
+    ObjectNotFound = ObjectNotFound
+
     def __init__(self, data):
         self._data = data
 
@@ -442,8 +449,12 @@ class Entity:
 
     @classmethod
     def get(cls, pk):
-        data = cls._storage().get(pk)
-        return cls(data)
+        try:
+            data = cls._storage().get(pk)
+        except cls._storage().KeyNotInStorage:
+            raise cls.ObjectNotFound(pk)
+        else:
+            return cls(data)
 
     @classmethod
     def find(cls, conditions=None):
@@ -503,6 +514,37 @@ class Entity:
     def sortkey(self):
         return self.id
 
+    @property
+    def is_private(self):
+        return self._data.get('priv', False)
+
+    def get_public_data(self, protect=True):
+        """
+        Object data in a simplified and predictable format.
+        No string-or-list-of-dicts and such nonsense.
+        Main purpose: to display the item without extra logic in the View.
+        """
+        data = self.get_pretty_data()
+        def _protect_value(value):
+            if protect:
+                if isinstance(value, str):
+                    return '[private]'
+                else:
+                    return None
+            else:
+                if isinstance(value, str):
+                    return '[private] {}'.format(value)
+                else:
+                    return value
+
+        if self.is_private:
+            return dict((k, _protect_value(v)) for k,v in data.items())
+        else:
+            return data
+
+    def get_pretty_data(self):
+        raise NotImplementedError
+
 
 class Family(Entity):
     entity_name = 'families'
@@ -519,6 +561,17 @@ class Family(Entity):
             return None
         else:
             return Person.find_one({'id': pk})
+
+    def get_pretty_data(self):
+        return {
+            'father': self._data.get('father'),
+            'mother': self._data.get('mother'),
+            'citations': _simplified_refs(self._data.get('citationref')),
+            'notes': self._data.get('noteref'),
+            'children': _simplified_refs(self._data.get('childref')),
+            'events': _simplified_refs(self._data.get('events')),
+            'attributes': self._data.get('attribute'),
+        }
 
     @property
     def father(self):
@@ -583,6 +636,26 @@ class Person(Entity):
 
     def _format_one_name(self, template=NAME_TEMPLATE):
         return self._format_all_names(template)[0]
+
+    def get_pretty_data(self):
+        return {
+            'group_names': list(self.group_names),
+            'group_name': self.group_name,
+            'names': self.names,
+            'name': self.name,
+            'first_and_last_names': self.first_and_last_names,
+            'initials': self.initials,
+            'gender': self.gender,
+            'birth': str(self.birth),
+            'death': str(self.death),
+            'age': self.age,
+            'attributes': self.attributes,
+            'child_in_families': _simplified_refs(self._data.get('childof')),
+            'parent_in_families': _simplified_refs(self._data.get('parentin')),
+            'citations': _simplified_refs(self._data.get('citationref')),
+            'notes': _simplified_refs(self._data.get('noteref')),
+            'events': _simplified_refs(self._data.get('eventref')),
+        }
 
     @property
     def names(self):
@@ -862,6 +935,16 @@ class Event(Entity):
         #return 'Event {}'.format(self._data)
         return '{0.date} {0.type} {0.summary} {0.place}'.format(self)
 
+    def get_pretty_data(self):
+        place_refs = _simplified_refs(self._data.get('place'))
+        return {
+            'type': self.type,
+            'date': str(self.date),
+            'summary': self.summary,
+            'place': place_refs[0] if place_refs else None,
+            'citations': _simplified_refs(self._data.get('citationref')),
+        }
+
     @property
     def type(self):
         return self._data['type']
@@ -918,6 +1001,16 @@ class Place(Entity):
 
     def __repr__(self):
         return '{0.name}'.format(self)
+
+    def get_pretty_data(self):
+        return {
+            'name': self.name,
+            'other_names': self.alt_names,
+            'coords': self.coords,
+            'parent_places': _simplified_refs(self._data.get('placeref')),
+            'citations': _simplified_refs(self._data.get('citationref')),
+            'notes': _simplified_refs(self._data.get('noteref')),
+        }
 
     @property
     def name(self):
@@ -1043,6 +1136,15 @@ class Source(Entity):
     def __repr__(self):
         return str(self.title)
 
+    def get_pretty_data(self):
+        return {
+            'title': self.title,
+            'author': self.author,
+            'pubinfo': self.pubinfo,
+            'abbrev': self.abbrev,
+            'repository': _simplified_refs(self._data.get('reporef')),
+        }
+
     @property
     def title(self):
         return self._data.get('stitle')
@@ -1080,6 +1182,15 @@ class Citation(Entity):
         if self.page:
             return self.page
         return str(self.id)
+
+    def get_pretty_data(self):
+        return {
+            'page': self.page,
+            'date': str(self.date),
+            'source': _simplified_refs(self._data.get('sourceref')),
+            'notes': _simplified_refs(self._data.get('noteref')),
+            'media': _simplified_refs(self._data.get('objref')),
+        }
 
     @property
     def source(self):
@@ -1123,6 +1234,12 @@ class Citation(Entity):
 class Note(Entity):
     entity_name = 'notes'
     schema = NOTE_SCHEMA
+
+    def get_pretty_data(self):
+        return {
+            'text': self.text,
+            'media': _simplified_refs(self._data.get('objref')),
+        }
 
     @property
     def text(self):
@@ -1405,13 +1522,34 @@ class DateRepresenter:
 
     def _parse_to_datetime(self, value):
         if isinstance(value, int):
-            return datetime(value)
+            return datetime.datetime(value)
         if not isinstance(value, str):
             raise TypeError('expected a str, got {!r}'.format(value))
         # supplying default to avoid bug when the default day (31) was out
         # of range for given month (e.g. 30th is the last possible DoM).
         #print('    parse_date(', repr(value),')')
-        return parse_date(value, default=datetime(1,1,1))
+        return parse_date(value, default=datetime.datetime(1,1,1))
 
     def _parse_to_year(self, value):
         return self._parse_to_datetime(value).year
+
+
+def _simplified_refs(value):
+    """
+    Normalizes Gramps references to a predictable form without metadata.
+
+    >>> _simplified_refs(None)
+    None
+    >>> _simplified_refs('foo')
+    'foo'
+    >>> _simplified_refs(['foo', 'bar'])
+    ['foo', 'bar']
+    >>> _simplified_refs([{'id': 'foo'}, 'bar')
+    ['foo', 'bar']
+    """
+    if not value:
+        return
+    if isinstance(value, str):
+        return value
+    if isinstance(value, list):
+        return [x['id'] if isinstance(x, dict) else x for x in value]

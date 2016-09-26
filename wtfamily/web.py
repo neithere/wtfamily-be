@@ -38,6 +38,8 @@ from models import (
     MediaObject,
 )
 from storage import Storage
+from restful import RESTfulApp
+from restful import RESTfulService
 
 
 class WTFamilyWebApp(Configurable):
@@ -87,6 +89,18 @@ class WTFamilyWebApp(Configurable):
         self.flask_app.route('/familytree-bp/data')(familytree_primitives_data)
 
         self.flask_app.template_filter('format_timedelta')(babel.dates.format_timedelta)
+
+        restful_mapping = {
+            RESTfulApp: '/a',
+            RESTfulService: '/r',
+        }
+        for cls, prefix in restful_mapping.items():
+            _app = cls({
+                'storage': self.storage,
+                'debug': self.debug,
+            })
+            bp = _app.make_blueprint()
+            self.flask_app.register_blueprint(bp, url_prefix=prefix)
 
         self.flask_app.run(debug=self.debug)
 

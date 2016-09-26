@@ -1,0 +1,24 @@
+{{#if sources.isPending}}
+  Loading...
+{{else}}
+  {{#if sources}}
+    <table>
+      <thead>
+        <th>Title</th>
+        <th>Details</th>
+        <th>Citations</th>
+      </thead>
+      <tbody>
+      {{#each sources.value}}
+        <tr>
+          <td title="{{ id }}">{{ title }} {{#if abbrev }}("{{ abbrev }}"){{/if}}</td>
+          <td>{{ author }}, {{ pubinfo }}</td>
+          <td>(TODO: async)</td>
+        </tr>
+      {{/sources}}
+      </tbody>
+    </table>
+  {{else}}
+    No sources.
+  {{/if}}
+{{/if}}

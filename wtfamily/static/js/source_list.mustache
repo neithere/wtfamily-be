@@ -1,0 +1,18 @@
+<h1>Sources</h1>
+
+<table>
+  <thead>
+    <th>Title</th>
+    <th>Details</th>
+    <th>Citations</th>
+  </thead>
+  <tbody>
+  {{#each object_list}}
+    <tr>
+      <td title="{{ id }}">{{ title }} {{#if abbrev }}("{{ abbrev }}"){{/if}}</td>
+      <td>{{ author }}, {{ pubinfo }}</td>
+      <td>(TODO: async)</td>
+    </tr>
+  {{/each}}
+  </tbody>
+</table>

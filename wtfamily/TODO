@@ -1,6 +1,15 @@
 WTFamily TODO
 =============
 
+Goals
+-----
+
+- This is a publishing system.  Only displays info, no editing.
+- It *may* evolve and eventually get editing capabilities in a distant future.
+- YAML is bad for backend but great for source control purposes.
+- An ETL layer for GRAMPS compatibility and YAML DB may be decoupled from the
+  publishing system at some point.
+
 Storage
 -------
 
@@ -63,7 +72,11 @@ Linked Entities Management
 Web interface
 -------------
 
-...
+- [ ] Async UI with RESTful service
+
+  - Strategy for family tree: fetch and cache the whole /family/ list
+    (it's lightweight), then fetch individuals via /person/?ids=foo,bar
+    as needed
 
 Visualisation
 -------------

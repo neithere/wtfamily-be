@@ -41,6 +41,10 @@ ENTITIES = (
 )
 
 
+class KeyNotInStorage(Exception):
+    pass
+
+
 class Storage(Configurable):
     needs = {
         'path': str,
@@ -100,6 +104,9 @@ class EntityStorage:
         'sourceref.id',
         'citationref.id',
     )
+
+    # let them access the exception class by Storage attribute
+    KeyNotInStorage = KeyNotInStorage
 
     def __init__(self, basedir, entity_name, sync_on_demand=True):
         #self.basedir = basedir
@@ -206,7 +213,10 @@ class EntityStorage:
 
     def get(self, pk):
         self._ensure_data_ready()
-        return self._items[pk]
+        try:
+            return self._items[pk]
+        except KeyError:
+            raise KeyNotInStorage(pk)
 
     def find_and_adapt_to_legacy(self):
         self._ensure_data_ready()
