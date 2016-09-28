@@ -357,6 +357,8 @@ class Entity:
     sort_key = None
     schema = COMMON_SCHEMA
 
+    REFERENCES = NotImplemented
+
     # let them access the exception class by Entity (sub)class attribute
     ObjectNotFound = ObjectNotFound
 
@@ -433,7 +435,7 @@ class Entity:
     @classmethod
     def references_to(cls, other, indexed=True):
         """
-        Returns objects of this class referencing given object.
+        Returns objects of this class referencing given other object.
         """
         other_cls = other.__class__
         assert issubclass(other_cls, Entity)
@@ -619,6 +621,7 @@ class Person(Entity):
     schema = PERSON_SCHEMA
     REFERENCES = {
         'Citation': 'citationref.id',
+        'Event': 'eventref.id',
     }
     NAME_TEMPLATE = '{first} {patronymic} {primary} ({nonpatronymic})'
 
@@ -941,8 +944,8 @@ class Event(Entity):
             'type': self.type,
             'date': str(self.date),
             'summary': self.summary,
-            'place': place_refs[0] if place_refs else None,
-            'citations': _simplified_refs(self._data.get('citationref')),
+            'place_id': place_refs[0] if place_refs else None,
+            'citation_ids': _simplified_refs(self._data.get('citationref')),
         }
 
     @property
@@ -1188,8 +1191,8 @@ class Citation(Entity):
             'page': self.page,
             'date': str(self.date),
             'source': _simplified_refs(self._data.get('sourceref')),
-            'notes': _simplified_refs(self._data.get('noteref')),
-            'media': _simplified_refs(self._data.get('objref')),
+            'note_ids': _simplified_refs(self._data.get('noteref')),
+            'media_ids': _simplified_refs(self._data.get('objref')),
         }
 
     @property
@@ -1254,8 +1257,17 @@ class NameMap(Entity):
     entity_name = 'namemaps'
     schema = NAME_MAP_SCHEMA
 
+    TYPE_GROUP_AS = 'group_as'
+
     def __repr__(self):
         return '<{} "{}" → "{}">'.format(self.type, self.key, self.value)
+
+    def get_pretty_data(self):
+        return {
+            'type': self.type,
+            'key': self.key,
+            'value': self.value,
+        }
 
     @property
     def type(self):
@@ -1272,7 +1284,7 @@ class NameMap(Entity):
     @classmethod
     def group_as(self, key):
         for item in self.find():
-            if item.type == 'group_as' and item.key == key:
+            if item.type == self.TYPE_GROUP_AS and item.key == key:
                 return item.value
 
 
@@ -1542,6 +1554,8 @@ def _simplified_refs(value):
     None
     >>> _simplified_refs('foo')
     'foo'
+    >>> _simplified_refs({'id': 'foo'})
+    'foo'
     >>> _simplified_refs(['foo', 'bar'])
     ['foo', 'bar']
     >>> _simplified_refs([{'id': 'foo'}, 'bar')
@@ -1551,5 +1565,7 @@ def _simplified_refs(value):
         return
     if isinstance(value, str):
         return value
+    if isinstance(value, dict):
+        return value['id']
     if isinstance(value, list):
         return [x['id'] if isinstance(x, dict) else x for x in value]

@@ -17,6 +17,7 @@
 #    You should have received a copy of the GNU Lesser General Public License
 #    along with WTFamily.  If not, see <http://gnu.org/licenses/>.
 import functools
+import itertools
 from time import time
 
 from confu import Configurable
@@ -29,10 +30,98 @@ from models import (
     Place,
     Source,
     Citation,
-    #NameMap,
+    Note,
+    NameMap,
     #MediaObject,
 )
 from storage import Storage
+
+
+class GenericModelAdapter:
+    @classmethod
+    def provide_list(cls, model):
+        only_these_raw = request.values.get('ids', '')
+        only_these_ids = [x for x in only_these_raw.split(',') if x]
+
+        if only_these_ids:
+            return model.find({'id': only_these_ids})
+        else:
+            return model.find()
+
+    @classmethod
+    def prepare_obj(cls, obj, protect=False):
+        return dict(obj.get_public_data(protect=protect), id=obj.id)
+
+
+class PersonModelAdapter(GenericModelAdapter):
+    model = Person
+
+    @classmethod
+    def provide_list(cls, model):
+        assert model == cls.model
+
+        relatives_of_id = request.values.get('relatives_of')
+        by_event_id = request.values.get('by_event')
+
+        if relatives_of_id:
+            central_person = model.get(relatives_of_id)
+            return central_person.related_people
+        elif by_event_id:
+            event = Event.get(by_event_id)
+            return model.references_to(event)
+        else:
+            return super().provide_list(model)
+
+
+class EventModelAdapter(GenericModelAdapter):
+    model = Event
+
+    @classmethod
+    def provide_list(cls, model):
+        assert model == cls.model
+
+        citation_ids_raw = request.values.get('proven_by')
+        citation_ids = [x for x in citation_ids_raw.split(',') if x]
+
+        if citation_ids:
+            citations = Citation.find({'id': citation_ids})
+            events_by_citation = [c.events for c in citations]
+            chained = itertools.chain(*events_by_citation)
+            return set(chained)
+        else:
+            return super().provide_list(model)
+
+
+class CitationModelAdapter(GenericModelAdapter):
+    model = Citation
+
+    @classmethod
+    def provide_list(cls, model):
+        assert model == cls.model
+
+        source_id = request.values.get('source')
+
+        if source_id:
+            source = Source.get(source_id)
+            return model.references_to(source)
+        else:
+            return super().provide_list(model)
+
+
+class NameGroupModelAdapter(GenericModelAdapter):
+    model = NameMap
+
+    @classmethod
+    def provide_list(cls, model):
+        "NameMap is pre-filtered by type=group_as"
+        assert model == cls.model
+        return model.find({'type': NameMap.TYPE_GROUP_AS})
+
+    @classmethod
+    def prepare_obj(cls, obj, protect=False):
+        data = obj.get_public_data()
+        data.pop('type')
+        return data
 
 
 class RESTfulService(Configurable):
@@ -43,35 +132,42 @@ class RESTfulService(Configurable):
 
     def make_blueprint(self):
         blueprint = Blueprint('restful_service', __name__)
+
         mapping = {
-            Person: ('people', self._list_provider_person),
-            Event: ('events', None),
-            Family: ('families', None),
-            Place: ('places', None),
-            Source: ('sources', None),
-            Citation: ('citations', None),
+            Person: ('people', PersonModelAdapter),
+            Event: ('events', EventModelAdapter),
+            Family: ('families', GenericModelAdapter),
+            Place: ('places', GenericModelAdapter),
+            Source: ('sources', GenericModelAdapter),
+            Citation: ('citations', CitationModelAdapter),
+            Note: ('notes', GenericModelAdapter),
+            NameMap: ('namegroups', NameGroupModelAdapter),
         }
+
         for model, settings in mapping.items():
-            slug, retrieve_data = settings
+            slug, adapter = settings
             url_list = '/{}/'.format(slug)
             url_detail = '/{}/<string:id>'.format(slug)
-            handler_list = functools.partial(self._list, model, retrieve_data)
+            handler_list = functools.partial(self._list, model, adapter,
+                                             self.debug)
             handler_list.__name__ = '{}_list'.format(slug)
-            handler_detail = functools.partial(self._detail, model)
+            handler_detail = functools.partial(self._detail, model, adapter,
+                                               self.debug)
             handler_detail.__name__ = '{}_detail'.format(slug)
             blueprint.route(url_list, methods=['GET'])(handler_list)
             blueprint.route(url_detail, methods=['GET'])(handler_detail)
+
+        blueprint.route('/person_name_groups', methods=['GET'])(self.person_name_group_list)
+
         return blueprint
 
-    def _list(self, model, list_provider):
+    def _list(self, model, adapter, debug):
         before = time()
 
-        if not list_provider:
-            list_provider = self._list_provider_generic
+        obj_list = adapter.provide_list(model)
 
-        obj_list = list_provider(model)
-
-        pure_data_items = [self._prep_obj(obj) for obj in obj_list]
+        protect = not debug
+        pure_data_items = [adapter.prepare_obj(obj, protect) for obj in obj_list]
         resp = jsonify(pure_data_items)
 
         after = time()
@@ -81,44 +177,31 @@ class RESTfulService(Configurable):
 
         return resp
 
-    def _detail(self, model, id):
+    def _detail(self, model, adapter, debug, id):
         before = time()
         try:
             obj = model.get(id)
         except model.ObjectNotFound:
             abort(404)
-        resp = jsonify(self._prep_obj(obj))
+        protect = not debug
+        resp = jsonify(adapter.prepare_obj(obj, protect))
         after = time()
         print('Generated JSON for', model, 'detail in', (after - before), 'sec')
         return resp
 
-    def _prep_obj(self, obj):
-        protect = not self.debug
-        return dict(obj.get_public_data(protect=protect), id=obj.id)
-
-
-    def _list_provider_generic(self, model):
-        only_these_raw = request.values.get('ids', '')
-        only_these_ids = [x for x in only_these_raw.split(',') if x]
-
-        if only_these_ids:
-            #print('only these ids:', only_these_ids)
-            return model.find({'id': only_these_ids})
-        else:
-            return model.find()
-
-    def _list_provider_person(self, model):
-        assert model == Person
-
-        relatives_of_id = request.values.get('relatives_of')
-
-        if relatives_of_id:
-            #print('relatives of', relatives_of_id)
-            central_person = model.get(relatives_of_id)
-            return central_person.related_people
-        else:
-            #print('unfiltered')
-            return self._list_provider_generic(model)
+    @classmethod
+    @functools.lru_cache()
+    def person_name_group_list(cls):
+        "Runs once, caches the response (already in JSON)"
+        before = time()
+        seen_group_names = {}
+        for p in Person.find():
+            seen_group_names[p.group_name] = True
+        group_names = list(sorted(seen_group_names))
+        resp = jsonify(group_names)
+        after = time()
+        print('Generated JSON for surname_list in', (after - before), 'sec')
+        return resp
 
 
 class RESTfulApp(Configurable):

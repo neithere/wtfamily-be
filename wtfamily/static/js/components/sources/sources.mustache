@@ -1,24 +1,131 @@
-{{#if sources.isPending}}
-  Loading...
-{{else}}
-  {{#if sources}}
-    <table>
-      <thead>
-        <th>Title</th>
-        <th>Details</th>
-        <th>Citations</th>
-      </thead>
-      <tbody>
-      {{#each sources.value}}
-        <tr>
-          <td title="{{ id }}">{{ title }} {{#if abbrev }}("{{ abbrev }}"){{/if}}</td>
-          <td>{{ author }}, {{ pubinfo }}</td>
-          <td>(TODO: async)</td>
-        </tr>
-      {{/sources}}
-      </tbody>
-    </table>
-  {{else}}
-    No sources.
-  {{/if}}
-{{/if}}
+<div class="container">
+  <div class="row">
+    <div class="col-md-4" style="overflow-y: scroll; height: 100%;">
+      {{#if object_list.isPending}}
+        Loading the list of objects...
+      {{else}}
+        {{#if object_list}}
+          <div class="list-group">
+            {{#each object_list.value}}
+              <button type="button" can-click="selectObject" class="list-group-item" title="{{ id }}">{{ title }}</button>
+            {{/object_list}}
+          </div>
+        {{else}}
+          Nothing to display.
+        {{/if}}
+      {{/if}}
+    </div>
+    <div class="col-md-8">
+      {{#if selectedObject.isPending }}
+        Loading object...
+      {{else}}
+        {{#with selectedObject}}
+
+          <h2>{{ title }}</h2>
+
+          <dl class="dl-horizontal">
+            <dt>Author</dt>
+            <dd>{{author}}</dd>
+            <dt>Publication info</dt>
+            <dd>{{pubinfo}}</dd>
+            <dt>Abbrev</dt>
+            <dd>{{abbrev}}</dd>
+            <dt>Repository (ID)</dt>
+            <dd>{{repository}}</dd>  <!-- may be a flat array; how to deal with it in Mustache? -->
+          </dl>
+
+          {{#if citations.isPending}}
+            Loading citations...
+          {{else}}
+            {{#citations.value}}
+                <div class="panel panel-default">
+                <div class="panel-heading">
+                  <h4 class="panel-title">
+                    {{page}} {{#if date}}({{date}}){{/if}} #{{id}}
+                  </h4>
+                </div>
+                <div class="panel-body">
+
+                  {{#if notes.isPending}}
+                    <p>Loading notes...</p>
+                  {{else}}
+                    {{#notes.value}}
+                      <div title="{{id}}">
+                        <blockquote>
+                          <p style="white-space: pre-wrap; font-family: Georgia serif;">{{text}}</p>
+                        </blockquote>
+                        <p>{{#if media}}(has media){{/if}}</p>
+                      </div>
+                    {{/notes}}
+                    {{^if notes.value.length}}
+                      <div class="alert alert-warning" role="alert">
+                        <strong>Missing notes.</strong>
+                        Please add a source transcript or research summary.
+                      </div>
+                    {{/if}}
+                  {{/if}}
+                </div>
+
+                <table class="table table-condensed">
+                  <!--thead>
+                    <th>When</th>
+                    <th>Where</th>
+                    <th>What</th>
+                    <th>Who</th>
+                    <th>Summary</th>
+                  </thead-->
+                  <tbody>
+                    {{#if events.isPending}}
+                      <p>Loading events...</p>
+                    {{else}}
+                      {{#events.value}}
+                        <tr>
+                          <td>
+                            {{date}}
+                          </td>
+                          <td>
+                            {{#if place.isPending}}
+                              Loading place <code>{{ place_id }}</code>>...
+                            {{else}}
+                              {{place.name}} {{place.id}}
+                              {{#place}}
+                                <!--span class="glyphicon glyphicon-globe" aria-hidden="true"></span-->
+                                <em title="{{id}}">{{name}}</em>
+                              {{/place}}
+                            {{/if}}
+                          </td>
+                          <td>
+                            {{type}}
+                          </td>
+                          <td>
+                            {{#people}}
+                              <span title="{{id}}" style="margin-right: .5ex; border-bottom: 1px dotted gray;">
+                                <span class="glyphicon glyphicon-user" aria-hidden="true"></span>
+                                {{name}}
+                              </span>
+                            {{/people}}
+                          </td>
+                          <td>
+                            {{summary}}
+                          </td>
+                        </tr>
+                      {{/events}}
+
+                      {{^if events.value.length}}
+                        <div class="alert alert-info" role="alert">
+                          <strong>Missing facts.</strong>
+                          This citation may need some research.
+                        </div>
+                      {{/if}}
+                    {{/if}}
+                  </tbody>
+                </table>
+              </div>
+            {{/citations}}
+          {{/if}}
+        {{/with}}
+      {{/if}}
+
+    </div>
+  </div>
+</div>

@@ -1,0 +1,32 @@
+{{#if namegroups.isPending}}
+  Loading groups...
+{{else}}
+  <ul>
+    {{#namegroups.value}}
+      <li>{{.}}</li>
+    {{/namegroups}}
+  </ul>
+{{/if}}
+
+
+{{#if object_list.isPending}}
+  Loading...
+{{else}}
+  {{#if object_list}}
+    <table>
+      <thead>
+        <th>Name</th>
+      </thead>
+      <tbody>
+      {{#each object_list.value}}
+        <tr>
+          <td title="{{ id }}">{{ name }}</td>
+        </tr>
+      {{/object_list}}
+      </tbody>
+    </table>
+  {{else}}
+    Nothing to display.
+  {{/if}}
+{{/if}}
+

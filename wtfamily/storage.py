@@ -101,6 +101,7 @@ class EntityStorage:
     INDEXED_ATTRS = (
         'place.id',
         'placeref.id',
+        'eventref.id',
         'sourceref.id',
         'citationref.id',
     )

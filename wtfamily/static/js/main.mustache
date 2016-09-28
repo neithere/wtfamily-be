@@ -1,13 +1,23 @@
 {{> app/header}}
 
-{{#eq page "home"}}
-  {{> app/home}}
-{{/eq}}
+<div class="container">
+  {{#eq page "home"}}
+    {{> app/home}}
+  {{/eq}}
 
-{{#eq page "sources"}}
-  <wtf-sources></wtf-sources>
-{{/eq}}
+  {{#eq page "sources"}}
+    <wtf-sources></wtf-sources>
+  {{/eq}}
 
-{{#eq page "people"}}
-  <wtf-people></wtf-people>
-{{/eq}}
+  {{#eq page "people"}}
+    <wtf-people></wtf-people>
+  {{/eq}}
+
+  {{#eq page "places"}}
+    <wtf-places></wtf-places>
+  {{/eq}}
+
+  {{#eq page "events"}}
+    <wtf-events></wtf-events>
+  {{/eq}}
+</div>

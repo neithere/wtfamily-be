@@ -1,28 +1,20 @@
 <html>
 <head>
-    <title>CanJS Test</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>WhatTheFamily</title>
+
+    <!-- Latest compiled and minified Bootstrap CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
+
+    <!-- Optional Bootstrap theme -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap-theme.min.css') }}">
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+
+    <script data-main="/static/js/app" src="/static/js/lib/require.js"></script>
 </head>
 <body>
-    <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.js"></script>
-    <script src="http://canjs.com/release/latest/can.jquery.js"></script>
-    <script src="http://canjs.com/release/latest/can.map.define.js"></script>
-    <script src="http://canjs.com/release/latest/can.stache.js"></script>
-
-    <!--script data-main="/static/js/app" src="/static/js/lib/require.js"></script-->
-
-    <script type='text/stache' id='app'>
-        <hello-world/>
-    </script>
-
-    <script type="text/javascript">
-        can.Component.extend({
-            tag: 'hello-world',
-            template: can.stache("<h1>{{message}}</h1>"),
-            viewModel: {
-                message: "Hi there!"
-            }
-        });
-        $("body").append(can.view("app", {}));
-    </script>
+    <div id="app"></div>
 </body>
 </html>

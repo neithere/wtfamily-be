@@ -1,16 +1,28 @@
 <header>
-  <nav>
-    <h1>WhatTheFamily</h1>
-    <ul>
-      <li class="{{#eq page 'home'}}active{{/eq}}">
-        <a can-href='{page="home"}'>Home</a>
-      </li>
-      <li class="{{#eq page 'sources'}}active{{/eq}}">
-        <a can-href='{page="sources"}'>Sources</a>
-      </li>
-      <li class="{{#eq page 'people'}}active{{/eq}}">
-        <a can-href='{page="people"}'>People</a>
-      </li>
-    </ul>
+  <nav class="navbar navbar-inverse navbar-fixed-top" role="navigation">
+    <div class="container">
+      <div class="navbar-header">
+        <a class="navbar-brand" href="/a/">WhatTheFamily</a>
+      </div>
+      <div id="navbar" class="collapse navbar-collapse">
+        <ul class="nav navbar-nav">
+          <li class="{{#eq page 'home'}}active{{/eq}}">
+            <a can-href='{page="home"}'>Home</a>
+          </li>
+          <li class="{{#eq page 'sources'}}active{{/eq}}">
+            <a can-href='{page="sources"}'>Sources</a>
+          </li>
+          <li class="{{#eq page 'people'}}active{{/eq}}">
+            <a can-href='{page="people"}'>People</a>
+          </li>
+          <li class="{{#eq page 'places'}}active{{/eq}}">
+            <a can-href='{page="places"}'>Places</a>
+          </li>
+          <li class="{{#eq page 'events'}}active{{/eq}}">
+            <a can-href='{page="events"}'>Events</a>
+          </li>
+        </ul>  <!--/.nav-->
+      </div>  <!--/#navbar.navbar-collapse-->
+    </div>  <!--/.container-->
   </nav>
 </header>

@@ -1,0 +1,13 @@
+{{#if object_list.isPending}}
+  Loading...
+{{else}}
+  {{#if object_list}}
+    <ul>
+      {{#each object_list.value}}
+        <li>{{id}} — {{name}}</li>
+      {{/object_list}}
+    </ul>
+  {{else}}
+    Nothing to display.
+  {{/if}}
+{{/if}}

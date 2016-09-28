@@ -21,7 +21,9 @@
   ],
   "dependencies": {
     "jquery": "~3.1.1",
+    "jquery-ui": "1.12.1",
     "requirejs": "~2.3.2",
-    "canjs": "~2.3.27"
+    "canjs": "~2.3.27",
+    "lodash": "~4.16.2"
   }
 }

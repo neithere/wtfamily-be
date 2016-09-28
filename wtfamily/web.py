@@ -52,7 +52,7 @@ class WTFamilyWebApp(Configurable):
     def commands(self):
         return [self.run]
 
-    def run(self):
+    def run(self, host=None, port=None):
         self.flask_app = Flask(__name__)
 
         @self.flask_app.before_request
@@ -102,7 +102,7 @@ class WTFamilyWebApp(Configurable):
             bp = _app.make_blueprint()
             self.flask_app.register_blueprint(bp, url_prefix=prefix)
 
-        self.flask_app.run(debug=self.debug)
+        self.flask_app.run(debug=self.debug, host=host, port=port)
 
 
 #@app.route('/')
