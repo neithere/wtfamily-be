@@ -1,8 +1,10 @@
 requirejs.config({
-    baseUrl: '/static/js/lib',  // "foo" = "/static/js/lib/foo.js"
+    baseUrl: '/static/js/bower_components',
     paths: {
-        //app: '/static/js'       // "/app/foo" = "/static/js/foo.js"
-        'jquery-ui': '/static/js/lib/jquery-ui-1.12.1/ui',
+        lodash: 'lodash/lodash',
+        jquery: 'jquery/dist/jquery',
+        'jquery-ui': 'jquery-ui/ui',
+        primitives_non_amd: '/static/js/lib/primitives.min'
     }
 });
 
@@ -12,13 +14,13 @@ define('jquery', ['jquery.min'], function() {
 
 define('primitives', ['jquery', 'jquery-ui/widget', 'jquery-ui/widgets/button'], function(jQuery, jquery_ui) {
     var deferred = $.Deferred();
-    var req2 = require(['primitives.min'], function(foo) {
+    var req2 = require(['primitives_non_amd'], function(foo) {
         deferred.resolve(primitives);
     });
     return deferred.promise();
 });
 
-define('FamilyTree', ['jquery', 'lodash.min', 'primitives'], function($, _, promisedPrimitives) {
+define('FamilyTree', ['jquery', 'lodash', 'primitives'], function($, _, promisedPrimitives) {
 
     function init(config) {
         var url = config.url;

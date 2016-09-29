@@ -1,10 +1,10 @@
 requirejs.config({
-    baseUrl: '/static/js/lib',  // "foo" = "/static/js/lib/foo.js"
+    baseUrl: '/static/js/bower_components',  // "foo" = "/static/js/lib/foo.js"
     paths: {
         app: '/static/js',      // "/app/foo" = "/static/js/foo.js"
-        jquery: '/static/js/bower_components/jquery/dist/jquery',
-        lodash: '/static/js/bower_components/lodash/lodash',
-        can: '/static/js/bower_components/canjs/amd/can'
+        lodash: 'lodash/lodash',
+        jquery: 'jquery/dist/jquery',
+        can: 'canjs/amd/can'
     }
 });
 
