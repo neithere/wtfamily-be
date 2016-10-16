@@ -1,11 +1,11 @@
 define([
+    'app/models/person',
     'can/component',
     'can/map',
     'can/map/define',
     'can/view/mustache',
-    'app/models/person'
-], function(Component, canMap, canMapDefine, Mustache, Person) {
-    var PersonViewModel = canMap.extend({
+], function(Person) {
+    var PersonViewModel = can.Map.extend({
         define: {
             object_list: {
                 get: function() {
@@ -15,7 +15,7 @@ define([
         },
     });
 
-    Component.extend({
+    can.Component.extend({
         tag: 'wtf-people',
         viewModel: PersonViewModel,
         template: can.view('app/components/people/people')
