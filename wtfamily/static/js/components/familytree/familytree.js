@@ -19,6 +19,44 @@ define([
     'can/view/mustache'
 ], function(Person, promisedPrimitives) {
 
+    var FamilyTreeViewModel = can.Map.extend({
+        define: {
+            initialPeopleIds: {
+                'set': function(newValue) {
+                    return newValue
+                }
+            }
+        },
+        diagramElementId: 'familyTreeDiagram',
+        diagramWidth: '100%',
+        diagramHeight: '90%',
+    });
+
+    can.Component.extend({
+        tag: 'wtf-familytree',
+        viewModel: FamilyTreeViewModel,
+        template: can.view('app/components/familytree/familytree'),
+        events: {
+            inserted: function(el, ev) {
+                var initialPeopleIds = this.viewModel.attr('initialPeopleIds');
+                var diagramElementId = this.viewModel.attr('diagramElementId');
+                var diagramElement = el.find('#' + diagramElementId);
+
+                $.when(
+                    promisedPrimitives
+                ).then(
+                    fetchInitialData.bind(this, initialPeopleIds)
+                ).then(
+                    prepareOptions.bind(this, diagramElement)
+                ).then(
+                    initDiagram.bind(this, diagramElement)
+                ).then(function(diagram) {
+                    this._diagram = diagram;
+                });
+            },
+        },
+    });
+
     function fetchRelativesFor(personId) {
         return Person.findWithRelatedPeopleIds({
             relatives_of: personId,
@@ -111,6 +149,8 @@ define([
         el.famDiagram(options);
 
         diagram = el.data('uiFamDiagram');
+
+        return diagram;
     }
 
     function fetchInitialData(initialPeopleIds) {
@@ -118,40 +158,4 @@ define([
             ids: initialPeopleIds
         });
     }
-
-    var FamilyTreeViewModel = can.Map.extend({
-        define: {
-            initialPeopleIds: {
-                'set': function(newValue) {
-                    return newValue
-                }
-            }
-        },
-        diagramElementId: 'familyTreeDiagram',
-        diagramWidth: '100%',
-        diagramHeight: '90%',
-    });
-
-    can.Component.extend({
-        tag: 'wtf-familytree',
-        viewModel: FamilyTreeViewModel,
-        template: can.view('app/components/familytree/familytree'),
-        events: {
-            inserted: function(el, ev) {
-                var initialPeopleIds = this.viewModel.attr('initialPeopleIds');
-                var diagramElementId = this.viewModel.attr('diagramElementId');
-                var diagramElement = el.find('#' + diagramElementId);
-
-                $.when(
-                    promisedPrimitives
-                ).then(
-                    fetchInitialData.bind(this, initialPeopleIds)
-                ).then(
-                    prepareOptions.bind(this, diagramElement)
-                ).then(
-                    initDiagram.bind(this, diagramElement)
-                );
-            },
-        },
-    });
 });
