@@ -24,6 +24,8 @@
     "jquery-ui": "1.12.1",
     "requirejs": "~2.3.2",
     "canjs": "~2.3.27",
-    "lodash": "~4.16.2"
+    "lodash": "~4.16.2",
+    "requirejs-plugins": "~1.0.3",
+    "googlemaps-amd": "~1.0.1"
   }
 }

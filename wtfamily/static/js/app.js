@@ -4,9 +4,18 @@ requirejs.config({
         lodash: 'lodash/lodash',
         jquery: 'jquery/dist/jquery',
         can: 'canjs/amd/can',
+        async: 'requirejs-plugins/src/async',
+        googlemaps: 'googlemaps-amd/src/googlemaps',
         // special paths
         app: '/static/js',      // "/app/foo" = "/static/js/foo.js"
         lib: '/static/js/lib',  // non-AMD dependencies
+    },
+    googlemaps: {
+        params: {
+            key: 'AIzaSyCJkmtBCYVPX9ImKuKdREI35RNDwPjfEQo',
+            //v: '3',
+            //libraries: 'geometry'
+        }
     }
 });
 
@@ -16,6 +25,7 @@ require([
     'app/components/sources/sources',
     'app/components/people/people',
     'app/components/places/places',
+    'app/components/places/map',
     'app/components/events/events',
     'app/components/familytree/familytree',
 ], function() {
