@@ -566,6 +566,7 @@ class Family(Entity):
 
     def get_pretty_data(self):
         return {
+            # TODO use foo_id for IDs
             'father': self._data.get('father'),
             'mother': self._data.get('mother'),
             'citations': _simplified_refs(self._data.get('citationref')),
@@ -642,6 +643,7 @@ class Person(Entity):
 
     def get_pretty_data(self):
         return {
+            # TODO use foo_id for IDs
             'group_names': list(self.group_names),
             'group_name': self.group_name,
             'names': self.names,
@@ -885,13 +887,13 @@ class Person(Entity):
     def _format_names(cls, name_node, template=NAME_TEMPLATE):
         if not isinstance(name_node, list):
             name_node = [name_node]
-        return [_format_name(n, template=template) for n in name_node]
+        return [cls._format_name(n, template=template) for n in name_node]
 
     @classmethod
     def _format_name(cls, name_node, template=NAME_TEMPLATE):
         #template = '{primary} ({nonpatronymic}), {first} {patronymic}'
 
-        first, primary_surnames, patronymic, nonpatronymic = _get_name_parts(name_node)
+        first, primary_surnames, patronymic, nonpatronymic = cls._get_name_parts(name_node)
 
         return template.format(
             first = first,
@@ -941,6 +943,7 @@ class Event(Entity):
     def get_pretty_data(self):
         place_refs = _simplified_refs(self._data.get('place'))
         return {
+            # TODO use foo_id for IDs
             'type': self.type,
             'date': str(self.date),
             'summary': self.summary,
@@ -1007,6 +1010,7 @@ class Place(Entity):
 
     def get_pretty_data(self):
         return {
+            # TODO use foo_id for IDs
             'name': self.name,
             'other_names': self.alt_names,
             'coords': self.coords,
@@ -1141,6 +1145,7 @@ class Source(Entity):
 
     def get_pretty_data(self):
         return {
+            # TODO use foo_id for IDs
             'title': self.title,
             'author': self.author,
             'pubinfo': self.pubinfo,
@@ -1240,6 +1245,7 @@ class Note(Entity):
 
     def get_pretty_data(self):
         return {
+            # TODO use foo_id for IDs
             'text': self.text,
             'media': _simplified_refs(self._data.get('objref')),
         }

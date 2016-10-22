@@ -72,6 +72,20 @@ class PersonModelAdapter(GenericModelAdapter):
         else:
             return super().provide_list(model)
 
+    @classmethod
+    def prepare_obj(cls, obj, protect=False):
+        data = super().prepare_obj(obj, protect)
+
+        # FIXME pass request values explicitly
+        with_related_people_ids = bool(request.values.get('with_related_people_ids'))
+
+        if with_related_people_ids:
+            # FIXME privacy?
+            data['parents'] = [x.id for x in obj.get_parents()]
+            data['spouses'] = [x.id for x in obj.get_partners()]
+
+        return data
+
 
 class EventModelAdapter(GenericModelAdapter):
     model = Event
