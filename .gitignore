@@ -1,0 +1,24 @@
+## Ignored stuff
+
+# temp files
+*$
+*.pyc
+*.pyo
+.ropeproject/
+
+# testing
+.tox/
+
+# coverage
+.coverage
+cover/*
+*,cover
+htmlcov/
+
+# packaging
+build/
+dist/
+docs/_build
+nbproject/
+*.egg-info/
+.directory

@@ -330,7 +330,7 @@ def orgchart_data():
 
 #@app.route('/familytreejs')
 def familytreejs():
-    data_script = '/static/js/familytree_ajax.js'
+    data_script = '/static/js/deprecating/familytree_ajax.js'
     print(list(NameMap.find()))
     return render_template('familytree.html', data_script=data_script)
 
