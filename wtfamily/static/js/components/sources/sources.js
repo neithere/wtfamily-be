@@ -15,6 +15,7 @@ define([
                     return Source.findAll({});
                 },
             },
+            selectedObject: null,
             citations: {
                 get: function() {
                     // Returns the list of citations for currently selected source

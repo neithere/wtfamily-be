@@ -6,14 +6,15 @@ define([
     'can/map/define',
     'can/view/mustache'
 ], function(Place, gmaps) {
+
     var MapViewModel = can.Map.extend({
-        initializeMap: function(map) {
+        setupMap: function(map) {
             // override this
         }
     });
 
     var PlaceMapViewModel = MapViewModel.extend({
-        initializeMap: function(map) {
+        setupMap: function(map) {
             Place.findAll().done(function(places) {
                 var placesWithCoords = _.filter(places, 'coords');
                 _.each(placesWithCoords, function(place) {
@@ -49,12 +50,14 @@ define([
                     center: defaultPosition
                 });
                 //this.viewModel.attr('map', map);
-                this.viewModel.initializeMap(map);
+                this.viewModel.setupMap(map);
             }
         },
     });
+
     var PlaceMapComponent = MapComponent.extend({
         tag: 'wtf-map-places',
         viewModel: PlaceMapViewModel,
     });
+
 });
