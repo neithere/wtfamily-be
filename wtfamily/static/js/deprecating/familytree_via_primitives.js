@@ -96,6 +96,7 @@ define('FamilyTree', ['jquery', 'lodash', 'primitives'], function($, _, promised
             }.bind(this));
         }
 
+
         options.onItemRender = onItemRender;
         options.templates = [getPersonTemplate()];
 

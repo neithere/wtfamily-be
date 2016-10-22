@@ -569,10 +569,10 @@ class Family(Entity):
             # TODO use foo_id for IDs
             'father': self._data.get('father'),
             'mother': self._data.get('mother'),
-            'citations': _simplified_refs(self._data.get('citationref')),
-            'notes': self._data.get('noteref'),
-            'children': _simplified_refs(self._data.get('childref')),
-            'events': _simplified_refs(self._data.get('events')),
+            'citation_ids': _simplified_refs(self._data.get('citationref')),
+            'note_ids': self._data.get('noteref'),
+            'child_ids': _simplified_refs(self._data.get('childref')),
+            'event_ids': _simplified_refs(self._data.get('events')),
             'attributes': self._data.get('attribute'),
         }
 
@@ -657,9 +657,9 @@ class Person(Entity):
             'attributes': self.attributes,
             'child_in_families': _simplified_refs(self._data.get('childof')),
             'parent_in_families': _simplified_refs(self._data.get('parentin')),
-            'citations': _simplified_refs(self._data.get('citationref')),
-            'notes': _simplified_refs(self._data.get('noteref')),
-            'events': _simplified_refs(self._data.get('eventref')),
+            'citation_ids': _simplified_refs(self._data.get('citationref')),
+            'note_ids': _simplified_refs(self._data.get('noteref')),
+            'event_ids': _simplified_refs(self._data.get('eventref')),
         }
 
     @property
@@ -1014,9 +1014,9 @@ class Place(Entity):
             'name': self.name,
             'other_names': self.alt_names,
             'coords': self.coords,
-            'parent_places': _simplified_refs(self._data.get('placeref')),
-            'citations': _simplified_refs(self._data.get('citationref')),
-            'notes': _simplified_refs(self._data.get('noteref')),
+            'parent_place_ids': _simplified_refs(self._data.get('placeref')),
+            'citation_ids': _simplified_refs(self._data.get('citationref')),
+            'note_ids': _simplified_refs(self._data.get('noteref')),
         }
 
     @property

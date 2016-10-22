@@ -8,25 +8,63 @@
   </ul>
 {{/if}}
 
+<div class="container">
+  <div class="row">
+    <div class="col-md-4" style="overflow-y: scroll; height: 100%;">
+      {{#if object_list.isPending}}
+        Loading the list of objects...
+      {{else}}
+        {{#if object_list}}
+          <div class="list-group">
+            {{#each object_list.value}}
+              <button type="button" can-click="selectObject"
+                  class="list-group-item" title="{{ id }}">{{ first_and_last_names }} ({{ birth }})</button>
+            {{/object_list}}
+          </div>
+        {{else}}
+          Nothing to display.
+        {{/if}}
+      {{/if}}
+    </div>
+    <div class="col-md-8">
+      {{#if selectedObject.isPending }}
+        Loading object...
+      {{else}}
+        {{#with selectedObject}}
 
-{{#if object_list.isPending}}
-  Loading...
-{{else}}
-  {{#if object_list}}
-    <table>
-      <thead>
-        <th>Name</th>
-      </thead>
-      <tbody>
-      {{#each object_list.value}}
-        <tr>
-          <td title="{{ id }}">{{ name }}</td>
-        </tr>
-      {{/object_list}}
-      </tbody>
-    </table>
-  {{else}}
-    Nothing to display.
-  {{/if}}
-{{/if}}
+          <h2>{{ name }}</h2>
 
+          <p>{{ birth }} — {{ death }}</p>
+
+          <p>{{ gender }}</p>
+
+          <dl class="dl-horizontal">
+            <dt>Варианты имен</dt>
+            {{#names}}
+              <dd>{{.}}</dd>
+            {{/names}}
+            {{#if attributes}}
+              <dt>Attributes</dt>
+              {{#attributes}}
+                <dd>{{.}}</dd>
+              {{/attributes}}
+            {{/if}}
+          </dl>
+
+          <h3>Events</h3>
+
+          {{ event_ids.toSource }}
+
+          <h3>TODO</h3>
+
+          <p>Notes: {{ note_ids.toSource }}</p>
+          <p>Citations: {{ citation_ids.toSource }}</p>
+          <p>Parents' families: {{ child_in_families.toSource }}</p>
+          <p>Parent in families: {{ parent_in_families.toSource }}</p>
+
+        {{/with}}
+      {{/if}}
+
+    </div>
+  </div>
+</div>

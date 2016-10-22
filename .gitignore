@@ -2,6 +2,8 @@
 
 # temp files
 *$
+*.swp
+*.swo
 *.pyc
 *.pyo
 .ropeproject/

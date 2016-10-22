@@ -12,6 +12,12 @@ define([
                     return Person.findAll({});
                 },
             },
+            selectedObject: {
+                value: null
+            },
+        },
+        selectObject: function(obj, elems, event) {
+            this.attr('selectedObject', obj);
         },
     });
 
