@@ -62,6 +62,7 @@ class PersonModelAdapter(GenericModelAdapter):
 
         relatives_of_id = request.values.get('relatives_of')
         by_event_id = request.values.get('by_event')
+        by_namegroup = request.values.get('by_namegroup')
 
         if relatives_of_id:
             central_person = model.get(relatives_of_id)
@@ -69,6 +70,10 @@ class PersonModelAdapter(GenericModelAdapter):
         elif by_event_id:
             event = Event.get(by_event_id)
             return model.references_to(event)
+        elif by_namegroup:
+            for p in super().provide_list(model):
+                if p.group_name == by_namegroup:
+                    yield p
         else:
             return super().provide_list(model)
 
@@ -210,8 +215,13 @@ class RESTfulService(Configurable):
         before = time()
         seen_group_names = {}
         for p in Person.find():
-            seen_group_names[p.group_name] = True
-        group_names = list(sorted(seen_group_names))
+            group_name = p.group_name
+            seen_group_names[group_name] = seen_group_names.get(group_name, 0) + 1
+        group_names = [
+            {
+                'name': n,
+                'count': seen_group_names[n]
+            } for n in sorted(seen_group_names)]
         resp = jsonify(group_names)
         after = time()
         print('Generated JSON for surname_list in', (after - before), 'sec')

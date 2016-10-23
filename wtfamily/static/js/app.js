@@ -6,6 +6,7 @@ requirejs.config({
         can: 'canjs/amd/can',
         async: 'requirejs-plugins/src/async',
         googlemaps: 'googlemaps-amd/src/googlemaps',
+        bootstrap: 'bootstrap/js',
         // special paths
         app: '/static/js',      // "/app/foo" = "/static/js/foo.js"
         lib: '/static/js/lib',  // non-AMD dependencies
@@ -19,6 +20,11 @@ requirejs.config({
         }
     },
     shim: {
+        jquery: {
+            exports: ['jQuery', '$']
+        },
+        bootstrap: ['jquery'],
+        'bootstrap/collapse': ['jquery'],
         basicprimitives: {
             deps: [
                 'jquery',

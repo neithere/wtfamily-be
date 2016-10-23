@@ -1,28 +1,48 @@
-{{#if namegroups.isPending}}
-  Loading groups...
-{{else}}
-  <ul>
-    {{#namegroups.value}}
-      <li>{{.}}</li>
-    {{/namegroups}}
-  </ul>
-{{/if}}
-
 <div class="container">
   <div class="row">
     <div class="col-md-4" style="overflow-y: scroll; height: 100%;">
-      {{#if object_list.isPending}}
-        Loading the list of objects...
+      {{#if object_groups.isPending}}
+        Loading groups...
       {{else}}
-        {{#if object_list}}
-          <div class="list-group">
-            {{#each object_list.value}}
-              <button type="button" can-click="selectObject"
-                  class="list-group-item" title="{{ id }}">{{ first_and_last_names }} ({{ birth }})</button>
-            {{/object_list}}
+        {{#if object_groups }}
+          <div class="panel-group" id="accordion" role="tablist" aria-multiselectable="true">
+            {{#each object_groups.value}}
+                <div class="panel panel-default">
+                    <div class="panel-heading" role="tab"
+                        id="heading-namegroup-{{index}}">
+                      <h4 class="panel-title"
+                        can-click="selectGroup"
+                        data-toggle="collapse"
+                        data-parent="#accordion"
+                        data-target="#collapse-namegroup-{{index}}"
+                        aria-expanded="false"
+                        aria-controls="collapse-namegroup-{{index}}">
+                      {{name}} ({{count}})
+                    </h4>
+                  </div>
+                  <div id="collapse-namegroup-{{index}}"
+                      class="panel-collapse collapse" role="tabpanel"
+                      aria-labelledby="heading-namegroup-{{index}}">
+                    {{#if object_list.isPending}}
+                      Loading items...
+                    {{else}}
+                      {{#if object_list }}
+                        <div class="list-group">
+                          {{#each object_list.value}}
+                            <button type="button" can-click="selectObject"
+                                class="list-group-item" title="{{ id }}">{{ first_and_last_names }} ({{ birth }})</button>
+                          {{/object_list}}
+                        </div>
+                      {{else}}
+                        Nothing to show.
+                      {{/if}}
+                    {{/if}}
+                  </div>
+                </div>
+            {{/object_groups}}
           </div>
         {{else}}
-          Nothing to display.
+          No name groups to show.
         {{/if}}
       {{/if}}
     </div>
@@ -45,9 +65,12 @@
             {{/names}}
             {{#if attributes}}
               <dt>Attributes</dt>
+              <dd>{{attributes.toSource}}</dd>
+              <!--
               {{#attributes}}
                 <dd>{{.}}</dd>
               {{/attributes}}
+              -->
             {{/if}}
           </dl>
 

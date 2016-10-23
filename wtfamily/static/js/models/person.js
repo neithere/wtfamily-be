@@ -9,6 +9,9 @@ define([
                 with_related_people_ids: true
             }));
         },
+        findByNameGroup: function(groupName) {
+            return $.get('/r/people/', {by_namegroup: groupName});
+        },
     }, {});
 
     return Person;
