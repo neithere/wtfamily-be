@@ -33,9 +33,7 @@ define([
             var isExpandingGroup = elems.attr('aria-expanded') === 'false';
 
             if (isExpandingGroup) {
-                // TODO: make it faster — supply person IDs with group data
-                // and make a simple /r/people/?ids=x,y,z request
-                objectList = Person.findByNameGroup(obj.name);
+                objectList = Person.findAll({ids: _.join(_.map(obj.person_ids))});
                 this.attr('object_list', objectList);
             }
         },

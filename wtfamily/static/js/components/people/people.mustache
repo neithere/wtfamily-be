@@ -17,7 +17,7 @@
                         data-target="#collapse-namegroup-{{index}}"
                         aria-expanded="false"
                         aria-controls="collapse-namegroup-{{index}}">
-                      {{name}} ({{count}})
+                      {{name}} ({{person_ids.length}})
                     </h4>
                   </div>
                   <div id="collapse-namegroup-{{index}}"
@@ -69,12 +69,9 @@
             {{/attributes}}
           </dl>
 
-          <h3>Events</h3>
-
-          {{ event_ids.toSource }}
-
           <h3>TODO</h3>
 
+          <p>Events: {{ event_ids.toSource }}</p>
           <p>Notes: {{ note_ids.toSource }}</p>
           <p>Citations: {{ citation_ids.toSource }}</p>
           <p>Parents' families: {{ child_in_families.toSource }}</p>

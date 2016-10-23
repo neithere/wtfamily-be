@@ -78,7 +78,7 @@ define([
     }
 
     function onItemRender(event, data) {
-        var tmpl = 
+        var tmpl =
           '<div class="bp-item bp-corner-all bp-item-frame" data-personId="{{id}}">'+
             '<span class="bp-person-title {{#eq gender "M"}}gender-male{{/eq}} {{#eq gender "F"}}gender-female{{/eq}}">{{first_and_last_names}}</span>'+
             '<div class="bp-person-description">' +
