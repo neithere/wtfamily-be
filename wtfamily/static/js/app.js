@@ -9,12 +9,23 @@ requirejs.config({
         // special paths
         app: '/static/js',      // "/app/foo" = "/static/js/foo.js"
         lib: '/static/js/lib',  // non-AMD dependencies
+        basicprimitives: '/static/js/lib/primitives.min'
     },
     googlemaps: {
         params: {
             key: 'AIzaSyCJkmtBCYVPX9ImKuKdREI35RNDwPjfEQo',
             //v: '3',
             //libraries: 'geometry'
+        }
+    },
+    shim: {
+        basicprimitives: {
+            deps: [
+                'jquery',
+                'jquery-ui/ui/widget',
+                'jquery-ui/ui/widgets/button'
+            ],
+            exports: 'primitives'
         }
     }
 });

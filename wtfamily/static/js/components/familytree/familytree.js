@@ -1,15 +1,3 @@
-define('basicprimitives', [
-    'jquery', 
-    'jquery-ui/ui/widget', 
-    'jquery-ui/ui/widgets/button'
-], function() {
-    var deferred = $.Deferred();
-    require(['lib/primitives.min'], function(foo) {
-        deferred.resolve(primitives);
-    });
-    return deferred.promise();
-});
-
 define([
     'app/models/person',
     'basicprimitives',
