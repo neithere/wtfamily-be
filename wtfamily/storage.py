@@ -133,7 +133,7 @@ class EntityStorage:
             os.mkdir(self.path)
 
     def _load_data(self):
-        print('  - EntityStorage loading from {} ...'.format(self.path))
+        print('  - EntityStorage: loading {} from {} ...'.format(self.name, self.path))
         self._ensure_dir()
         filenames = [f for f in os.listdir(self.path)
                         if f.endswith(YAML_EXTENSION)]

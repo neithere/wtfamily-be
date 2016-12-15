@@ -297,9 +297,9 @@
       <dt>Файлы</dt>
         {% for media_obj in obj.media %}
         <dd>
-          {{ media_obj.description }} ({{ media_obj.date }})
+          <em>{{ media_obj.description }}</em> ({{ media_obj.date }})
           {{ media_obj.mime }}
-          {{ media_obj.src }}
+          <code>{{ media_obj.src }}</code>
         </dd>
         {% endfor %}
     {% endif %}

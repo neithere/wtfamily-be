@@ -78,6 +78,10 @@ Web interface
     (it's lightweight), then fetch individuals via /person/?ids=foo,bar
     as needed
 
+- Might be useful:
+
+  - https://www.npmjs.com/package/semantic-ui-dropdown-canjs
+
 Visualisation
 -------------
 
@@ -87,3 +91,13 @@ Fan/Sunbirst Chart
 
     more than just zoom, very useful.
     not sure about text but perhaps it can be added somehow.
+
+Research Tool Features
+----------------------
+
+- Researcher's Diary
+- `Waiting For...` tracking
+- Grouped primary questions to answer (?)
+- Tools directory.  These are mainly websites/repositories.
+  Grouped and annotated URLs; sources can be linked to the tools.
+  Action items might be bound to tools.
