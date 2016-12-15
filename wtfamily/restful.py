@@ -214,17 +214,25 @@ class RESTfulService(Configurable):
         before = time()
         seen_group_names = {}
         for p in Person.find():
-            group_name = p.group_name
-            data = seen_group_names.setdefault(group_name, {})
-            #data['count'] = data.get('count', 0) + 1
-            data.setdefault('person_ids', []).append(p.id)
-        group_names = [
-            dict({'name': n}, **seen_group_names[n])
-            for n in sorted(seen_group_names)]
+            for group_name in p.group_names:
+                seen_group_names.setdefault(group_name, []).append(p)
+        group_names = list(cls._get_sorted_name_groups(seen_group_names))
         resp = jsonify(group_names)
         after = time()
         print('Generated JSON for surname_list in', (after - before), 'sec')
         return resp
+
+    @classmethod
+    def _get_sorted_name_groups(cls, group_names):
+        for group_name in sorted(group_names):
+            people = group_names[group_name]
+            sorted_people = list(sorted(people, key=lambda p: p.first_name))
+            #print('sorted people:', [p.first_name for p in sorted_people])
+            person_ids = [p.id for p in sorted_people]
+            yield {
+                'name': group_name,
+                'person_ids': person_ids,
+            }
 
 
 class RESTfulApp(Configurable):

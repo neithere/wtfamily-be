@@ -17,26 +17,22 @@
                         data-target="#collapse-namegroup-{{index}}"
                         aria-expanded="false"
                         aria-controls="collapse-namegroup-{{index}}">
-                      {{name}} ({{person_ids.length}})
+                      {{name}} <span class="badge">{{person_ids.length}}</span>
                     </h4>
                   </div>
                   <div id="collapse-namegroup-{{index}}"
                       class="panel-collapse collapse" role="tabpanel"
                       aria-labelledby="heading-namegroup-{{index}}">
-                    {{#if object_list.isPending}}
-                      Loading items...
-                    {{else}}
                       {{#if object_list }}
                         <div class="list-group">
-                          {{#each object_list.value}}
+                          {{#each object_list}}
                             <button type="button" can-click="selectObject"
                                 class="list-group-item" title="{{ id }}">{{ first_and_last_names }} ({{ birth }})</button>
                           {{/object_list}}
                         </div>
                       {{else}}
-                        Nothing to show.
+                        Nothing to show (loading?)
                       {{/if}}
-                    {{/if}}
                   </div>
                 </div>
             {{/object_groups}}

@@ -29,13 +29,22 @@ define([
             },
         },
         selectGroup: function(obj, elems, event) {
-            var objectList;
             var isExpandingGroup = elems.attr('aria-expanded') === 'false';
 
-            if (isExpandingGroup) {
-                objectList = Person.findAll({ids: _.join(_.map(obj.person_ids))});
-                this.attr('object_list', objectList);
+            if (!isExpandingGroup) {
+                return null;
             }
+
+            /*
+            objectList = Person.findAll({ids: _.join(_.map(obj.person_ids))});
+            this.attr('object_list', objectList);
+            */
+
+            this.attr('object_list', null);
+            Person.findAll({ids: _.join(_.map(obj.person_ids))}).then(function(objectList) {
+                console.log('objectList', objectList);
+                this.attr('object_list', objectList);
+            }.bind(this));
         },
         selectObject: function(obj, elems, event) {
             this.attr('selectedObject', obj);
