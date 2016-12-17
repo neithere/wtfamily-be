@@ -9,33 +9,21 @@ define([
 ], function(Person, NameGroup) {
     var PersonViewModel = can.Map.extend({
         define: {
-            object_groups: {
+            object_list: {
                 get: function() {
-                    // add index to each group because the don't have IDs
-                    // but the template needs something to identify them
-                    return NameGroup.findAll({}).then(function(items) {
-                        return _.map(items, function(item, i) {
-                            item.index = i;
-                            return item;
-                        });
+                    var query = this.attr('filterQuery');
+                    if (_.isEmpty(query)) {
+                        // Require a query to avoid extremely heavy requests
+                        return $.when([]);
+                    }
+                    return Person.findAllSorted({
+                        q: query
                     });
                 },
-            },
-            object_list: {
-                value: null,
             },
             selectedObject: {
                 value: null
             },
-        },
-        selectGroup: function(obj, elems, event) {
-            var objectList;
-            var isExpandingGroup = elems.attr('aria-expanded') === 'false';
-
-            if (isExpandingGroup) {
-                objectList = Person.findAll({ids: _.join(_.map(obj.person_ids))});
-                this.attr('object_list', objectList);
-            }
         },
         selectObject: function(obj, elems, event) {
             this.attr('selectedObject', obj);

@@ -63,6 +63,7 @@ class PersonModelAdapter(GenericModelAdapter):
         relatives_of_id = request.values.get('relatives_of')
         by_event_id = request.values.get('by_event')
         by_namegroup = request.values.get('by_namegroup')
+        by_query = request.values.get('q')
 
         if relatives_of_id:
             central_person = model.get(relatives_of_id)
@@ -73,6 +74,9 @@ class PersonModelAdapter(GenericModelAdapter):
         elif by_namegroup:
             xs = super().provide_list(model)
             return (p for p in xs if p.group_name == by_namegroup)
+        elif by_query:
+            xs = super().provide_list(model)
+            return (p for p in xs if p.matches_query(by_query))
         else:
             return super().provide_list(model)
 

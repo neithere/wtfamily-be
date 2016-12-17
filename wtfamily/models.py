@@ -902,6 +902,11 @@ class Person(Entity):
             nonpatronymic = ', '.join(nonpatronymic),
         ).replace(' ()', '').strip()
 
+    def matches_query(self, query):
+        patterns = query.lower().split()
+        tokens = itertools.chain(self.names, self.group_names)
+        return all(any(p in t.lower() for t in tokens) for p in patterns)
+
 
 def _format_dateval(dateval):
     if not dateval:
@@ -1289,9 +1294,21 @@ class NameMap(Entity):
 
     @classmethod
     def group_as(self, key):
-        for item in self.find():
-            if item.type == self.TYPE_GROUP_AS and item.key == key:
-                return item.value
+        # XXX optimization for in-memory store.
+        # This was the original (slow) version:
+        #
+        #   for item in self.find():
+        #       if item.type == self.TYPE_GROUP_AS and item.key == key:
+        #           return item.value
+        #
+        if not self._cache_by_group_as:
+            for item in self.find():
+                if item.type == self.TYPE_GROUP_AS:
+                    self._cache_by_group_as[item.key] = item.value
+        try:
+            return self._cache_by_group_as[key]
+        except KeyError:
+            return None
 
 
 class NameFormat(Entity):
