@@ -55,6 +55,8 @@
           <p>Parents' families: {{ child_in_families.toSource }}</p>
           <p>Parent in families: {{ parent_in_families.toSource }}</p>
 
+          <wtf-familytree {initial-people-ids}="id"></wtf-familytree>
+
         {{/with}}
       {{/if}}
 

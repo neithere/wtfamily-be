@@ -10,7 +10,7 @@ define([
     var FamilyTreeViewModel = can.Map.extend({
         define: {
             initialPeopleIds: {
-                'set': function(newValue) {
+                set: function(newValue) {
                     return newValue
                 }
             }
@@ -35,7 +35,9 @@ define([
                 ).then(
                     fetchInitialData.bind(this, initialPeopleIds)
                 ).then(
-                    prepareOptions.bind(this, diagramElement)
+                    loadAdditionalData.bind(this, diagramElement)
+                ).then(
+                    prepareOptions.bind(this, diagramElement, initialPeopleIds)
                 ).then(
                     initDiagram.bind(this, diagramElement)
                 ).then(function(diagram) {
@@ -89,14 +91,21 @@ define([
         data.element.html(html);
     }
 
-    function prepareOptions(diagramElement, initialData) {
+    function prepareOptions(diagramElement, initialPeopleIds, initialData) {
         var options = new primitives.orgdiagram.Config();
         var itemTemplate = getPersonTemplate();
 
         options.items = initialData;
 
-        options.cursorItem = 0;
-        options.cursorItem = 2;
+        if (!_.isEmpty(initialPeopleIds)) {
+            if (!_.isArray(initialPeopleIds)) {
+                // FIXME belongs to a higher level
+                initialPeopleIds = _.split(initialPeopleIds, ',');
+            }
+            // focus the first one
+            options.cursorItem = initialPeopleIds[0];
+        }
+
         options.linesWidth = 1;
         options.linesColor = "black";
         options.hasSelectorCheckbox = primitives.common.Enabled.False;
@@ -145,5 +154,13 @@ define([
         return Person.findWithRelatedPeopleIds({
             ids: initialPeopleIds
         });
+    }
+
+    function loadAdditionalData(diagramElement, initialData) {
+        // load relatives for given people
+        _.each(initialData, function(person) {
+            loadRelativesFor(diagramElement, person.id);
+        });
+        return initialData;
     }
 });
