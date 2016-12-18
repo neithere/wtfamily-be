@@ -18,6 +18,7 @@
 #    along with WTFamily.  If not, see <http://gnu.org/licenses/>.
 import datetime
 import functools
+import itertools
 import re
 
 from cached_property import cached_property
@@ -1269,6 +1270,8 @@ class NameMap(Entity):
     schema = NAME_MAP_SCHEMA
 
     TYPE_GROUP_AS = 'group_as'
+
+    _cache_by_group_as = {}
 
     def __repr__(self):
         return '<{} "{}" → "{}">'.format(self.type, self.key, self.value)

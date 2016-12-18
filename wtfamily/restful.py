@@ -194,8 +194,8 @@ class RESTfulService(Configurable):
 
         after = time()
 
-        print('Generated JSON for', model, 'list in', (after - before), 'sec')
-        print('JSON response for', model, 'is', len(resp.response[0]), 'bytes')
+        print('Generated JSON for', model.__name__, 'list in', (after - before), 'sec')
+        print('JSON response for', model.__name__, 'is', len(resp.response[0]), 'bytes')
 
         return resp
 
