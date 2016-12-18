@@ -2,9 +2,9 @@
   <div class="row">
 
     <!-- List -->
-    <div class="col-md-4" style="overflow-y: scroll; height: 100%;">
+    <div class="col-md-3" style="overflow-y: scroll; height: 100%;">
 
-        <input type="text" placeholder="Filter by name" {($value)}="filterQuery" />
+        <input name="place-query" type="text" placeholder="Filter by name" {($value)}="filterQuery" />
 
         {{#if object_list.isPending}}
           <p>Loading items...</p>
@@ -24,18 +24,30 @@
     </div>
 
     <!-- Detail -->
-    <div class="col-md-8">
+    <div class="col-md-9">
+
+      <div style="width: 100%; height: 50%">
+        <wtf-map-places {(place}="selectedObject" {default-zoom}="zoom"></wtf-map-places>
+      </div>
+
       {{#if selectedObject.isPending }}
         Loading object...
       {{else}}
         {{#with selectedObject}}
 
-          <h2>{{ name }}</h2>
+          <h2>
+            {{ name }}
+            {{#if coords}}
+              <small>{{ coords.lat }}, {{ coords.lng }}</small>
+            {{/if}}
+          </h2>
 
-          {{#if coords}}
-            <p>{{ coords.lat }}, {{ coords.lng }}</p>
-
-            <wtf-map-places {default-position}="coords" {default-zoom}="zoom"></wtf-map-places>
+          {{#if other_names}}
+            <ul class="list-inline">
+            {{#other_names}}
+              <li>{{.}}</li>
+            {{/other_names}}
+            </ul>
           {{/if}}
 
         {{/with}}

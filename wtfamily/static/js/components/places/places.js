@@ -6,13 +6,11 @@ define([
     'can/view/mustache',
 ], function(Place) {
     var PlaceViewModel = can.Map.extend({
+        zoom: 13,
+        selectedObject: null,
+        filterQuery: null,
+        map: null,
         define: {
-            selectedObject: {
-                value: null
-            },
-            filterQuery: {
-                value: null
-            },
             object_list: {
                 get: function() {
                     var query = this.attr('filterQuery');
@@ -27,9 +25,6 @@ define([
                     });
                 },
             },
-            zoom: {
-                value: 13
-            }
         },
         selectObject: function(obj, elems, event) {
             this.attr('selectedObject', obj);
