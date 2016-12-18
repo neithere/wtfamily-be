@@ -548,6 +548,9 @@ class Entity:
     def get_pretty_data(self):
         raise NotImplementedError
 
+    def matches_query(self, query):
+        raise NotImplementedError
+
 
 class Family(Entity):
     entity_name = 'families'
@@ -1024,6 +1027,10 @@ class Place(Entity):
             'citation_ids': _simplified_refs(self._data.get('citationref')),
             'note_ids': _simplified_refs(self._data.get('noteref')),
         }
+
+    def matches_query(self, query):
+        patterns = query.lower().split()
+        return all(any(p in n.lower() for n in self.names) for p in patterns)
 
     @property
     def name(self):

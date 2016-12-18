@@ -1,12 +1,10 @@
 define([
     'app/models/person',
-    'app/models/namegroup',
     'can/component',
     'can/map',
     'can/map/define',
     'can/view/mustache',
-    'bootstrap/collapse'
-], function(Person, NameGroup) {
+], function(Person) {
     var PersonViewModel = can.Map.extend({
         define: {
             selectedObject: {

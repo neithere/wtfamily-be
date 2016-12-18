@@ -42,9 +42,13 @@ class GenericModelAdapter:
     def provide_list(cls, model):
         only_these_raw = request.values.get('ids', '')
         only_these_ids = [x for x in only_these_raw.split(',') if x]
+        by_query = request.values.get('q')
 
         if only_these_ids:
             return model.find({'id': only_these_ids})
+        elif by_query:
+            xs = model.find()
+            return (p for p in xs if p.matches_query(by_query))
         else:
             return model.find()
 
@@ -63,7 +67,6 @@ class PersonModelAdapter(GenericModelAdapter):
         relatives_of_id = request.values.get('relatives_of')
         by_event_id = request.values.get('by_event')
         by_namegroup = request.values.get('by_namegroup')
-        by_query = request.values.get('q')
 
         if relatives_of_id:
             central_person = model.get(relatives_of_id)
@@ -74,9 +77,6 @@ class PersonModelAdapter(GenericModelAdapter):
         elif by_namegroup:
             xs = super().provide_list(model)
             return (p for p in xs if p.group_name == by_namegroup)
-        elif by_query:
-            xs = super().provide_list(model)
-            return (p for p in xs if p.matches_query(by_query))
         else:
             return super().provide_list(model)
 

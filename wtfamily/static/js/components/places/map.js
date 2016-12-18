@@ -8,6 +8,8 @@ define([
 ], function(Place, gmaps) {
 
     var MapViewModel = can.Map.extend({
+        defaultPosition: null,
+        defaultZoom: 4,
         setupMap: function(map) {
             // override this
         }
@@ -40,13 +42,14 @@ define([
         template: can.view('app/components/places/map'),
         events: {
             inserted: function(el, ev) {
-                var defaultPosition = {
+                var defaultPosition = this.viewModel.defaultPosition || {
                     lat: 52.233333,
                     lng: 21.016667
                 };
+                var defaultZoom = this.viewModel.defaultZoom;
                 var mapElement = el.find('.map-canvas').get(0);
                 var map = new gmaps.Map(mapElement, {
-                    zoom: 4,
+                    zoom: defaultZoom,
                     center: defaultPosition
                 });
                 //this.viewModel.attr('map', map);
