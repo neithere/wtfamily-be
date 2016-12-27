@@ -35,7 +35,7 @@
       {{else}}
         {{#with selectedObject}}
 
-          <h2>
+          <h2 title="{{id}}">
             {{ name }}
             {{#if coords}}
               <small>{{ coords.lat }}, {{ coords.lng }}</small>
@@ -49,6 +49,32 @@
             {{/other_names}}
             </ul>
           {{/if}}
+
+          <h3>Events</h3>
+          <table class="table table-condensed">
+            <tbody>
+              {{#each relatedEvents.value}}
+                <tr title="{{id}}">
+                  <td>
+                    {{date}}
+                  </td>
+                  <td>
+                    {{type}}
+                  </td>
+                  <td>
+                    <ul class="list-inline">
+                      {{#people}}
+                        <li>{{name}} {{#if birth}}{{birth}}{{/if}}</li>
+                      {{/people}}
+                    </ul>
+                  </td>
+                  <td>
+                    {{summary}}
+                  </td>
+                </tr>
+              {{/relatedEvents}}
+            </tbody>
+          </table>
 
         {{/with}}
       {{/if}}

@@ -8,19 +8,18 @@ define([
         findAll: 'GET /r/citations/',
         findWithRelated: function(params) {
             return this.findAll(params).then(function(response) {
-                 return _.map(response, function(citation) {
+                var sortedCitations = _.sortBy(response, 'date');
+                return _.map(sortedCitations, function(citation) {
                      var noteIds = _.join(citation.note_ids);
                      if (noteIds) {
                          citation.notes = Note.findAll({ids: noteIds});
                      }
                      citation.events = Event.findWithRelated({proven_by: citation.id});
-                     console.log('events:', citation.events);
                      return citation
-                 });
-             });
+                });
+            });
         },
     }, {});
 
     return Citation;
 });
-

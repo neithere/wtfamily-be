@@ -1,3 +1,6 @@
+@import url('https://fonts.googleapis.com/css?family=Ubuntu:400,400i,700|Kurale|Lobster');
+
+
 body {
     margin-top: 50px;
     font-family: Ubuntu, sans-serif;
@@ -7,7 +10,11 @@ body {
     line-height: 1;
 }
 h1, h2, h3 {
-    font-family: "Ubuntu Condensed", sans-serif;
+    font-family: Kurale, serif;
+}
+
+.navbar-brand {
+    font-family: Lobster, cursive;
 }
 
 span.icon-male   { color: blue; }
@@ -57,4 +64,18 @@ div.bp-item-frame div.bp-person-description {
 div.bp-item.loading,
 div.bp-item.loading span {
     animation: backgroundPulse .5s infinite alternate;
+}
+
+/* bootstrap accordion item */
+.panel-title {
+    cursor: pointer;
+}
+
+wtf-sources .panel-body div p {
+    font-family: Kurale, serif;
+    font-size: 16px;
+}
+
+.table {
+    font-size: 90%;
 }

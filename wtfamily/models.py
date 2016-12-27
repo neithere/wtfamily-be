@@ -908,7 +908,8 @@ class Person(Entity):
 
     def matches_query(self, query):
         patterns = query.lower().split()
-        tokens = itertools.chain(self.names, self.group_names)
+        raw_tokens = itertools.chain(self.names, self.group_names)
+        tokens = [t.lower().strip() for t in raw_tokens]
         return all(any(p in t.lower() for t in tokens) for p in patterns)
 
 
@@ -1164,7 +1165,14 @@ class Source(Entity):
             'pubinfo': self.pubinfo,
             'abbrev': self.abbrev,
             'repository': _simplified_refs(self._data.get('reporef')),
+            'note_ids': _simplified_refs(self._data.get('noteref')),
         }
+
+    def matches_query(self, query):
+        patterns = query.lower().split()
+        raw_tokens = self.title, self.author, self.pubinfo
+        tokens = [t.lower() for t in raw_tokens if t]
+        return all(any(p in t for t in tokens) for p in patterns)
 
     @property
     def title(self):
@@ -1260,12 +1268,17 @@ class Note(Entity):
         return {
             # TODO use foo_id for IDs
             'text': self.text,
+            'type': self.type,
             'media': _simplified_refs(self._data.get('objref')),
         }
 
     @property
     def text(self):
         return self._data['text']
+
+    @property
+    def type(self):
+        return self._data['type']
 
     @property
     def media(self):

@@ -102,10 +102,14 @@ class EventModelAdapter(GenericModelAdapter):
     def provide_list(cls, model):
         assert model == cls.model
 
-        citation_ids_raw = request.values.get('proven_by')
+        place_id = request.values.get('place_id')
+        citation_ids_raw = request.values.get('proven_by', '')
         citation_ids = [x for x in citation_ids_raw.split(',') if x]
 
-        if citation_ids:
+        if place_id:
+            place = Place.get(place_id)
+            return place.events
+        elif citation_ids:
             citations = Citation.find({'id': citation_ids})
             events_by_citation = [c.events for c in citations]
             chained = itertools.chain(*events_by_citation)

@@ -9,14 +9,16 @@ define([
     'can/view/mustache',
 ], function(Source, Citation, Note) {
     var SourceViewModel = can.Map.extend({
+        selectedObject: null,
+        filterQuery: null,
         define: {
             object_list: {
-                value: function() {
-                    return Source.findAll({});
+                get: function() {
+                    var query = this.attr('filterQuery');
+                    return Source.findWithNotes({
+                        q: query
+                    });
                 },
-            },
-            selectedObject: {
-                value: null
             },
             citations: {
                 get: function() {

@@ -1,6 +1,9 @@
 <div class="container">
   <div class="row">
     <div class="col-md-4" style="overflow-y: scroll; height: 100%;">
+
+      <input name="object-query" type="search" placeholder="Filter by name" {($value)}="filterQuery" />
+
       {{#if object_list.isPending}}
         Loading the list of objects...
       {{else}}
@@ -34,23 +37,35 @@
             <dd>{{repository}}</dd>  <!-- may be a flat array; how to deal with it in Mustache? -->
           </dl>
 
+          {{#if notes.isPending}}
+            <p>Loading notes directly attached to the source...</p>
+          {{else}}
+            {{#notes.value}}
+              <div class="well" title="{{id}}">
+                <h4>{{type}} — {{id}}</h4>
+                <p style="white-space: pre-wrap;">{{text}}</p>
+                <p>{{#if media}}(has media){{/if}}</p>
+              </div>
+            {{/notes}}
+          {{/if}}
+
           {{#if citations.isPending}}
             Loading citations...
           {{else}}
             {{#citations.value}}
                 <div class="panel panel-default">
                 <div class="panel-heading">
-                  <h4 class="panel-title">
-                    {{page}} {{#if date}}({{date}}){{/if}} #{{id}}
+                  <h4 class="panel-title" title="{{id}}">
+                    {{page}} {{#if date}}<i>({{date}})</i>{{/if}}
                   </h4>
                 </div>
                 <div class="panel-body">
 
                   {{#if notes.isPending}}
-                    <p>Loading notes...</p>
+                    <p>Loading citation notes...</p>
                   {{else}}
                     {{#notes.value}}
-                      <div title="{{id}}">
+                      <div title="{{type}} — {{id}}">
                         <p style="white-space: pre-wrap;">{{text}}</p>
                         <p>{{#if media}}(has media){{/if}}</p>
                       </div>
@@ -77,13 +92,13 @@
                       <p>Loading events...</p>
                     {{else}}
                       {{#events.value}}
-                        <tr>
+                        <tr title="{{id}}">
                           <td>
                             {{date}}
                           </td>
                           <td>
                             {{#if place.isPending}}
-                              Loading place <code>{{ place_id }}</code>>...
+                              Loading place <code>{{ place_id }}</code>...
                             {{else}}
                               {{place.name}} {{place.id}}
                               {{#place}}
@@ -100,6 +115,7 @@
                               <span title="{{id}}" style="margin-right: .5ex; border-bottom: 1px dotted gray;">
                                 <span class="glyphicon glyphicon-user" aria-hidden="true"></span>
                                 {{name}}
+                                {{#if birth}}({{birth}}){{/if}}
                               </span>
                             {{/people}}
                           </td>

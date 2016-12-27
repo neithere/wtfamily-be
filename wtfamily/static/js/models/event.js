@@ -11,14 +11,14 @@ define([
         findOne: 'GET /r/events/{id}',
         findWithRelated: function(params) {
             return this.findAll(params).then(function(events) {
-                return _.map(events, function(event) {
+                var sortedEvents = _.sortBy(events, 'date');
+                return _.map(sortedEvents, function(event) {
                     var placeQuery;
                     var personQuery = Person.findAll({by_event: event.id});
 
                     event.people = new can.List(personQuery);
 
                     if (!_.isEmpty(event.place_id)) {
-                        console.log('finding place by id=', event.place_id);
                         placeQuery = Place.findOne({id: event.place_id});
                         event.place = new can.List(placeQuery);
                         //event.place = placeQuery;
@@ -35,6 +35,9 @@ define([
                     return event;
                 });
             });
+        },
+        findWithRelatedByPlaceId: function(placeId) {
+            return this.findWithRelated({place_id: placeId});
         },
     }, {});
 

@@ -1,10 +1,11 @@
 define([
     'app/models/place',
+    'app/models/event',
     'can/component',
     'can/map',
     'can/map/define',
     'can/view/mustache',
-], function(Place) {
+], function(Place, Event) {
     var PlaceViewModel = can.Map.extend({
         zoom: 13,
         selectedObject: null,
@@ -25,6 +26,12 @@ define([
                     });
                 },
             },
+            relatedEvents: {
+                get: function() {
+                    var place = this.attr('selectedObject');
+                    return Event.findWithRelatedByPlaceId(place.id);
+                }
+            }
         },
         selectObject: function(obj, elems, event) {
             this.attr('selectedObject', obj);
