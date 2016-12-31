@@ -29,11 +29,7 @@ define([
             }
         },
         selectObject: function(obj, elems, event) {
-            can.route.attr('objId', obj.id);
-            // We could directly assign the attr here, but in order to handle
-            // both sources of object selection (route and click), we merely
-            // change the route and let the component detect the route event.
-            //this.attr('selectedObject', obj);
+            this.attr('selectedObject', obj);
         },
         selectObjectById: function(objId) {
             if (_.isEmpty(objId)) {
@@ -57,7 +53,17 @@ define([
         },
         events: {
             '{can.route} change': function(data) {
+                // route changed → select respective object
                 this.viewModel.selectObjectById(data.attr('objId'));
+            },
+            '{viewModel}.selectedObject change': function(viewModel) {
+                // object selected → update current route
+                // (e.g. if the selection was changed by a click on the map)
+                var viewModelObjId = viewModel.attr('selectedObject').id;
+                var routeObjId = can.route.attr('objId');
+                if (viewModelObjId !== routeObjId) {
+                    can.route.attr('objId', viewModelObjId);
+                }
             }
         }
     });
