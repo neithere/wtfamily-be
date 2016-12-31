@@ -29,11 +29,41 @@ define([
         selectObject: function(obj, elems, event) {
             this.attr('selectedObject', obj);
         },
+        selectObjectById: function(objId) {
+            if (_.isEmpty(objId)) {
+                return
+            }
+            this.attr('object_list').done(function(results) {
+                var obj = _.find(results, {id: objId});
+                this.attr('selectedObject', obj);
+            }.bind(this));
+        }
     });
 
     can.Component.extend({
         tag: 'wtf-people',
         viewModel: PersonViewModel,
-        template: can.view('app/components/people/people')
+        template: can.view('app/components/people/people'),
+        init: function() {
+            // select an item according to the active route
+            var objId = can.route.attr('objId');
+            this.viewModel.selectObjectById(objId);
+        },
+        events: {
+            '{can.route} change': function(data) {
+                // route changed → select respective object
+                this.viewModel.selectObjectById(data.attr('objId'));
+            },
+            '{viewModel}.selectedObject change': function(viewModel) {
+                // object selected → update current route
+                // (e.g. if the selection was changed by a click on the map)
+                var selectedObject = viewModel.attr('selectedObject');
+                var viewModelObjId = _.get(selectedObject, 'id');
+                var routeObjId = can.route.attr('objId');
+                if (viewModelObjId !== routeObjId) {
+                    can.route.attr('objId', viewModelObjId);
+                }
+            }
+        }
     });
 });

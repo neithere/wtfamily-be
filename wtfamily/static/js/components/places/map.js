@@ -88,7 +88,7 @@ define([
                 if (_.isNull(map)) {
                     return;
                 }
-                if (_.isEmpty(place.coords)) {
+                if (_.isEmpty(place) || _.isEmpty(place.coords)) {
                     return;
                 }
                 this.viewModel.map.panTo(place.coords);

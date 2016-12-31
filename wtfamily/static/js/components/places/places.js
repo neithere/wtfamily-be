@@ -59,7 +59,8 @@ define([
             '{viewModel}.selectedObject change': function(viewModel) {
                 // object selected → update current route
                 // (e.g. if the selection was changed by a click on the map)
-                var viewModelObjId = viewModel.attr('selectedObject').id;
+                var selectedObject = viewModel.attr('selectedObject');
+                var viewModelObjId = _.get(selectedObject, 'id');
                 var routeObjId = can.route.attr('objId');
                 if (viewModelObjId !== routeObjId) {
                     can.route.attr('objId', viewModelObjId);
