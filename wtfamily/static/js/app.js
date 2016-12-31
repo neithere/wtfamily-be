@@ -55,6 +55,7 @@ require([
 
     // Set up the routes
     can.route(':page', { page: 'home' });
+    can.route(':page/:objId', { page: null, objId: null });
 
     $('body').on('click', 'a[href="javascript://"]', function(ev) {
         ev.preventDefault();

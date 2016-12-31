@@ -5,6 +5,7 @@ define([
     'can/map',
     'can/map/define',
     'can/view/mustache',
+    'can/route'
 ], function(Place, Event) {
     var PlaceViewModel = can.Map.extend({
         zoom: 13,
@@ -15,15 +16,18 @@ define([
             object_list: {
                 get: function() {
                     var query = this.attr('filterQuery');
-                    /*
-                    if (_.isEmpty(query)) {
-                        // Require a query to avoid extremely heavy requests
-                        return $.when([]);
-                    }
-                    */
                     return Place.findAllSorted({
                         q: query
-                    });
+                    }).done(function(results) {
+                        // select on of them according to the active route
+                        var objId = can.route.attr('objId');
+                        var obj;
+                        if (_.isEmpty(objId)) {
+                            return null;
+                        }
+                        obj = _.find(results, {id: objId});
+                        this.attr('selectedObject', obj);
+                    }.bind(this));
                 },
             },
             relatedEvents: {
@@ -34,6 +38,8 @@ define([
             }
         },
         selectObject: function(obj, elems, event) {
+            can.route.attr('objId', obj.id);
+            // TODO: do this via route event handler?
             this.attr('selectedObject', obj);
         },
     });
