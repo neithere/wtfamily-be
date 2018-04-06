@@ -1,6 +1,6 @@
 #    WTFamily is a genealogical software.
 #
-#    Copyright © 2014—2016  Andrey Mikhaylenko
+#    Copyright © 2014—2018  Andrey Mikhaylenko
 #
 #    This file is part of WTFamily.
 #
