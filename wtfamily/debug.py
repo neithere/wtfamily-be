@@ -22,23 +22,21 @@ import importlib
 import os
 
 from confu import Configurable
+from pymongo.database import Database
 
 # local
 import models
-import storage
 
 
 APP_NAME = 'WTFamily'
 RELEVANT_MODULES = (
     models,
-    storage,
 )
 
 
 class WTFamilyDebug(Configurable):
     needs = {
-        'storage': storage.Storage,
-        'storage_conf': dict,
+        'mongo_db': Database,
     }
 
     @property
@@ -48,24 +46,21 @@ class WTFamilyDebug(Configurable):
     def shell(self):
         namespace = {}
 
-        def _reload_relevant_modules_but_keep_storage():
-            _reload_relevant_modules(keep_storage=True)
-
-        def _reload_relevant_modules(keep_storage=False):
+        def _reload_relevant_modules():
             try:
-                storage_obj = models.Entity._get_root_storage()
+                db = models.Entity._get_root_storage()
             except RuntimeError:    # flask.g?
-                storage_obj = None
+                db = None
 
             for m in RELEVANT_MODULES:
                 print('reloading', m, '...')
                 importlib.reload(m)
 
-            if not (storage_obj or keep_storage):
-                storage_obj = self.storage
+            if not db:
+                db = self.mongo_db
 
             # monkey-patch to avoid flask.g
-            models.Entity._get_root_storage = lambda: storage_obj
+            models.Entity._get_database = lambda: db
 
             for m in RELEVANT_MODULES:
                 for k, v in m.__dict__.items():
@@ -75,11 +70,10 @@ class WTFamilyDebug(Configurable):
         _reload_relevant_modules()
 
         namespace.update({
-            's': models.Entity._get_root_storage,
+            'd': models.Entity._get_database,
             'm': models,
-            'r': _reload_relevant_modules_but_keep_storage,
-            'reload': _reload_relevant_modules_but_keep_storage,
-            'reload_full': _reload_relevant_modules,
+            'r': _reload_relevant_modules,
+            'reload': _reload_relevant_modules,
         })
 
         print('Locals:', ', '.join(namespace))

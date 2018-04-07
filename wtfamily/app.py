@@ -23,9 +23,9 @@ import os
 
 import argh
 from monk import validate
+from pymongo import MongoClient
 import yaml
 
-from storage import Storage
 from web import WTFamilyWebApp
 from etl import WTFamilyETL
 from debug import WTFamilyDebug
@@ -41,7 +41,7 @@ def _get_config():
         conf = yaml.load(f)
 
     validate({
-        'storage': dict,
+        'database': dict,
         'etl': dict,
         'web': dict,
     }, conf)
@@ -54,18 +54,22 @@ def main():
 
     conf = _get_config()
 
-    storage = Storage(conf['storage'])
-    webapp = WTFamilyWebApp(conf['web'], {'storage': storage})
-    etl = WTFamilyETL(conf['etl'], {'storage': storage})
+    mongo_client = MongoClient()
+
+    mongo_database = mongo_client[conf['database']['name']]
+    webapp = WTFamilyWebApp(conf['web'], {
+        'mongo_db': mongo_database,
+    })
+    etl = WTFamilyETL(conf['etl'], {
+        'mongo_client': mongo_client
+    })
     debug = WTFamilyDebug({
-        'storage': storage,
-        'storage_conf': conf['storage'],
+        'mongo_db': mongo_database,
     })
 
     command_tree = {
         None: webapp.commands,
         'etl': etl.commands,
-        'db': storage.commands,
         'debug': debug.commands,
     }
     for namespace, commands in command_tree.items():

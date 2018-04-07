@@ -26,6 +26,7 @@ from flask import (
     Flask, abort, render_template, url_for, g, request,
 )
 #from werkzeug import LocalProxy
+from pymongo.database import Database
 
 from models import (
     Person,
@@ -37,14 +38,13 @@ from models import (
     NameMap,
     MediaObject,
 )
-from storage import Storage
 from restful import RESTfulApp
 from restful import RESTfulService
 
 
 class WTFamilyWebApp(Configurable):
     needs = {
-        'storage': Storage,
+        'mongo_db': Database,
         'debug': False,
     }
 
@@ -57,7 +57,7 @@ class WTFamilyWebApp(Configurable):
 
         @self.flask_app.before_request
         def _init():
-            g.storage = self.storage
+            g.mongo_db = self.mongo_db
 
         self.flask_app.route('/')(home)
         self.flask_app.route('/event/')(event_list)
@@ -96,7 +96,7 @@ class WTFamilyWebApp(Configurable):
         }
         for cls, prefix in restful_mapping.items():
             _app = cls({
-                'storage': self.storage,
+                'mongo_db': self.mongo_db,
                 'debug': self.debug,
             })
             bp = _app.make_blueprint()

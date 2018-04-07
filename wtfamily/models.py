@@ -20,6 +20,7 @@ import datetime
 import functools
 import itertools
 import re
+from bson import ObjectId
 
 from cached_property import cached_property
 from flask import g
@@ -51,6 +52,7 @@ maybe = OptionalKey()
 
 COMMON_SCHEMA = {
     'id': str,
+    maybe-'_id': ObjectId,      # specific to MongoDB storage backend
     maybe-'handle': str,        # Gramps-specific internal ID
     maybe-'change': datetime.datetime,   # last changed timestamp
     maybe-'priv': False,        # is this a private record?
@@ -225,8 +227,8 @@ PERSON_SCHEMA = {
     ],
     'gender': one_of(['M', 'F']),
 
-    maybe-'childof': LIST_OF_IDS,
-    maybe-'parentin': LIST_OF_IDS,
+    maybe-'childof': LIST_OF_IDS,   # families
+    maybe-'parentin': LIST_OF_IDS,  # families
 
     maybe-'url': LIST_OF_URLS,
     maybe-'address': [ ADDRESS ],
@@ -334,8 +336,9 @@ extended_schemata = (
     MEDIA_OBJECT_SCHEMA,
     REPOSITORY_SCHEMA,
     # NOTE: these don't have IDs!
+    # P.S.: but for some reason now they do, hmm
 #   NAME_FORMAT_SCHEMA,
-#   NAME_MAP_SCHEMA,
+    NAME_MAP_SCHEMA,
 )
 for schema in extended_schemata:
     schema.update(COMMON_SCHEMA)
@@ -381,42 +384,24 @@ class Entity:
         return hash('{} {}'.format(type(self), self.id))
 
     @classmethod
-    def _get_root_storage(cls):
+    def _get_database(cls):
         "This can be monkey-patched to avoid Flask's `g`"
-        return g.storage
+
+        return g.mongo_db
 
     @classmethod
-    def _get_entity_storage(cls):
-        entities = cls._get_root_storage()._entities
-        return entities[cls.entity_name]
+    def _get_collection(cls):
+        database = cls._get_database()
 
-    @classmethod
-    def _storage(cls):
-        return cls._get_entity_storage()
-
-    @classmethod
-    def _find(cls, conditions=None):
-        assert cls.entity_name != NotImplemented
-        items = cls._storage().find_and_adapt_to_legacy()
-
-        def _filter(xs):
-            for p in xs:
-                if not conditions:
-                    yield cls(p)
-                    continue
-                for k, v in conditions.items():
-                    if not isinstance(v, list):
-                        v = [v]
-                    if k in p and p[k] in v:
-                        yield cls(p)
-                        break
-
-        items = _filter(items)
-        if cls.sort_key:
-            items = sorted(items, key=cls.sort_key)
-        return items
+        return database[cls.entity_name]
 
     def _find_refs(self, key, model):
+        # 'eventref.id' is fine for MongoDB lookups, but not for `__getitem__`.
+        # We just strip the inner part here, it will be conditionally tried
+        # anyway by `_extract_refs()` below.
+        if key.endswith('.id'):
+            key = key.partition('.id')[0]
+
         try:
             refs = self._data[key]
         except KeyError:
@@ -431,51 +416,77 @@ class Entity:
         if not isinstance(pks, list):
             pks = [pks]
 
-        return model.find_by_pks(pks)
+        return model.find({
+            'id': {
+                '$in': pks
+            }
+        })
+
+    def find_related(self, other_cls, by_key=None):
+        """
+        Returns instances of given model referenced by current instance.
+
+        If `key` is not specified, it is inferred from `self.REFERENCES`.
+        Note that you may _have_ to specify a key if there's more than one
+        key containing references to given other model.
+        """
+        if not by_key:
+            by_key = self.REFERENCES[other_cls.__name__]
+        return self._find_refs(by_key, other_cls)
 
     @classmethod
-    def references_to(cls, other, indexed=True):
+    def find_all_referencing(cls, other_cls_or_obj, other_id=None):
         """
-        Returns objects of this class referencing given other object.
+        Returns instances of this model that reference given another model
+        or model instance.  Usage::
+
+            # having an instance
+            place = Place({'id': 123})
+            related = Event.find_all_referencing(place)
+
+            # without an instance
+            related = Event.find_all_referencing(Place, 123)
         """
-        other_cls = other.__class__
+        if isinstance(other_cls_or_obj, Entity):
+            other_instance = other_cls_or_obj
+            other_cls = other_instance.__class__
+            other_id = other_instance.id
+        else:
+            other_cls = other_cls_or_obj
+            assert isinstance(other_cls, type)
+            assert other_id
+
         assert issubclass(other_cls, Entity)
         key = cls.REFERENCES[other_cls.__name__]
-        if indexed:
-            for obj in cls.find_by_index(key, other.id):
-                yield obj
-        else:
-            for obj in cls.find():
-                refs = _extract_ids(obj, key)
-                if other.id in refs:
-                    yield obj
+
+        return cls.find({key: other_id})
 
     @classmethod
     def get(cls, pk):
-        try:
-            data = cls._storage().get(pk)
-        except cls._storage().KeyNotInStorage:
+        instance = cls.find_one({'id': pk})
+        if not instance:
             raise cls.ObjectNotFound(pk)
-        else:
-            return cls(data)
+
+        return instance
 
     @classmethod
     def find(cls, conditions=None):
-        return cls._find(conditions)
+        for item in cls._get_collection().find(conditions):
+            yield cls(item)
 
     @classmethod
     def find_one(cls, conditions=None):
-        for p in cls.find(conditions):
-            return p
+        item = cls._get_collection().find_one(conditions)
+        if item:
+            return cls(item)
 
-    @classmethod
-    def find_by_pks(cls, pks):
-        for pk in pks:
-            yield cls.get(pk)
-
+    # FIXME optimize! this is insane.
     @classmethod
     def find_by_event_ref(cls, pk):
         # anything except Event can reference to an Event
+        return cls.find({
+            'eventref': pk
+        })
         for obj in cls.find():
             refs = obj._data.get('eventref')
             if not refs:
@@ -484,17 +495,12 @@ class Entity:
                 yield obj
 
     @classmethod
-    def find_by_index(cls, key, value):
-        for item in cls._storage().find_by_index(key, value):
-            yield cls(item)
-
-    @classmethod
     def count(cls):
-        return icount(cls.find())
+        return cls._get_collection().count()
 
-    @classmethod
-    def find_problems(cls):
-        print("Don't know how to find problems for {}".format(cls.entity_name))
+    @property
+    def _id(self):
+        return self._data['_id']
 
     @property
     def id(self):
@@ -555,6 +561,9 @@ class Entity:
 class Family(Entity):
     entity_name = 'families'
     schema = FAMILY_SCHEMA
+    REFERENCES = {
+        'Event': 'events.id',
+    }
 
     def __repr__(self):
         return '{} + {}'.format(self.father or '?',
@@ -590,11 +599,11 @@ class Family(Entity):
 
     @property
     def children(self):
-        return self._find_refs('childref', Person)
+        return self.find_related(Person, 'childref')
 
     @property
     def events(self):
-        return self._find_refs('eventref', Event)
+        return self.find_related(Event)
 
     @property
     def people(self):
@@ -627,6 +636,7 @@ class Person(Entity):
     REFERENCES = {
         'Citation': 'citationref.id',
         'Event': 'eventref.id',
+        'MediaObject': 'objectref.id',
     }
     NAME_TEMPLATE = '{first} {patronymic} {primary} ({nonpatronymic})'
 
@@ -722,8 +732,8 @@ class Person(Entity):
     def events(self):
         # TODO: the `eventref` records are dicts with `hlink` and `role`.
         #       we need to somehow decorate(?) the yielded event with these roles.
-        events = self._find_refs('eventref', Event)
-        return sorted(events, key=lambda e: e.date)
+        items = self.find_related(Event)
+        return sorted(items, key=lambda e: e.date)
 
     @cached_property
     @as_list
@@ -747,17 +757,17 @@ class Person(Entity):
 
     @property
     def citations(self):
-        return self._find_refs('citationref', Citation)
+        return self.find_related(Citation)
 
     @property
     def media(self):
-        return self._find_refs('objref', MediaObject)
+        return self.find_related(MediaObject)
 
     def get_parent_families(self):
-        return self._find_refs('childof', Family)
+        return self.find_related(Family, by_key='childof')
 
     def get_families(self):
-        return self._find_refs('parentin', Family)
+        return self.find_related(Family, by_key='parentin')
 
     def get_parents(self):
         for family in self.get_parent_families():
@@ -956,6 +966,7 @@ class Event(Entity):
             # TODO use foo_id for IDs
             'type': self.type,
             'date': str(self.date),
+            'date_year': str(self.date.year),
             'summary': self.summary,
             'place_id': place_refs[0] if place_refs else None,
             'citation_ids': _simplified_refs(self._data.get('citationref')),
@@ -982,36 +993,29 @@ class Event(Entity):
 
     @property
     def place(self):
-        refs = list(self._find_refs('place', Place))
+        refs = list(self.find_related(Place))
         if refs:
             assert len(refs) == 1
             return refs[0]
 
     @property
     def people(self):
-        return Person.find_by_event_ref(self.id)
+        return Person.find_all_referencing(self)
 
     @property
     def families(self):
-        return Family.find_by_event_ref(self.id)
+        return Family.find_all_referencing(self)
 
     @property
     def citations(self):
-        return self._find_refs('citationref', Citation)
-
-    @classmethod
-    def find_problems(cls):
-        for elem in cls._find():
-            # detect orphaned events (e.g. if the person was skipped
-            # on export for whatever reason)
-            if not list(elem.people):
-                print('ORPHANED EVENT: {} {}'.format(elem.id, elem))
+        return self.find_related(Citation)
 
 
 class Place(Entity):
     entity_name = 'places'
     REFERENCES = {
         'Citation': 'citationref.id',
+        'Place': 'placeref.id'
     }
     schema = PLACE_SCHEMA
 
@@ -1079,20 +1083,17 @@ class Place(Entity):
 
     @property
     def parent_places(self):
-        return self._find_refs('placeref', Place)
+        return self.find_related(Place)
 
-    #@property
     @cached_property
     @as_list
     def nested_places(self):
-        for place in self.find_by_index('placeref.id', self.id):
-            yield place
+        return self.find_all_referencing(self)
 
     @cached_property
     @as_list
     def events(self):
-        for event in Event.references_to(self):
-            yield event
+        return Event.find_all_referencing(self)
 
     @cached_property
     def events_years(self):
@@ -1122,7 +1123,7 @@ class Place(Entity):
 
         # find events with references to any of these places
         for place in places:
-            for event in Event.references_to(place):
+            for event in Event.find_all_referencing(place):
                 if event.id in events_seen:
                     continue
                 yield event
@@ -1192,7 +1193,7 @@ class Source(Entity):
 
     @property
     def citations(self):
-        return Citation.references_to(self)
+        return Citation.find_all_referencing(self)
 
     @property
     def repository(self):
@@ -1205,6 +1206,8 @@ class Citation(Entity):
 
     REFERENCES = {
         'Source': 'sourceref.id',
+        'Note': 'noteref.id',
+        'MediaObject': 'objref.id',
     }
 
     def __repr__(self):
@@ -1245,24 +1248,27 @@ class Citation(Entity):
 
     @property
     def notes(self):
-        return self._find_refs('noteref', Note)
+        return self.find_related(Note)
 
     @property
     def events(self):
-        return Event.references_to(self)
+        return Event.find_all_referencing(self)
 
     @property
     def people(self):
-        return Person.references_to(self)
+        return Person.find_all_referencing(self)
 
     @property
     def media(self):
-        return self._find_refs('objref', MediaObject)
+        return self.find_related(MediaObject)
 
 
 class Note(Entity):
     entity_name = 'notes'
     schema = NOTE_SCHEMA
+    REFERENCES = {
+        'MediaObject': 'objref.id',
+    }
 
     def get_pretty_data(self):
         return {
@@ -1282,7 +1288,7 @@ class Note(Entity):
 
     @property
     def media(self):
-        return self._find_refs('objref', MediaObject)
+        return self.find_related(MediaObject)
 
 
 class NameMap(Entity):

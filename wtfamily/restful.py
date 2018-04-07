@@ -22,6 +22,7 @@ from time import time
 
 from confu import Configurable
 from flask import Blueprint, abort, jsonify, request, render_template
+from pymongo.database import Database
 
 from models import (
     Person,
@@ -34,7 +35,6 @@ from models import (
     NameMap,
     #MediaObject,
 )
-from storage import Storage
 
 
 class GenericModelAdapter:
@@ -45,9 +45,11 @@ class GenericModelAdapter:
         by_query = request.values.get('q')
 
         if only_these_ids:
-            return model.find({'id': only_these_ids})
+            return model.find({'id': {'$in': only_these_ids}})
         elif by_query:
             xs = model.find()
+            # TODO: optimize: use class methods FooModel.find_matching()
+            # (i.e. they'd know which fields to search with $or)
             return (p for p in xs if p.matches_query(by_query))
         else:
             return model.find()
@@ -72,8 +74,7 @@ class PersonModelAdapter(GenericModelAdapter):
             central_person = model.get(relatives_of_id)
             return central_person.related_people
         elif by_event_id:
-            event = Event.get(by_event_id)
-            return model.references_to(event)
+            return model.find_related_to(Event, by_event_id)
         elif by_namegroup:
             xs = super().provide_list(model)
             return (p for p in xs if p.group_name == by_namegroup)
@@ -107,10 +108,9 @@ class EventModelAdapter(GenericModelAdapter):
         citation_ids = [x for x in citation_ids_raw.split(',') if x]
 
         if place_id:
-            place = Place.get(place_id)
-            return place.events
+            return Event.find_related_to(Place, place_id)
         elif citation_ids:
-            citations = Citation.find({'id': citation_ids})
+            citations = Citation.find({'id': {'$in': citation_ids}})
             events_by_citation = [c.events for c in citations]
             chained = itertools.chain(*events_by_citation)
             return set(chained)
@@ -128,8 +128,7 @@ class CitationModelAdapter(GenericModelAdapter):
         source_id = request.values.get('source')
 
         if source_id:
-            source = Source.get(source_id)
-            return model.references_to(source)
+            return model.find_related_to(Source, source_id)
         else:
             return super().provide_list(model)
 
@@ -152,7 +151,7 @@ class NameGroupModelAdapter(GenericModelAdapter):
 
 class RESTfulService(Configurable):
     needs = {
-        'storage': Storage,
+        'mongo_db': Database,
         'debug': False,
     }
 
@@ -237,7 +236,7 @@ class RESTfulService(Configurable):
 
 class RESTfulApp(Configurable):
     needs = {
-        'storage': Storage,
+        'mongo_db': Database,
         'debug': False,
     }
 
