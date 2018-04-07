@@ -74,7 +74,7 @@ class PersonModelAdapter(GenericModelAdapter):
             central_person = model.get(relatives_of_id)
             return central_person.related_people
         elif by_event_id:
-            return model.find_related_to(Event, by_event_id)
+            return model.find_all_referencing(Event, by_event_id)
         elif by_namegroup:
             xs = super().provide_list(model)
             return (p for p in xs if p.group_name == by_namegroup)
@@ -108,7 +108,7 @@ class EventModelAdapter(GenericModelAdapter):
         citation_ids = [x for x in citation_ids_raw.split(',') if x]
 
         if place_id:
-            return Event.find_related_to(Place, place_id)
+            return Event.find_all_referencing(Place, place_id)
         elif citation_ids:
             citations = Citation.find({'id': {'$in': citation_ids}})
             events_by_citation = [c.events for c in citations]
@@ -128,7 +128,7 @@ class CitationModelAdapter(GenericModelAdapter):
         source_id = request.values.get('source')
 
         if source_id:
-            return model.find_related_to(Source, source_id)
+            return model.find_all_referencing(Source, source_id)
         else:
             return super().provide_list(model)
 
