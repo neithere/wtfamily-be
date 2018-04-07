@@ -36,6 +36,15 @@ from models import (
     #MediaObject,
 )
 
+ALLOW_ANY_HOST = True
+
+
+def jsonify_with_cors(*args, **kwargs):
+    resp = jsonify(*args, **kwargs)
+    if ALLOW_ANY_HOST:
+        resp.headers.add('Access-Control-Allow-Origin', '*')
+    return resp
+
 
 class GenericModelAdapter:
     @classmethod
@@ -193,7 +202,7 @@ class RESTfulService(Configurable):
 
         protect = not debug
         pure_data_items = [adapter.prepare_obj(obj, protect) for obj in obj_list]
-        resp = jsonify(pure_data_items)
+        resp = jsonify_with_cors(pure_data_items)
 
         after = time()
 
@@ -209,7 +218,7 @@ class RESTfulService(Configurable):
         except model.ObjectNotFound:
             abort(404)
         protect = not debug
-        resp = jsonify(adapter.prepare_obj(obj, protect))
+        resp = jsonify_with_cors(adapter.prepare_obj(obj, protect))
         after = time()
         print('Generated JSON for', model, 'detail in', (after - before), 'sec')
         return resp
@@ -228,7 +237,7 @@ class RESTfulService(Configurable):
         group_names = [
             dict({'name': n}, **seen_group_names[n])
             for n in sorted(seen_group_names)]
-        resp = jsonify(group_names)
+        resp = jsonify_with_cors(group_names)
         after = time()
         print('Generated JSON for surname_list in', (after - before), 'sec')
         return resp
