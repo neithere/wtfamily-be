@@ -1476,15 +1476,34 @@ class DateRepresenter:
         return self._format(self.value)
 
     def _format(self, value):
+        def _shorten_stop_subvalue(v):
+            """
+            >>> _shorten_stop_subvalue({'start': '1882', 'stop': '1895'})
+            {'start': '1882', 'stop': '95'}
+            >>> _shorten_stop_subvalue({'start': '1882-01', 'stop': '1895-05'})
+            {'start': '1882-01', 'stop': '1895-05'}
+            >>> _shorten_stop_subvalue({'start': '1882', 'stop': '1903'})
+            {'start': '1882', 'stop': '1903'}
+            """
+            if 'start' not in v or 'stop' not in v:
+                return v
+            start = v['start']
+            stop = v['stop']
+            is_year_granularity = len(start) == len(stop) == 4
+            if is_year_granularity and stop.startswith(start[:2]):
+                stop = stop[2:]
+            return dict(value, start=start, stop=stop)
+
         formats = {
             self.MOD_NONE: '{}',
             self.MOD_SPAN: '{0[start]}..{0[stop]}',
-            self.MOD_RANGE: '[{0[start]}/{0[stop]}]',
+            self.MOD_RANGE: '[{0[start]}-{0[stop]}]',
             self.MOD_BEFORE: '<{}',
-            self.MOD_AFTER: '{}+',
+            self.MOD_AFTER: '>{}',
             self.MOD_ABOUT: '≈{}',
         }
         template = formats[self.modifier]
+        value = _shorten_stop_subvalue(value)
         val = template.format(value)
 
         quality_abbrevs = {
