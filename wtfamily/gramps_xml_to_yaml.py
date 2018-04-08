@@ -106,12 +106,15 @@ SINGLE_VALUE_FIELDS = (
 
     # notes
     'text',
+    'format',
 
     # namemaps
     'type',
     'key',
     'value',
 
+    # name formats
+    'active',
 
     # places
     'ptitle',
@@ -306,6 +309,8 @@ GLOBAL_FIELD_PROCESSORS = {
     'priv': _normalize_bool,
     'alt': _normalize_bool,    # in Person.name
     'prim': _normalize_bool,
+    'format': _normalize_bool,
+    'active': _normalize_bool,
 }
 
 GLOBAL_FIELD_RENAME = {

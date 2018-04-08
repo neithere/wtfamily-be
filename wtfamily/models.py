@@ -140,8 +140,6 @@ OBJREF_SCHEMA = {
     maybe-'noteref': [ REF_SCHEMA ],
 }
 
-# Seems to be either missing (false) or `['1']` (true)
-LEGACY_BOOL_SCHEMA = [ Equals('1') ]
 URL_SCHEMA = {
     'href': str,
     'type': str,    # TODO enum
@@ -286,7 +284,7 @@ NOTE_SCHEMA = {
     'text': str,
     'type': str,            # TODO enum
     maybe-'style': list,    # TODO strict? it contains stuff like (char range + font info)
-    maybe-'format': LEGACY_BOOL_SCHEMA,
+    maybe-'format': bool,
 }
 NAME_MAP_SCHEMA = {
     'type': str,    # TODO enum
@@ -298,7 +296,7 @@ NAME_FORMAT_SCHEMA = {
     'name': [str],
     'fmt_str': [str],
     'number': [str],    # apparently for sorting
-    'active': LEGACY_BOOL_SCHEMA,
+    'active': bool,
 }
 MEDIA_OBJECT_SCHEMA = {
     'file': {
