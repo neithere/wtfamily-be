@@ -72,12 +72,22 @@ def build_xml(db):
     # monkey-patch to avoid the Flask app context/globals nonsense
     Entity._get_database = lambda: db
 
-    # TODO: also Tag?
     models = (Person, Family, Event, Citation, Source, Place, Repository,
               MediaObject, Note)
     model_to_tag = {
-        Event: ('events', 'event', EventObjectSerializer),
-        Note: ('notes', 'note', NoteObjectSerializer),
+        Person: ('people', 'person', PersonSerializer),
+        Family: ('families', 'family', FamilySerializer),
+        Event: ('events', 'event', EventSerializer),
+        Source: ('sources', 'source', SourceSerializer),
+        Place: ('places', 'place', PlaceSerializer),
+        MediaObject: ('objects', 'object', MediaObjectSerializer),
+        Repository: ('repositories', 'repository', RepositorySerializer),
+        Note: ('notes', 'note', NoteSerializer),
+        # TODO: Tag: ('tags', 'tag', TagSerializer),
+        Citation: ('citations', 'citation', CitationSerializer),
+        # TODO: Bookmark: ('bookmarks', 'bookmark', BookmarkSerializer),
+        # TODO: NameMap: ('namemaps', 'map', NameMapSerializer),
+        # TODO: Bookmark: ('name-formats', 'format', NameFormatSerializer),
     }
 
     # Gather the mappings of IDs to internal Gramps IDs ("handles").
@@ -102,7 +112,6 @@ def build_xml(db):
         group_el = et.SubElement(tree_el, group_tag)
 
         items = model.find()
-        items = list(items)[:100]  # XXX DEBUG
         for item in items:
             item_serializer = ItemSerializer(item_tag, item, id_to_handle)
             item_el = item_serializer.make_xml()
@@ -122,9 +131,6 @@ class GenericModelObjectSerializer:
         self.tag = tag
         self.obj = obj
         self.id_to_handle = id_to_handle
-
-        import sys
-        sys.stderr.write(str(obj._data) + "\n")
 
     def make_xml(self):
         el = et.Element(self.tag)
@@ -210,7 +216,138 @@ class GenericModelObjectSerializer:
             target[key] = str(int(value))
 
 
-class EventObjectSerializer(GenericModelObjectSerializer):
+class PersonSerializer(GenericModelObjectSerializer):
+    """
+    <!ELEMENT people (person)*>
+    <!ATTLIST people
+            default CDATA #IMPLIED
+            home    IDREF #IMPLIED
+    >
+
+    <!ELEMENT person (gender, name*, eventref*, lds_ord*,
+                      objref*, address*, attribute*, url*, childof*,
+                      parentin*, personref*, noteref*, citationref*, tagref*)>
+    <!ATTLIST person
+            id        CDATA #IMPLIED
+            handle    ID    #REQUIRED
+            priv      (0|1) #IMPLIED
+            change    CDATA #REQUIRED
+    >
+
+    <!--
+    GENDER has values of M, F, or U.
+    -->
+    <!ELEMENT gender  (#PCDATA)>
+
+    <!ELEMENT name    (first?, call?, surname*, suffix?, title?, nick?, familynick?, group?,
+                      (daterange|datespan|dateval|datestr)?, noteref*, citationref*)>
+    <!-- (Unknown|Also Know As|Birth Name|Married Name|Other Name) -->
+    <!ATTLIST name
+            alt       (0|1) #IMPLIED
+            type      CDATA #IMPLIED
+            priv      (0|1) #IMPLIED
+            sort      CDATA #IMPLIED
+            display   CDATA #IMPLIED
+    >
+
+    <!ELEMENT first      (#PCDATA)>
+    <!ELEMENT call       (#PCDATA)>
+    <!ELEMENT suffix     (#PCDATA)>
+    <!ELEMENT title      (#PCDATA)>
+    <!ELEMENT nick       (#PCDATA)>
+    <!ELEMENT familynick (#PCDATA)>
+    <!ELEMENT group      (#PCDATA)>
+    <!ELEMENT surname    (#PCDATA)>
+    <!-- (Unknown|Inherited|Given|Taken|Patronymic|Matronymic|Feudal|
+    Pseudonym|Patrilineal|Matrilineal|Occupation|Location) -->
+    <!ATTLIST surname
+            prefix      CDATA #IMPLIED
+            prim        (1|0) #IMPLIED
+            derivation  CDATA #IMPLIED
+            connector   CDATA #IMPLIED
+    >
+
+    <!ELEMENT childof EMPTY>
+    <!ATTLIST childof hlink IDREF  #REQUIRED
+    >
+
+    <!ELEMENT parentin EMPTY>
+    <!ATTLIST parentin hlink IDREF #REQUIRED>
+
+    <!ELEMENT personref (citationref*, noteref*)>
+    <!ATTLIST personref
+            hlink IDREF #REQUIRED
+            priv  (0|1) #IMPLIED
+            rel   CDATA #REQUIRED
+    >
+
+    <!ELEMENT address ((daterange|datespan|dateval|datestr)?, street?,
+                                       locality?, city?, county?, state?, country?, postal?,
+                                       phone?, noteref*,citationref*)>
+    <!ATTLIST address priv (0|1) #IMPLIED>
+
+    <!ELEMENT street   (#PCDATA)>
+    <!ELEMENT locality (#PCDATA)>
+    <!ELEMENT city     (#PCDATA)>
+    <!ELEMENT county   (#PCDATA)>
+    <!ELEMENT state    (#PCDATA)>
+    <!ELEMENT country  (#PCDATA)>
+    <!ELEMENT postal   (#PCDATA)>
+    <!ELEMENT phone    (#PCDATA)>
+    """
+    # TODO
+
+
+class FamilySerializer(GenericModelObjectSerializer):
+    """
+    <!ELEMENT families (family)*>
+
+    <!ELEMENT family (rel?, father?, mother?, eventref*, lds_ord*, objref*,
+                      childref*, attribute*, noteref*, citationref*, tagref*)>
+    <!ATTLIST family
+            id        CDATA #IMPLIED
+            handle    ID    #REQUIRED
+            priv      (0|1) #IMPLIED
+            change    CDATA #REQUIRED
+    >
+
+    <!ELEMENT father EMPTY>
+    <!ATTLIST father hlink IDREF #REQUIRED>
+
+    <!ELEMENT mother EMPTY>
+    <!ATTLIST mother hlink IDREF #REQUIRED>
+
+    <!-- (None|Birth|Adopted|Stepchild|Sponsored|Foster|Other|Unknown) -->
+    <!ELEMENT childref (citationref*,noteref*)>
+    <!ATTLIST childref
+            hlink IDREF #REQUIRED
+            priv  (0|1) #IMPLIED
+            mrel  CDATA #IMPLIED
+            frel  CDATA #IMPLIED
+    >
+
+    <!ELEMENT type (#PCDATA)>
+
+    <!ELEMENT rel EMPTY>
+    <!ATTLIST rel type CDATA #REQUIRED>
+    """
+    # TODO
+
+
+class EventSerializer(GenericModelObjectSerializer):
+    """
+    <!ELEMENT events (event)*>
+
+    <!ELEMENT event (type?, (daterange|datespan|dateval|datestr)?, place?, cause?,
+                     description?, attribute*, noteref*, citationref*, objref*,
+                     tagref*)>
+    <!ATTLIST event
+            id        CDATA #IMPLIED
+            handle    ID    #REQUIRED
+            priv      (0|1) #IMPLIED
+            change    CDATA #REQUIRED
+    >
+    """
     TEXT_TAGS = 'type', 'description'
     REF_TAGS = 'place', 'citationref', 'noteref', 'objref', 'tagref'
 
@@ -219,17 +356,205 @@ class EventObjectSerializer(GenericModelObjectSerializer):
     # \attribute*,
 
 
-class NoteObjectSerializer(GenericModelObjectSerializer):
+class SourceSerializer(GenericModelObjectSerializer):
     """
-    Limitations:
+    <!ELEMENT sources (source)*>
+    <!ELEMENT source (stitle?, sauthor?, spubinfo?, sabbrev?,
+                      noteref*, objref*, srcattribute*, reporef*, tagref*)>
+    <!ATTLIST source
+            id        CDATA #IMPLIED
+            handle    ID    #REQUIRED
+            priv      (0|1) #IMPLIED
+            change    CDATA #REQUIRED
+    >
+    <!ELEMENT stitle   (#PCDATA)>
+    <!ELEMENT sauthor  (#PCDATA)>
+    <!ELEMENT spubinfo (#PCDATA)>
+    <!ELEMENT sabbrev  (#PCDATA)>
+    """
+    # TODO
 
-    - styles are ignored
+
+class PlaceSerializer(GenericModelObjectSerializer):
     """
+    <!ELEMENT places (placeobj)*>
+
+    <!ELEMENT placeobj (ptitle?, pname+, code?, coord?, placeref*, location*,
+                        objref*, url*, noteref*, citationref*, tagref*)>
+    <!ATTLIST placeobj
+            id        CDATA #IMPLIED
+            handle    ID    #REQUIRED
+            priv      (0|1) #IMPLIED
+            change    CDATA #REQUIRED
+            type      CDATA #REQUIRED
+    >
+
+    <!ELEMENT pname (daterange|datespan|dateval|datestr)?>
+
+    <!ATTLIST pname
+            lang CDATA #IMPLIED
+            value CDATA #REQUIRED
+    >
+
+    <!ELEMENT ptitle (#PCDATA)>
+    <!ELEMENT code (#PCDATA)>
+
+    <!ELEMENT coord EMPTY>
+    <!ATTLIST coord
+            long CDATA #REQUIRED
+            lat  CDATA #REQUIRED
+    >
+
+    <!ELEMENT location EMPTY>
+    <!ATTLIST location
+            street   CDATA #IMPLIED
+            locality CDATA #IMPLIED
+            city     CDATA #IMPLIED
+            parish   CDATA #IMPLIED
+            county   CDATA #IMPLIED
+            state    CDATA #IMPLIED
+            country  CDATA #IMPLIED
+            postal   CDATA #IMPLIED
+            phone    CDATA #IMPLIED
+    >
+    """
+    # TODO
+
+
+class MediaObjectSerializer(GenericModelObjectSerializer):
+    """
+    <!ELEMENT object (file, attribute*, noteref*,
+                     (daterange|datespan|dateval|datestr)?, citationref*, tagref*)>
+    <!ATTLIST object
+            id        CDATA #IMPLIED
+            handle    ID    #REQUIRED
+            priv      (0|1) #IMPLIED
+            change    CDATA #REQUIRED
+    >
+
+    <!ELEMENT file EMPTY>
+    <!ATTLIST file
+            src         CDATA #REQUIRED
+            mime        CDATA #REQUIRED
+            checksum    CDATA #IMPLIED
+            description CDATA #REQUIRED
+    >
+    """
+    # TODO
+
+
+class RepositorySerializer(GenericModelObjectSerializer):
+    """
+    <!ELEMENT repository (rname, type, address*, url*, noteref*, tagref*)>
+    <!ATTLIST repository
+            id        CDATA #IMPLIED
+            handle    ID    #REQUIRED
+            priv      (0|1) #IMPLIED
+            change    CDATA #REQUIRED
+    >
+
+    <!ELEMENT rname   (#PCDATA)>
+    """
+    # TODO
+
+
+class NoteSerializer(GenericModelObjectSerializer):
+    """
+    <!ELEMENT notes (note)*>
+
+    <!ELEMENT note (text, style*, tagref*)>
+    <!ATTLIST note
+            id        CDATA #IMPLIED
+            handle    ID    #REQUIRED
+            priv      (0|1) #IMPLIED
+            change    CDATA #REQUIRED
+            format    (0|1) #IMPLIED
+            type      CDATA #REQUIRED
+    >
+
+    <!ELEMENT text (#PCDATA)>
+
+    <!ELEMENT style (range+)>
+    <!ATTLIST style
+            name    (bold|italic|underline|fontface|fontsize|
+                    fontcolor|highlight|superscript|link) #REQUIRED
+            value   CDATA #IMPLIED
+    >
+
+    <!ELEMENT range EMPTY>
+    <!ATTLIST range
+            start   CDATA #REQUIRED
+            end     CDATA #REQUIRED
+    >
+    """
+    # FIXME limitation: styles are ignored
     TEXT_TAGS = 'text',
 
     BOOL_ATTRS = 'format',
     STRING_ATTRS = GenericModelObjectSerializer.STRING_ATTRS + ('type',)
 
+
+#class TagSerializer(GenericModelObjectSerializer):
+#    """
+#    <!ELEMENT tag EMPTY>
+#    <!ATTLIST tag
+#            handle    ID    #REQUIRED
+#            name      CDATA #REQUIRED
+#            color     CDATA #REQUIRED
+#            priority  CDATA #REQUIRED
+#            change    CDATA #REQUIRED
+#    >
+#    """
+#    # TODO
+
+
+class CitationSerializer(GenericModelObjectSerializer):
+    """
+    <!ELEMENT citation ((daterange|datespan|dateval|datestr)?, page?, confidence,
+                        noteref*, objref*, srcattribute*, sourceref, tagref*)>
+    <!ATTLIST citation
+            id        CDATA #IMPLIED
+            handle    ID    #REQUIRED
+            priv      (0|1) #IMPLIED
+            change    CDATA #REQUIRED >
+    """
+    # TODO
+
+
+# TODO
+"""
+<!ELEMENT bookmarks (bookmark)*>
+<!ELEMENT bookmark EMPTY>
+<!ATTLIST bookmark
+        target (person|family|event|source|citation|place|media|repository|
+                note) #REQUIRED
+        hlink  IDREF #REQUIRED
+>
+
+<!--    ************************************************************
+NAME MAPS
+-->
+<!ELEMENT namemaps (map)*>
+<!ELEMENT map EMPTY>
+<!ATTLIST map
+        type  CDATA #REQUIRED
+        key   CDATA #REQUIRED
+        value CDATA #REQUIRED
+>
+
+<!--    ************************************************************
+NAME FORMATS
+-->
+
+<!ELEMENT name-formats (format)*>
+<!ELEMENT format EMPTY>
+<!ATTLIST format
+        number  CDATA #REQUIRED
+        name    CDATA #REQUIRED
+        fmt_str CDATA #REQUIRED
+        active  (0|1) #IMPLIED
+>
+"""
 
 def make_header_element():
     today = str(datetime.date.today())
