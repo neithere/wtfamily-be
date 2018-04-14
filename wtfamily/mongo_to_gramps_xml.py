@@ -37,7 +37,7 @@ Handles can be maintained solely for (almost) idempotent import/export.
 BTW, Gramps' GEDCOM export uses IDs and nothing else.
 """
 import datetime
-import xml.etree.ElementTree as et
+from lxml import etree
 import sys
 
 from models import (Entity, Person, Family, Event, Citation, Source, Place,
@@ -47,6 +47,21 @@ WTFAMILY_APP_NAME = 'WTFamily'
 GRAMPS_XML_VERSION_TUPLE = (1, 7, 1) # version for Gramps 4.2
 GRAMPS_XML_VERSION = '.'.join(str(i) for i in GRAMPS_XML_VERSION_TUPLE)
 GRAMPS_URL_HOMEPAGE = "http://gramps-project.org/"
+
+
+def _reject_to_serialize_dict_as_attr(value):
+    raise ValueError('Deep structures must be serialized '
+                     'as tags, not attributes: {}'.format(value))
+
+
+ATTR_VALUE_NORMALIZERS_BY_TYPE = {
+    str: str,
+    int: str,
+    bool: lambda x: str(int(x)),
+    datetime.datetime: lambda x: str(int(x.timestamp())),
+    dict: _reject_to_serialize_dict_as_attr,
+    list: _reject_to_serialize_dict_as_attr
+}
 
 
 def export_to_xml(db):
@@ -59,10 +74,11 @@ def export_to_xml(db):
     tree_el = build_xml(db)
 
     yield declaration
-    yield et.tostring(tree_el, encoding='unicode')
+    yield etree.tostring(tree_el, encoding='unicode')
+
 
 def build_xml(db):
-    tree_el = et.Element('database', {
+    tree_el = etree.Element('database', {
         'xmlns': '{}xml/{}/'.format(GRAMPS_URL_HOMEPAGE, GRAMPS_XML_VERSION)
     })
 
@@ -79,7 +95,7 @@ def build_xml(db):
         Family: ('families', 'family', FamilySerializer),
         Event: ('events', 'event', EventSerializer),
         Source: ('sources', 'source', SourceSerializer),
-        Place: ('places', 'place', PlaceSerializer),
+        Place: ('places', 'placeobj', PlaceSerializer),
         MediaObject: ('objects', 'object', MediaObjectSerializer),
         Repository: ('repositories', 'repository', RepositorySerializer),
         Note: ('notes', 'note', NoteSerializer),
@@ -110,77 +126,106 @@ def build_xml(db):
 
         group_tag, item_tag, ItemSerializer = model_to_tag[model]
 
-        group_el = et.SubElement(tree_el, group_tag)
+        group_el = etree.SubElement(tree_el, group_tag)
 
         items = model.find()
         for item in items:
-            item_serializer = ItemSerializer(item_tag, item, id_to_handle)
+            item_serializer = ItemSerializer(item_tag, item._data, id_to_handle)
             item_el = item_serializer.make_xml()
             group_el.append(item_el)
 
     return tree_el
 
 
+def normalize_attr_value(value):
+    if value is None:
+        return ''
+
+    value_type = type(value)
+    normalizer = ATTR_VALUE_NORMALIZERS_BY_TYPE.get(value_type)
+
+    if normalizer:
+        return normalizer(value)
+    else:
+        raise ValueError('Normalizer not found for {} attribute "{}"'
+                         .format(type(value).__name__, value))
+
+
 class BaseTagSerializer:
     TAGS = {}
     ATTRS = ()
+    AS_TEXT = False
+    TEXT_FROM = None
 
-    def __init__(self, data, id_to_handle):
+    def __init__(self, tag, data, id_to_handle):
+        if self.TAGS and self.AS_TEXT:
+            # This is not necessarily so, but very unlikely, especially given
+            # the GrampsXML DTD.
+            raise ValueError('TAGS and AS_TEXT are mutually exclusive.')
+
+        self.tag = tag
         self.data = data
         self.id_to_handle = id_to_handle
 
-    def make_xml(self, tag, key):
-        sys.stderr.write('{}.make_xml("{}", "{}") for {}\n'.format(self.__class__.__name__, tag, key, self.data))
-        #print(self.__class__.__name__, tag, key, self.data)
+    def make_xml(self):
+        data = self.data
 
-        items = self.data.get(key) or []
+        elem = etree.Element(self.tag)
 
-        for item in items:
-            elem = et.Element(tag)
+        for attr in self.ATTRS:
+            value = data.get(attr)
 
-            for attr in self.ATTRS:
-                value = self.data.get(attr)
-                sys.stderr.write('    attr {} = {}\n'.format(attr, value))
-                if value:
-                    elem.attrib[attr] = value
+            if value is not None:
+                elem.attrib[attr] = normalize_attr_value(value)
 
-            for subtag, Subserializer in self.TAGS.items():
-                # XXX hmmm...
-                subkey = subtag
+        extra_attrs = self.make_extra_attrs(data)
+        if extra_attrs:
+            elem.attrib.update(extra_attrs)
 
-                # TODO: extract value here, pass instead of the full item
-                # (this however will affect also this method, see
-                # `items` definition)
-                subserializer = Subserializer(item, self.id_to_handle)
-                for subelem in subserializer.make_xml(subtag, subkey):
-                    elem.append(subelem)
-            yield elem
+
+        for subtag, Subserializer in self.TAGS.items():
+            # NOTE: subtag == key, but may be different
+            values = data.get(subtag)
+
+            # TODO: check for required tags
+            if values is None:
+                continue
+
+            if not isinstance(values, list):
+                values = [values]
+
+            for value in values:
+                subserializer = Subserializer(subtag, value, self.id_to_handle)
+                subelem = subserializer.make_xml()
+                elem.append(subelem)
+
+        if self.AS_TEXT:
+            text_value = self._make_text_value(data)
+        elif self.TEXT_FROM:
+            text_value = self._make_text_value(data.get(self.TEXT_FROM))
+        else:
+            text_value = None
+
+        if text_value:
+            elem.text = text_value
+
+        return elem
+
+    def make_extra_attrs(self, data):
+        return None
+
+    def _make_text_value(self, value):
+        if not isinstance(value, str):
+            raise ValueError('{}: expected string, got {}: {!r}'
+                             .format(self.tag, type(value), value))
+        return value
 
 
 class TextTagSerializer(BaseTagSerializer):
     """
     Generates a ``<foo>some text</foo>`` element.
     """
-    def make_xml(self, tag, key):
-        #print(self.__class__.__name__, tag, key, self.data)
-
-        values = self.data.get(key) or []
-
-        if not isinstance(values, list):
-            values = [values]
-
-        for value in values:
-            el = et.Element(tag)
-
-            el.text = self._prepare_value(value)
-
-            yield el
-
-    def _prepare_value(self, value):
-        if not isinstance(value, str):
-            raise ValueError('{}: expected string, got {}: {!r}'.format(tag, type(value), value))
-
-        return value
+    AS_TEXT = True
 
 
 class EnumTagSerializer(TextTagSerializer):
@@ -219,34 +264,37 @@ class PersonSurnameTagSerializer(BaseTagSerializer):
     """
     # TODO: enum attr "derivation"
     ATTRS = 'prefix', 'prim', 'derivation', 'connector'
+    TEXT_FROM = 'text'
 
 
 class RefTagSerializer(BaseTagSerializer):
     """
     Generates ``<foo hlink="foo" />`` elements.
     """
-    def make_xml(self, tag, key):
-        items = self.data.get(key) or []
-        for item in items:
-            pk = item['id']
+    def make_extra_attrs(self, data):
+        if not isinstance(data, dict):
+            raise ValueError('Expected dict, got "{}"'.format(data))
 
-            # `hlink` contains "handle", the internal Gramps ID.
-            # WTFamily preserves it but relies on the public ID.
-            # We use a global ID-to-handle mapping to convert them back.
-            #
-            # FIXME this won't work for newly added items.  Options:
-            # - generate a "handle" now
-            # - generate it always internally
-            # - use ObjectId
-            # - use public ID
-            handle = self.id_to_handle[pk]
+        pk = data['id']
 
-            if not isinstance(handle, str):
-                raise ValueError('handle: expected string, got {}: "{}"'.format(type(handle), handle))
+        # `hlink` contains "handle", the internal Gramps ID.
+        # WTFamily preserves it but relies on the public ID.
+        # We use a global ID-to-handle mapping to convert them back.
+        #
+        # FIXME this won't work for newly added items.  Options:
+        # - generate a "handle" now
+        # - generate it always internally
+        # - use ObjectId
+        # - use public ID
+        handle = self.id_to_handle[pk]
 
-            yield et.Element(tag, {
-                'hlink': handle,
-            })
+        if not isinstance(handle, str):
+            raise ValueError('handle: expected string, got {}: "{}"'
+                             .format(type(handle), handle))
+
+        return {
+            'hlink': handle,
+        }
 
 
 class AttributeTagSerializer(BaseTagSerializer):
@@ -258,22 +306,31 @@ class GreedyDictTagSerializer(BaseTagSerializer):
     Generates ``<foo a="1" b="2" />`` elements, mapping *all* keys from a list
     of dicts to element attributes.
     """
-    def make_xml(self, tag, key):
-        #print(self.__class__.__name__, tag, key, self.data)
+    def make_xml(self):
+        raw_value = self.data
 
-        values = self.data.get(key) or []
+        if not isinstance(raw_value, dict):
+            raise ValueError('Expected dict, got "{}"'.format(raw_value))
 
-        if not isinstance(values, list):
-            values = [values]
+        value = dict((k, normalize_attr_value(v))
+                     for k, v in raw_value.items())
 
-        for value in values:
-            sys.stderr.write("Mapping {} from {}\n".format(key, value))
-            yield et.Element(tag, value)
+        return etree.Element(self.tag, value)
 
 
 # TODO: transform (WTFamily has a different inner structure)
 class DateValTagSerializer(GreedyDictTagSerializer):
     pass
+
+
+class EventRefTagSerializer(RefTagSerializer):
+    ATTRS = 'role',
+
+
+class MediaObjectRefTagSerializer(RefTagSerializer):
+    TAGS = {
+        'region': GreedyDictTagSerializer,
+    }
 
 
 class AddressTagSerializer(BaseTagSerializer):
@@ -393,8 +450,8 @@ class GenericModelObjectSerializer:
         self.id_to_handle = id_to_handle
 
     def make_xml(self):
-        el = et.Element(self.tag)
-        el.attrib = self.make_attrs()
+        attrs = self.make_attrs()
+        el = etree.Element(self.tag, **attrs)
         for child_el in self.make_child_elements():
             if child_el is not None:
                 el.append(child_el)
@@ -419,25 +476,36 @@ class GenericModelObjectSerializer:
             # NOTE: key == tag, but somewhere it may differ(?)
             tag = key
 
-            if key not in self.obj._data:
+            if key not in self.obj:
                 continue
 
-            serializer = Serializer(self.obj._data, self.id_to_handle)
-            for child_el in serializer.make_xml(tag, key):
-                yield child_el
+            values = self.obj.get(key)
+
+            # Some tags can only be present once (DTD: `father?`),
+            # they are internally represented as dictionaries.
+            # Some tags are 0..n/1..n (DTD: `childref*`, `pname+`),
+            # those will be lists of dictionaries.
+            # Here we temporarily represent all of them as lists.
+            if not isinstance(values, list):
+                values = [values]
+
+            for value in values:
+                serializer = Serializer(tag, value, self.id_to_handle)
+
+                yield serializer.make_xml()
 
     def _set_string(self, target, key, required=False):
-        value = self.obj._data.get(key)
+        value = self.obj.get(key)
         if required or value:
             target[key] = str(value or '')
 
     def _set_timestamp(self, target, key, required=False):
-        value = self.obj._data.get(key)
+        value = self.obj.get(key)
         if required or value:
             target[key] = str(int(value.timestamp())) if value else ''
 
     def _set_bool(self, target, key, required=False):
-        value = self.obj._data.get(key)
+        value = self.obj.get(key)
         if required or value is not None:
             # booleans are represented as numbers in XML attrs
             target[key] = str(int(value))
@@ -473,10 +541,17 @@ class PersonSerializer(GenericModelObjectSerializer):
     TAGS = {
         'gender': PersonGenderTagSerializer,
         'name': PersonNameTagSerializer,
+        'eventref': EventRefTagSerializer,
+        #'lds_ord': ... - WTF?
+        'objref': MediaObjectRefTagSerializer,
         'address': AddressTagSerializer,
+        'attribute': AttributeTagSerializer,
+        'url': GreedyDictTagSerializer,
         'childof': RefTagSerializer,
         'parentin': RefTagSerializer,
         'personref': RefTagSerializer,
+        'citationref': RefTagSerializer,
+        'tagref': RefTagSerializer,
     }
 
 
@@ -511,8 +586,8 @@ class FamilySerializer(GenericModelObjectSerializer):
         'rel': GreedyDictTagSerializer,
         'father': RefTagSerializer,
         'mother': RefTagSerializer,
-        'eventref': RefTagSerializer,
-        'objref': RefTagSerializer,
+        'eventref': EventRefTagSerializer,
+        'objref': MediaObjectRefTagSerializer,
         'childref': RefTagSerializer,
         'attribute': AttributeTagSerializer,
         'noteref': RefTagSerializer,
@@ -535,7 +610,7 @@ class EventSerializer(GenericModelObjectSerializer):
         'place': RefTagSerializer,
         'citationref': RefTagSerializer,
         'noteref': RefTagSerializer,
-        'objref': RefTagSerializer,
+        'objref': MediaObjectRefTagSerializer,
         'tagref': RefTagSerializer,
     }
 
@@ -581,7 +656,7 @@ class PlaceSerializer(GenericModelObjectSerializer):
         'coord': GreedyDictTagSerializer,
         'placeref': RefTagSerializer,
         'location': LocationTagSerializer,
-        'objref': RefTagSerializer,
+        'objref': MediaObjectRefTagSerializer,
         'url': GreedyDictTagSerializer,
         'noteref': RefTagSerializer,
         'citationref': RefTagSerializer,
@@ -698,15 +773,15 @@ NAME FORMATS
 def make_header_element():
     today = str(datetime.date.today())
 
-    header_el = et.Element('header')
+    header_el = etree.Element('header')
 
-    et.SubElement(header_el, 'created', date=today, version=GRAMPS_XML_VERSION)
+    etree.SubElement(header_el, 'created', date=today, version=GRAMPS_XML_VERSION)
 
     researcher_el = make_researcher_element()
     header_el.append(researcher_el)
 
     # this one is WTFamily-specific, not in GrampsXML DTD
-    et.SubElement(header_el, 'generator').attrib['name'] = WTFAMILY_APP_NAME
+    etree.SubElement(header_el, 'generator').attrib['name'] = WTFAMILY_APP_NAME
 
     return header_el
 
@@ -714,15 +789,15 @@ def make_researcher_element():
     # TODO: add a collection to store researcher metadata.
     # Currently we ignore this stuff when importing from Gramps.
 
-    researcher_el = et.Element('researcher')
+    researcher_el = etree.Element('researcher')
 
     fields = ('name', 'addr', 'locality', 'city', 'state', 'country', 'postal',
               'phone', 'email')
     for field in fields:
         tag = 'res{}'.format(field)
 
-        el = et.Element(tag)
-        el.append(et.Comment(' TODO: researcher {} '.format(field)))
+        el = etree.Element(tag)
+        el.append(etree.Comment(' TODO: researcher {} '.format(field)))
         researcher_el.append(el)
 
     return researcher_el
