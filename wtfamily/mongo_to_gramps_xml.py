@@ -333,6 +333,12 @@ class MediaObjectRefTagSerializer(RefTagSerializer):
     }
 
 
+class NoteStyleTagSerializer(BaseTagSerializer):
+    ATTRS = 'name', 'value'
+    TAGS = {
+        'range': GreedyDictTagSerializer
+    }
+
 class AddressTagSerializer(BaseTagSerializer):
     """
     <!ELEMENT address ((daterange|datespan|dateval|datestr)?, street?,
@@ -428,12 +434,15 @@ class PersonNameTagSerializer(BaseTagSerializer):
     TAGS = {
         'first': TextTagSerializer,
         'call': TextTagSerializer,
+        'surname': PersonSurnameTagSerializer,
         'suffix': TextTagSerializer,
         'title': TextTagSerializer,
         'nick': TextTagSerializer,
         'familynick': TextTagSerializer,
         'group': TextTagSerializer,
-        'surname': PersonSurnameTagSerializer,
+        # TODO: date tags
+        'noteref': RefTagSerializer,
+        'citationref': RefTagSerializer,
     }
 
 
@@ -698,7 +707,7 @@ class NoteSerializer(GenericModelObjectSerializer):
     TAGS = {
         'text': TextTagSerializer,
         'tagref': RefTagSerializer,
-        'style': GreedyDictTagSerializer,
+        'style': NoteStyleTagSerializer,
         'range': GreedyDictTagSerializer,
     }
 
