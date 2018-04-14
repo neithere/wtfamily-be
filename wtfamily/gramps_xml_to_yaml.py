@@ -124,6 +124,16 @@ SINGLE_VALUE_FIELDS = (
     # people
     'gender',
 
+    # people: address
+    'street',
+    'locality',
+    'city',
+    'county',
+    'state',
+    'country',
+    'postal',
+    'phone',
+
     # people.name
     'first',
     'nick',
@@ -227,7 +237,15 @@ def main(path='/tmp/all.gramps', out='/tmp/all.gramps.yaml'):
 
 
 def _replace_hlinks_with_ids(item, handle_to_id):
+    """
+    Given a dictionary, replaces `hlink` with `id` using given `handle_to_id`
+    mapping.  Descends into lists and recursively works on nested data.
+    """
+    if not isinstance(item, dict):
+        return item
+
     item_with_pk_links = {}
+
     for field_name in item:
         value = item[field_name]
         if field_name in HLINK_FIELDS:
@@ -243,6 +261,11 @@ def _replace_hlinks_with_ids(item, handle_to_id):
                         val['id'] = handle_to_id[handle]
                     fixed_value.append(val)
                 value = fixed_value
+
+            # go deeper, recursively call ourselves
+            if isinstance(value, list):
+                value = [_replace_hlinks_with_ids(x, handle_to_id)
+                         for x in value]
 
         item_with_pk_links[field_name] = value
     return item_with_pk_links
@@ -466,6 +489,11 @@ class Converter:
                     for subfield in field_node:
                         subfield_shortname = _strip_namespace(subfield.tag)
                         subdata = subfield.attrib.copy()
+                        if subfield.text:
+                            if subdata:
+                                subdata['text'] = subfield.text
+                            else:
+                                subdata = subfield.text
                         value.setdefault(subfield_shortname, []).append(subdata)
                 # XXX / tag-specific logic
 

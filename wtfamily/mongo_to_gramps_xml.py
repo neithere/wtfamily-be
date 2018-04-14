@@ -87,7 +87,7 @@ def build_xml(db):
         Citation: ('citations', 'citation', CitationSerializer),
         # TODO: Bookmark: ('bookmarks', 'bookmark', BookmarkSerializer),
         # TODO: NameMap: ('namemaps', 'map', NameMapSerializer),
-        # TODO: Bookmark: ('name-formats', 'format', NameFormatSerializer),
+        # TODO: NameFormat: ('name-formats', 'format', NameFormatSerializer),
     }
 
     # Gather the mappings of IDs to internal Gramps IDs ("handles").
@@ -95,7 +95,8 @@ def build_xml(db):
     # before we try exporting them.
     id_to_handle = {}
     for model in models:
-        for x in model._get_collection().find({}, projection=['id', 'handle']):
+        collection = model._get_collection()
+        for x in collection.find({}, projection=['id', 'handle']):
             id_to_handle[x['id']] = x['handle']
 
     # Now that we have the full mapping, proceed to export record by record.
@@ -119,9 +120,268 @@ def build_xml(db):
 
     return tree_el
 
+
+class BaseTagSerializer:
+    TAGS = {}
+    ATTRS = ()
+
+    def __init__(self, data, id_to_handle):
+        self.data = data
+        self.id_to_handle = id_to_handle
+
+    def make_xml(self, tag, key):
+        sys.stderr.write('{}.make_xml("{}", "{}") for {}\n'.format(self.__class__.__name__, tag, key, self.data))
+        #print(self.__class__.__name__, tag, key, self.data)
+
+        items = self.data.get(key) or []
+
+        for item in items:
+            elem = et.Element(tag)
+
+            for attr in self.ATTRS:
+                value = self.data.get(attr)
+                sys.stderr.write('    attr {} = {}\n'.format(attr, value))
+                if value:
+                    elem.attrib[attr] = value
+
+            for subtag, Subserializer in self.TAGS.items():
+                # XXX hmmm...
+                subkey = subtag
+
+                # TODO: extract value here, pass instead of the full item
+                # (this however will affect also this method, see
+                # `items` definition)
+                subserializer = Subserializer(item, self.id_to_handle)
+                for subelem in subserializer.make_xml(subtag, subkey):
+                    elem.append(subelem)
+            yield elem
+
+
+class TextTagSerializer(BaseTagSerializer):
+    """
+    Generates a ``<foo>some text</foo>`` element.
+    """
+    def make_xml(self, tag, key):
+        #print(self.__class__.__name__, tag, key, self.data)
+
+        values = self.data.get(key) or []
+
+        if not isinstance(values, list):
+            values = [values]
+
+        for value in values:
+            el = et.Element(tag)
+
+            el.text = self._prepare_value(value)
+
+            yield el
+
+    def _prepare_value(self, value):
+        if not isinstance(value, str):
+            raise ValueError('{}: expected string, got {}: {!r}'.format(tag, type(value), value))
+
+        return value
+
+
+class EnumTagSerializer(TextTagSerializer):
+    """
+    Generates a ``<foo>some text</foo>`` element where `some text` belongs
+    to a pre-defined set of values.
+    """
+    ALLOWED_VALUES = []
+
+    def _prepare_value(self, value):
+        if value not in self.ALLOWED_VALUES:
+            raise ValueError('{}: expected one of {}, got "{}"'
+                             .format(self.ALLOWED_VALUES, value))
+
+        return value
+
+
+class PersonGenderTagSerializer(EnumTagSerializer):
+    ALLOWED_VALUES = 'M', 'F', 'U'
+
+
+class PersonSurnameTagSerializer(BaseTagSerializer):
+    """
+    This tag is weirdly named in GrampsXML.  In fact it's any name other
+    than first name or nickname, including patronymic and so on.
+
+    <!ELEMENT surname    (#PCDATA)>
+    <!-- (Unknown|Inherited|Given|Taken|Patronymic|Matronymic|Feudal|
+    Pseudonym|Patrilineal|Matrilineal|Occupation|Location) -->
+    <!ATTLIST surname
+            prefix      CDATA #IMPLIED
+            prim        (1|0) #IMPLIED
+            derivation  CDATA #IMPLIED
+            connector   CDATA #IMPLIED
+    >
+    """
+    # TODO: enum attr "derivation"
+    ATTRS = 'prefix', 'prim', 'derivation', 'connector'
+
+
+class RefTagSerializer(BaseTagSerializer):
+    """
+    Generates ``<foo hlink="foo" />`` elements.
+    """
+    def make_xml(self, tag, key):
+        items = self.data.get(key) or []
+        for item in items:
+            pk = item['id']
+
+            # `hlink` contains "handle", the internal Gramps ID.
+            # WTFamily preserves it but relies on the public ID.
+            # We use a global ID-to-handle mapping to convert them back.
+            #
+            # FIXME this won't work for newly added items.  Options:
+            # - generate a "handle" now
+            # - generate it always internally
+            # - use ObjectId
+            # - use public ID
+            handle = self.id_to_handle[pk]
+
+            if not isinstance(handle, str):
+                raise ValueError('handle: expected string, got {}: "{}"'.format(type(handle), handle))
+
+            yield et.Element(tag, {
+                'hlink': handle,
+            })
+
+
+class AttributeTagSerializer(BaseTagSerializer):
+    ATTRS = 'priv', 'type', 'value'
+
+
+class GreedyDictTagSerializer(BaseTagSerializer):
+    """
+    Generates ``<foo a="1" b="2" />`` elements, mapping *all* keys from a list
+    of dicts to element attributes.
+    """
+    def make_xml(self, tag, key):
+        #print(self.__class__.__name__, tag, key, self.data)
+
+        values = self.data.get(key) or []
+
+        if not isinstance(values, list):
+            values = [values]
+
+        for value in values:
+            sys.stderr.write("Mapping {} from {}\n".format(key, value))
+            yield et.Element(tag, value)
+
+
+# TODO: transform (WTFamily has a different inner structure)
+class DateValTagSerializer(GreedyDictTagSerializer):
+    pass
+
+
+class AddressTagSerializer(BaseTagSerializer):
+    """
+    <!ELEMENT address ((daterange|datespan|dateval|datestr)?, street?,
+                                       locality?, city?, county?, state?, country?, postal?,
+                                       phone?, noteref*,citationref*)>
+        <!ATTLIST address priv (0|1) #IMPLIED>
+
+        <!ELEMENT street   (#PCDATA)>
+        <!ELEMENT locality (#PCDATA)>
+        <!ELEMENT city     (#PCDATA)>
+        <!ELEMENT county   (#PCDATA)>
+        <!ELEMENT state    (#PCDATA)>
+        <!ELEMENT country  (#PCDATA)>
+        <!ELEMENT postal   (#PCDATA)>
+        <!ELEMENT phone    (#PCDATA)>
+    """
+    # TODO: this is generic enough to make any ModelSerializer subclass of TagSerializer
+    TAGS = {
+        # TODO: 'dateval': DateValExtractor(key='date'),
+        'dateval': DateValTagSerializer,
+
+        'street': TextTagSerializer,
+        'locality': TextTagSerializer,
+        'city': TextTagSerializer,
+        'county': TextTagSerializer,
+        'state': TextTagSerializer,
+        'country': TextTagSerializer,
+        'postal': TextTagSerializer,
+        'phone': TextTagSerializer,
+        'noteref': RefTagSerializer,
+        'citationref': RefTagSerializer,
+    }
+
+
+class LocationTagSerializer(GreedyDictTagSerializer):
+    """
+    <!ATTLIST location
+            street   CDATA #IMPLIED
+            locality CDATA #IMPLIED
+            city     CDATA #IMPLIED
+            parish   CDATA #IMPLIED
+            county   CDATA #IMPLIED
+            state    CDATA #IMPLIED
+            country  CDATA #IMPLIED
+            postal   CDATA #IMPLIED
+            phone    CDATA #IMPLIED
+    >
+    """
+    pass
+
+
+class PlaceNameTagSerializer(BaseTagSerializer):
+    """
+    <!ELEMENT pname (daterange|datespan|dateval|datestr)?>
+
+    <!ATTLIST pname
+            lang CDATA #IMPLIED
+            value CDATA #REQUIRED
+    >
+    """
+    TAGS = {
+        'daterange': GreedyDictTagSerializer,
+        'datespan': GreedyDictTagSerializer,
+        'dateval': GreedyDictTagSerializer,
+        'datestr': GreedyDictTagSerializer,
+    }
+    ATTRS = 'lang', 'value'
+
+
+class PersonNameTagSerializer(BaseTagSerializer):
+    """
+    <!ELEMENT name    (first?, call?, surname*, suffix?, title?, nick?, familynick?, group?,
+                      (daterange|datespan|dateval|datestr)?, noteref*, citationref*)>
+    <!-- (Unknown|Also Know As|Birth Name|Married Name|Other Name) -->
+    <!ATTLIST name
+            alt       (0|1) #IMPLIED
+            type      CDATA #IMPLIED
+            priv      (0|1) #IMPLIED
+            sort      CDATA #IMPLIED
+            display   CDATA #IMPLIED
+    >
+
+    <!ELEMENT first      (#PCDATA)>
+    <!ELEMENT call       (#PCDATA)>
+    <!ELEMENT suffix     (#PCDATA)>
+    <!ELEMENT title      (#PCDATA)>
+    <!ELEMENT nick       (#PCDATA)>
+    <!ELEMENT familynick (#PCDATA)>
+    <!ELEMENT group      (#PCDATA)>
+    """
+    # TODO: bool attrs, etc.
+    ATTRS = BaseTagSerializer.ATTRS + ('alt', 'type', 'sort', 'display')
+    TAGS = {
+        'first': TextTagSerializer,
+        'call': TextTagSerializer,
+        'suffix': TextTagSerializer,
+        'title': TextTagSerializer,
+        'nick': TextTagSerializer,
+        'familynick': TextTagSerializer,
+        'group': TextTagSerializer,
+        'surname': PersonSurnameTagSerializer,
+    }
+
+
 class GenericModelObjectSerializer:
-    TEXT_TAGS = []
-    REF_TAGS = []
+    TAGS = {}
 
     STRING_ATTRS = 'id', 'handle'
     BOOL_ATTRS = 'priv',
@@ -155,49 +415,16 @@ class GenericModelObjectSerializer:
         return attrs
 
     def make_child_elements(self):
-        for tag in self.TEXT_TAGS:
-            yield self._make_child_text_elem(tag)
+        for key, Serializer in self.TAGS.items():
+            # NOTE: key == tag, but somewhere it may differ(?)
+            tag = key
 
-        for tag in self.REF_TAGS:
-            for child_el in self._make_child_ref_elems(tag):
+            if key not in self.obj._data:
+                continue
+
+            serializer = Serializer(self.obj._data, self.id_to_handle)
+            for child_el in serializer.make_xml(tag, key):
                 yield child_el
-
-    def _make_child_text_elem(self, key):
-        """
-        Returns a ``<foo>some text</foo>`` element.
-        """
-        # NOTE: key == tag, but somewhere it may differ(?)
-        tag = key
-        value = self.obj._data.get(key)
-        if value:
-            el = et.Element(tag)
-            el.text = value
-            return el
-
-    def _make_child_ref_elems(self, key):
-        """
-        Generates ``<foo hlink="foo" />`` elements.
-        """
-        # NOTE: key == tag, but somewhere it may differ(?)
-        tag = key
-        items = self.obj._data.get(key) or []
-        for item in items:
-            pk = item['id']
-
-            # `hlink` contains "handle", the internal Gramps ID.
-            # WTFamily preserves it but relies on the public ID.
-            # We use a global ID-to-handle mapping to convert them back.
-            #
-            # FIXME this won't work for newly added items.  Options:
-            # - generate a "handle" now
-            # - generate it always internally
-            # - use ObjectId
-            # - use public ID
-            handle = self.id_to_handle[pk]
-
-            yield et.Element(tag, {
-                'hlink': handle,
-            })
 
     def _set_string(self, target, key, required=False):
         value = self.obj._data.get(key)
@@ -227,45 +454,6 @@ class PersonSerializer(GenericModelObjectSerializer):
     <!ELEMENT person (gender, name*, eventref*, lds_ord*,
                       objref*, address*, attribute*, url*, childof*,
                       parentin*, personref*, noteref*, citationref*, tagref*)>
-    <!ATTLIST person
-            id        CDATA #IMPLIED
-            handle    ID    #REQUIRED
-            priv      (0|1) #IMPLIED
-            change    CDATA #REQUIRED
-    >
-
-    <!--
-    GENDER has values of M, F, or U.
-    -->
-    <!ELEMENT gender  (#PCDATA)>
-
-    <!ELEMENT name    (first?, call?, surname*, suffix?, title?, nick?, familynick?, group?,
-                      (daterange|datespan|dateval|datestr)?, noteref*, citationref*)>
-    <!-- (Unknown|Also Know As|Birth Name|Married Name|Other Name) -->
-    <!ATTLIST name
-            alt       (0|1) #IMPLIED
-            type      CDATA #IMPLIED
-            priv      (0|1) #IMPLIED
-            sort      CDATA #IMPLIED
-            display   CDATA #IMPLIED
-    >
-
-    <!ELEMENT first      (#PCDATA)>
-    <!ELEMENT call       (#PCDATA)>
-    <!ELEMENT suffix     (#PCDATA)>
-    <!ELEMENT title      (#PCDATA)>
-    <!ELEMENT nick       (#PCDATA)>
-    <!ELEMENT familynick (#PCDATA)>
-    <!ELEMENT group      (#PCDATA)>
-    <!ELEMENT surname    (#PCDATA)>
-    <!-- (Unknown|Inherited|Given|Taken|Patronymic|Matronymic|Feudal|
-    Pseudonym|Patrilineal|Matrilineal|Occupation|Location) -->
-    <!ATTLIST surname
-            prefix      CDATA #IMPLIED
-            prim        (1|0) #IMPLIED
-            derivation  CDATA #IMPLIED
-            connector   CDATA #IMPLIED
-    >
 
     <!ELEMENT childof EMPTY>
     <!ATTLIST childof hlink IDREF  #REQUIRED
@@ -281,21 +469,15 @@ class PersonSerializer(GenericModelObjectSerializer):
             rel   CDATA #REQUIRED
     >
 
-    <!ELEMENT address ((daterange|datespan|dateval|datestr)?, street?,
-                                       locality?, city?, county?, state?, country?, postal?,
-                                       phone?, noteref*,citationref*)>
-    <!ATTLIST address priv (0|1) #IMPLIED>
-
-    <!ELEMENT street   (#PCDATA)>
-    <!ELEMENT locality (#PCDATA)>
-    <!ELEMENT city     (#PCDATA)>
-    <!ELEMENT county   (#PCDATA)>
-    <!ELEMENT state    (#PCDATA)>
-    <!ELEMENT country  (#PCDATA)>
-    <!ELEMENT postal   (#PCDATA)>
-    <!ELEMENT phone    (#PCDATA)>
     """
-    # TODO
+    TAGS = {
+        'gender': PersonGenderTagSerializer,
+        'name': PersonNameTagSerializer,
+        'address': AddressTagSerializer,
+        'childof': RefTagSerializer,
+        'parentin': RefTagSerializer,
+        'personref': RefTagSerializer,
+    }
 
 
 class FamilySerializer(GenericModelObjectSerializer):
@@ -304,12 +486,6 @@ class FamilySerializer(GenericModelObjectSerializer):
 
     <!ELEMENT family (rel?, father?, mother?, eventref*, lds_ord*, objref*,
                       childref*, attribute*, noteref*, citationref*, tagref*)>
-    <!ATTLIST family
-            id        CDATA #IMPLIED
-            handle    ID    #REQUIRED
-            priv      (0|1) #IMPLIED
-            change    CDATA #REQUIRED
-    >
 
     <!ELEMENT father EMPTY>
     <!ATTLIST father hlink IDREF #REQUIRED>
@@ -331,7 +507,18 @@ class FamilySerializer(GenericModelObjectSerializer):
     <!ELEMENT rel EMPTY>
     <!ATTLIST rel type CDATA #REQUIRED>
     """
-    # TODO
+    TAGS = {
+        'rel': GreedyDictTagSerializer,
+        'father': RefTagSerializer,
+        'mother': RefTagSerializer,
+        'eventref': RefTagSerializer,
+        'objref': RefTagSerializer,
+        'childref': RefTagSerializer,
+        'attribute': AttributeTagSerializer,
+        'noteref': RefTagSerializer,
+        'citationref': RefTagSerializer,
+        'tagref': RefTagSerializer,
+    }
 
 
 class EventSerializer(GenericModelObjectSerializer):
@@ -341,15 +528,16 @@ class EventSerializer(GenericModelObjectSerializer):
     <!ELEMENT event (type?, (daterange|datespan|dateval|datestr)?, place?, cause?,
                      description?, attribute*, noteref*, citationref*, objref*,
                      tagref*)>
-    <!ATTLIST event
-            id        CDATA #IMPLIED
-            handle    ID    #REQUIRED
-            priv      (0|1) #IMPLIED
-            change    CDATA #REQUIRED
-    >
     """
-    TEXT_TAGS = 'type', 'description'
-    REF_TAGS = 'place', 'citationref', 'noteref', 'objref', 'tagref'
+    TAGS = {
+        'type': TextTagSerializer,
+        'description': TextTagSerializer,
+        'place': RefTagSerializer,
+        'citationref': RefTagSerializer,
+        'noteref': RefTagSerializer,
+        'objref': RefTagSerializer,
+        'tagref': RefTagSerializer,
+    }
 
     # TODO
     # (daterange | datespan | dateval | datestr)?,
@@ -361,12 +549,6 @@ class SourceSerializer(GenericModelObjectSerializer):
     <!ELEMENT sources (source)*>
     <!ELEMENT source (stitle?, sauthor?, spubinfo?, sabbrev?,
                       noteref*, objref*, srcattribute*, reporef*, tagref*)>
-    <!ATTLIST source
-            id        CDATA #IMPLIED
-            handle    ID    #REQUIRED
-            priv      (0|1) #IMPLIED
-            change    CDATA #REQUIRED
-    >
     <!ELEMENT stitle   (#PCDATA)>
     <!ELEMENT sauthor  (#PCDATA)>
     <!ELEMENT spubinfo (#PCDATA)>
@@ -377,24 +559,8 @@ class SourceSerializer(GenericModelObjectSerializer):
 
 class PlaceSerializer(GenericModelObjectSerializer):
     """
-    <!ELEMENT places (placeobj)*>
-
     <!ELEMENT placeobj (ptitle?, pname+, code?, coord?, placeref*, location*,
                         objref*, url*, noteref*, citationref*, tagref*)>
-    <!ATTLIST placeobj
-            id        CDATA #IMPLIED
-            handle    ID    #REQUIRED
-            priv      (0|1) #IMPLIED
-            change    CDATA #REQUIRED
-            type      CDATA #REQUIRED
-    >
-
-    <!ELEMENT pname (daterange|datespan|dateval|datestr)?>
-
-    <!ATTLIST pname
-            lang CDATA #IMPLIED
-            value CDATA #REQUIRED
-    >
 
     <!ELEMENT ptitle (#PCDATA)>
     <!ELEMENT code (#PCDATA)>
@@ -406,31 +572,27 @@ class PlaceSerializer(GenericModelObjectSerializer):
     >
 
     <!ELEMENT location EMPTY>
-    <!ATTLIST location
-            street   CDATA #IMPLIED
-            locality CDATA #IMPLIED
-            city     CDATA #IMPLIED
-            parish   CDATA #IMPLIED
-            county   CDATA #IMPLIED
-            state    CDATA #IMPLIED
-            country  CDATA #IMPLIED
-            postal   CDATA #IMPLIED
-            phone    CDATA #IMPLIED
-    >
     """
-    # TODO
+    STRING_ATTRS = GenericModelObjectSerializer.STRING_ATTRS + ('type',)
+    TAGS = {
+        'pname': PlaceNameTagSerializer,
+        'ptitle': TextTagSerializer,
+        'code': TextTagSerializer,
+        'coord': GreedyDictTagSerializer,
+        'placeref': RefTagSerializer,
+        'location': LocationTagSerializer,
+        'objref': RefTagSerializer,
+        'url': GreedyDictTagSerializer,
+        'noteref': RefTagSerializer,
+        'citationref': RefTagSerializer,
+        'tagref': RefTagSerializer,
+    }
 
 
 class MediaObjectSerializer(GenericModelObjectSerializer):
     """
     <!ELEMENT object (file, attribute*, noteref*,
                      (daterange|datespan|dateval|datestr)?, citationref*, tagref*)>
-    <!ATTLIST object
-            id        CDATA #IMPLIED
-            handle    ID    #REQUIRED
-            priv      (0|1) #IMPLIED
-            change    CDATA #REQUIRED
-    >
 
     <!ELEMENT file EMPTY>
     <!ATTLIST file
@@ -441,56 +603,31 @@ class MediaObjectSerializer(GenericModelObjectSerializer):
     >
     """
     # TODO
+    TAGS = {
+        'file': GreedyDictTagSerializer,
+    }
 
 
 class RepositorySerializer(GenericModelObjectSerializer):
-    """
-    <!ELEMENT repository (rname, type, address*, url*, noteref*, tagref*)>
-    <!ATTLIST repository
-            id        CDATA #IMPLIED
-            handle    ID    #REQUIRED
-            priv      (0|1) #IMPLIED
-            change    CDATA #REQUIRED
-    >
-
-    <!ELEMENT rname   (#PCDATA)>
-    """
-    # TODO
+    TAGS = {
+        'rname': TextTagSerializer,
+        'type': TextTagSerializer,
+        'noteref': RefTagSerializer,
+        'tagref': RefTagSerializer,
+        'url': GreedyDictTagSerializer,
+        'address': AddressTagSerializer,
+    }
 
 
 class NoteSerializer(GenericModelObjectSerializer):
-    """
-    <!ELEMENT notes (note)*>
+    TAGS = {
+        'text': TextTagSerializer,
+        'tagref': RefTagSerializer,
+        'style': GreedyDictTagSerializer,
+        'range': GreedyDictTagSerializer,
+    }
 
-    <!ELEMENT note (text, style*, tagref*)>
-    <!ATTLIST note
-            id        CDATA #IMPLIED
-            handle    ID    #REQUIRED
-            priv      (0|1) #IMPLIED
-            change    CDATA #REQUIRED
-            format    (0|1) #IMPLIED
-            type      CDATA #REQUIRED
-    >
-
-    <!ELEMENT text (#PCDATA)>
-
-    <!ELEMENT style (range+)>
-    <!ATTLIST style
-            name    (bold|italic|underline|fontface|fontsize|
-                    fontcolor|highlight|superscript|link) #REQUIRED
-            value   CDATA #IMPLIED
-    >
-
-    <!ELEMENT range EMPTY>
-    <!ATTLIST range
-            start   CDATA #REQUIRED
-            end     CDATA #REQUIRED
-    >
-    """
-    # FIXME limitation: styles are ignored
-    TEXT_TAGS = 'text',
-
-    BOOL_ATTRS = 'format',
+    BOOL_ATTRS = GenericModelObjectSerializer.BOOL_ATTRS + ('format',)
     STRING_ATTRS = GenericModelObjectSerializer.STRING_ATTRS + ('type',)
 
 
@@ -506,6 +643,8 @@ class NoteSerializer(GenericModelObjectSerializer):
 #    >
 #    """
 #    # TODO
+#    # NOTE: some common attribs are *NOT* inherited (id, priv, etc.)
+#    STRING_ATTRS = 'color',
 
 
 class CitationSerializer(GenericModelObjectSerializer):
