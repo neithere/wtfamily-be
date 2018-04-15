@@ -189,14 +189,16 @@ class BaseTagSerializer:
             value = data.get(attr)
 
             if value is not None:
-                elem.attrib[attr] = normalize_attr_value(value)
+                elem.set(attr, normalize_attr_value(value))
 
         extra_attrs = self.make_extra_attrs(data)
         if extra_attrs:
-            elem.attrib.update(extra_attrs)
+            for key in sorted(extra_attrs):
+                elem.set(key, extra_attrs[key])
 
 
         for subtag, Subserializer in self.TAGS.items():
+
             # NOTE: subtag == key, but may be different
             values = data.get(subtag)
 
@@ -459,8 +461,7 @@ class PersonNameTagSerializer(BaseTagSerializer):
     <!ELEMENT familynick (#PCDATA)>
     <!ELEMENT group      (#PCDATA)>
     """
-    # TODO: bool attrs, etc.
-    ATTRS = BaseTagSerializer.ATTRS + ('alt', 'type', 'sort', 'display')
+    ATTRS = 'id', 'handle', 'priv', 'change', 'alt', 'type', 'sort', 'display'
     TAGS = {
         'first': TextTagSerializer,
         'call': TextTagSerializer,
@@ -476,81 +477,7 @@ class PersonNameTagSerializer(BaseTagSerializer):
     }
 
 
-class GenericModelObjectSerializer:
-    TAGS = {}
-
-    STRING_ATTRS = 'id', 'handle'
-    BOOL_ATTRS = 'priv',
-    TIMESTAMP_ATTRS = 'change',
-
-    def __init__(self, tag, obj, id_to_handle):
-        self.tag = tag
-        self.obj = obj
-        self.id_to_handle = id_to_handle
-
-    def make_xml(self):
-        attrs = self.make_attrs()
-        el = etree.Element(self.tag, **attrs)
-        for child_el in self.make_child_elements():
-            if child_el is not None:
-                el.append(child_el)
-        return el
-
-    def make_attrs(self):
-        attrs = {}
-
-        for name in self.STRING_ATTRS:
-            self._set_string(attrs, name)
-
-        for name in self.BOOL_ATTRS:
-            self._set_bool(attrs, name)
-
-        for name in self.TIMESTAMP_ATTRS:
-            self._set_timestamp(attrs, name)
-
-        return attrs
-
-    def make_child_elements(self):
-        for key, Serializer in self.TAGS.items():
-            # NOTE: key == tag, but somewhere it may differ(?)
-            tag = key
-
-            if key not in self.obj:
-                continue
-
-            values = self.obj.get(key)
-
-            # Some tags can only be present once (DTD: `father?`),
-            # they are internally represented as dictionaries.
-            # Some tags are 0..n/1..n (DTD: `childref*`, `pname+`),
-            # those will be lists of dictionaries.
-            # Here we temporarily represent all of them as lists.
-            if not isinstance(values, list):
-                values = [values]
-
-            for value in values:
-                serializer = Serializer(tag, value, self.id_to_handle)
-
-                yield serializer.make_xml()
-
-    def _set_string(self, target, key, required=False):
-        value = self.obj.get(key)
-        if required or value:
-            target[key] = str(value or '')
-
-    def _set_timestamp(self, target, key, required=False):
-        value = self.obj.get(key)
-        if required or value:
-            target[key] = str(int(value.timestamp())) if value else ''
-
-    def _set_bool(self, target, key, required=False):
-        value = self.obj.get(key)
-        if required or value is not None:
-            # booleans are represented as numbers in XML attrs
-            target[key] = str(int(value))
-
-
-class PersonSerializer(GenericModelObjectSerializer):
+class PersonSerializer(BaseTagSerializer):
     """
     <!ELEMENT people (person)*>
     <!ATTLIST people
@@ -577,6 +504,7 @@ class PersonSerializer(GenericModelObjectSerializer):
     >
 
     """
+    ATTRS = 'id', 'handle', 'priv', 'change'
     TAGS = {
         'gender': PersonGenderTagSerializer,
         'name': PersonNameTagSerializer,
@@ -594,7 +522,7 @@ class PersonSerializer(GenericModelObjectSerializer):
     }
 
 
-class FamilySerializer(GenericModelObjectSerializer):
+class FamilySerializer(BaseTagSerializer):
     """
     <!ELEMENT families (family)*>
 
@@ -607,6 +535,7 @@ class FamilySerializer(GenericModelObjectSerializer):
     <!ELEMENT mother EMPTY>
     <!ATTLIST mother hlink IDREF #REQUIRED>
     """
+    ATTRS = 'id', 'handle', 'priv', 'change'
     TAGS = {
         'rel': GreedyDictTagSerializer,
         'father': RefTagSerializer,
@@ -621,7 +550,7 @@ class FamilySerializer(GenericModelObjectSerializer):
     }
 
 
-class EventSerializer(GenericModelObjectSerializer):
+class EventSerializer(BaseTagSerializer):
     """
     <!ELEMENT events (event)*>
 
@@ -629,6 +558,7 @@ class EventSerializer(GenericModelObjectSerializer):
                      description?, attribute*, noteref*, citationref*, objref*,
                      tagref*)>
     """
+    ATTRS = 'id', 'handle', 'priv', 'change'
     TAGS = {
         'type': TextTagSerializer,
         'description': TextTagSerializer,
@@ -644,7 +574,7 @@ class EventSerializer(GenericModelObjectSerializer):
     # \attribute*,
 
 
-class SourceSerializer(GenericModelObjectSerializer):
+class SourceSerializer(BaseTagSerializer):
     """
     <!ELEMENT sources (source)*>
     <!ELEMENT source (stitle?, sauthor?, spubinfo?, sabbrev?,
@@ -654,10 +584,11 @@ class SourceSerializer(GenericModelObjectSerializer):
     <!ELEMENT spubinfo (#PCDATA)>
     <!ELEMENT sabbrev  (#PCDATA)>
     """
+    ATTRS = 'id', 'handle', 'priv', 'change'
     # TODO
 
 
-class PlaceSerializer(GenericModelObjectSerializer):
+class PlaceSerializer(BaseTagSerializer):
     """
     <!ELEMENT placeobj (ptitle?, pname+, code?, coord?, placeref*, location*,
                         objref*, url*, noteref*, citationref*, tagref*)>
@@ -673,7 +604,7 @@ class PlaceSerializer(GenericModelObjectSerializer):
 
     <!ELEMENT location EMPTY>
     """
-    STRING_ATTRS = GenericModelObjectSerializer.STRING_ATTRS + ('type',)
+    ATTRS = 'id', 'handle', 'priv', 'change', 'type'
     TAGS = {
         'pname': PlaceNameTagSerializer,
         'ptitle': TextTagSerializer,
@@ -689,7 +620,7 @@ class PlaceSerializer(GenericModelObjectSerializer):
     }
 
 
-class MediaObjectSerializer(GenericModelObjectSerializer):
+class MediaObjectSerializer(BaseTagSerializer):
     """
     <!ELEMENT object (file, attribute*, noteref*,
                      (daterange|datespan|dateval|datestr)?, citationref*, tagref*)>
@@ -702,13 +633,15 @@ class MediaObjectSerializer(GenericModelObjectSerializer):
             description CDATA #REQUIRED
     >
     """
-    # TODO
+    ATTRS = 'id', 'handle', 'priv', 'change'
     TAGS = {
-        'file': GreedyDictTagSerializer,
+        'file': tag_serializer_factory(
+            attrs=('src', 'mime', 'checksum', 'description')),
     }
 
 
-class RepositorySerializer(GenericModelObjectSerializer):
+class RepositorySerializer(BaseTagSerializer):
+    ATTRS = 'id', 'handle', 'priv', 'change'
     TAGS = {
         'rname': TextTagSerializer,
         'type': TextTagSerializer,
@@ -719,7 +652,8 @@ class RepositorySerializer(GenericModelObjectSerializer):
     }
 
 
-class NoteSerializer(GenericModelObjectSerializer):
+class NoteSerializer(BaseTagSerializer):
+    ATTRS = 'id', 'handle', 'priv', 'change', 'type', 'format'
     TAGS = {
         'text': TextTagSerializer,
         'tagref': RefTagSerializer,
@@ -731,11 +665,8 @@ class NoteSerializer(GenericModelObjectSerializer):
         )
     }
 
-    BOOL_ATTRS = GenericModelObjectSerializer.BOOL_ATTRS + ('format',)
-    STRING_ATTRS = GenericModelObjectSerializer.STRING_ATTRS + ('type',)
 
-
-#class TagSerializer(GenericModelObjectSerializer):
+#class TagSerializer(BaseTagSerializer):
 #    """
 #    <!ELEMENT tag EMPTY>
 #    <!ATTLIST tag
@@ -747,11 +678,11 @@ class NoteSerializer(GenericModelObjectSerializer):
 #    >
 #    """
 #    # TODO
-#    # NOTE: some common attribs are *NOT* inherited (id, priv, etc.)
-#    STRING_ATTRS = 'color',
+#    ATTRS = 'handle', 'name', 'color', 'priority', 'change'
 
 
-class CitationSerializer(GenericModelObjectSerializer):
+class CitationSerializer(BaseTagSerializer):
+    ATTRS = 'id', 'handle', 'priv', 'change'
     """
     <!ELEMENT citation ((daterange|datespan|dateval|datestr)?, page?, confidence,
                         noteref*, objref*, srcattribute*, sourceref, tagref*)>
