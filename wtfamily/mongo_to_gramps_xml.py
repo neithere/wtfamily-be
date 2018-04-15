@@ -37,6 +37,7 @@ Handles can be maintained solely for (almost) idempotent import/export.
 BTW, Gramps' GEDCOM export uses IDs and nothing else.
 """
 import datetime
+# NOTE: not bundled with Python but separate library; it can pretty-print.
 from lxml import etree
 import sys
 
@@ -74,7 +75,7 @@ def export_to_xml(db):
     tree_el = build_xml(db)
 
     yield declaration
-    yield etree.tostring(tree_el, encoding='unicode')
+    yield etree.tostring(tree_el, encoding='unicode', pretty_print=True)
 
 
 def build_xml(db):
@@ -149,6 +150,18 @@ def normalize_attr_value(value):
     else:
         raise ValueError('Normalizer not found for {} attribute "{}"'
                          .format(type(value).__name__, value))
+
+
+
+def tag_serializer_factory(tags=None, attrs=None, as_text=False, text_from=None):
+
+    class AdHocTagSerializer(BaseTagSerializer):
+        TAGS = tags or {}
+        ATTRS = attrs or ()
+        AS_TEXT = as_text
+        TEXT_FROM = text_from
+
+    return AdHocTagSerializer
 
 
 class BaseTagSerializer:
@@ -333,11 +346,28 @@ class MediaObjectRefTagSerializer(RefTagSerializer):
     }
 
 
-class NoteStyleTagSerializer(BaseTagSerializer):
-    ATTRS = 'name', 'value'
+class ChildRefTagSerializer(RefTagSerializer):
+    '''
+    <!-- (None|Birth|Adopted|Stepchild|Sponsored|Foster|Other|Unknown) -->
+    <!ELEMENT childref (citationref*,noteref*)>
+    <!ATTLIST childref
+            hlink IDREF #REQUIRED
+            priv  (0|1) #IMPLIED
+            mrel  CDATA #IMPLIED
+            frel  CDATA #IMPLIED
+    >
+
+    <!ELEMENT type (#PCDATA)>
+
+    <!ELEMENT rel EMPTY>
+    <!ATTLIST rel type CDATA #REQUIRED>
+    '''
+    # NOTE: both `mrel` and `frel` are ENUMs, see DTD.
+    ATTRS = 'mrel', 'frel'
     TAGS = {
-        'range': GreedyDictTagSerializer
+        'rel': tag_serializer_factory(attrs=['type'])
     }
+
 
 class AddressTagSerializer(BaseTagSerializer):
     """
@@ -576,20 +606,6 @@ class FamilySerializer(GenericModelObjectSerializer):
 
     <!ELEMENT mother EMPTY>
     <!ATTLIST mother hlink IDREF #REQUIRED>
-
-    <!-- (None|Birth|Adopted|Stepchild|Sponsored|Foster|Other|Unknown) -->
-    <!ELEMENT childref (citationref*,noteref*)>
-    <!ATTLIST childref
-            hlink IDREF #REQUIRED
-            priv  (0|1) #IMPLIED
-            mrel  CDATA #IMPLIED
-            frel  CDATA #IMPLIED
-    >
-
-    <!ELEMENT type (#PCDATA)>
-
-    <!ELEMENT rel EMPTY>
-    <!ATTLIST rel type CDATA #REQUIRED>
     """
     TAGS = {
         'rel': GreedyDictTagSerializer,
@@ -597,7 +613,7 @@ class FamilySerializer(GenericModelObjectSerializer):
         'mother': RefTagSerializer,
         'eventref': EventRefTagSerializer,
         'objref': MediaObjectRefTagSerializer,
-        'childref': RefTagSerializer,
+        'childref': ChildRefTagSerializer,
         'attribute': AttributeTagSerializer,
         'noteref': RefTagSerializer,
         'citationref': RefTagSerializer,
@@ -707,8 +723,12 @@ class NoteSerializer(GenericModelObjectSerializer):
     TAGS = {
         'text': TextTagSerializer,
         'tagref': RefTagSerializer,
-        'style': NoteStyleTagSerializer,
-        'range': GreedyDictTagSerializer,
+        'style': tag_serializer_factory(
+            attrs=('name', 'value'),
+            tags={
+                'range': GreedyDictTagSerializer
+            }
+        )
     }
 
     BOOL_ATTRS = GenericModelObjectSerializer.BOOL_ATTRS + ('format',)
