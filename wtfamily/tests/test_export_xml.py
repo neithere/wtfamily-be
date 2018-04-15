@@ -257,7 +257,7 @@ def test_entity_person():
     id_to_handle = dict((k, 'handle-' + k) for k in ids_in_fixture)
 
     expected = trim('''
-    <my-person change="1482434357" handle="_cdeb90490341f84abadc55e8d91" id="auz_dawid_16xx">
+    <my-person id="auz_dawid_16xx" handle="_cdeb90490341f84abadc55e8d91" change="1482434357">
       <gender>M</gender>
       <name type="Birth Name">
         <first>Давид</first>
