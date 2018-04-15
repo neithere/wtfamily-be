@@ -21,6 +21,11 @@
 """
 Experimental converter of WTFamily MongoDB data to compressed Gramps XML.
 
+See also:
+
+* https://github.com/gramps-project/gramps/blob/master/gramps/plugins/importer/importxml.py
+* https://github.com/gramps-project/gramps/blob/master/gramps/plugins/export/exportxml.py
+
 Caveats
 =======
 
@@ -42,7 +47,8 @@ from lxml import etree
 import sys
 
 from models import (Entity, Person, Family, Event, Citation, Source, Place,
-                    Repository, MediaObject, Note)
+                    Repository, MediaObject, Note, Bookmark, NameMap,
+                    NameFormat)
 
 WTFAMILY_APP_NAME = 'WTFamily'
 GRAMPS_XML_VERSION_TUPLE = (1, 7, 1) # version for Gramps 4.2
@@ -90,7 +96,7 @@ def build_xml(db):
     Entity._get_database = lambda: db
 
     models = (Person, Family, Event, Citation, Source, Place, Repository,
-              MediaObject, Note)
+              MediaObject, Note, Bookmark, NameMap, NameFormat)
     model_to_tag = {
         Person: ('people', 'person', PersonSerializer),
         Family: ('families', 'family', FamilySerializer),
@@ -102,9 +108,9 @@ def build_xml(db):
         Note: ('notes', 'note', NoteSerializer),
         # TODO: Tag: ('tags', 'tag', TagSerializer),
         Citation: ('citations', 'citation', CitationSerializer),
-        # TODO: Bookmark: ('bookmarks', 'bookmark', BookmarkSerializer),
-        # TODO: NameMap: ('namemaps', 'map', NameMapSerializer),
-        # TODO: NameFormat: ('name-formats', 'format', NameFormatSerializer),
+        Bookmark: ('bookmarks', 'bookmark', BookmarkSerializer),
+        NameMap: ('namemaps', 'map', NameMapSerializer),
+        NameFormat: ('name-formats', 'format', NameFormatSerializer),
     }
 
     # Gather the mappings of IDs to internal Gramps IDs ("handles").
@@ -113,8 +119,11 @@ def build_xml(db):
     id_to_handle = {}
     for model in models:
         collection = model._get_collection()
-        for x in collection.find({}, projection=['id', 'handle']):
-            id_to_handle[x['id']] = x['handle']
+        for item in collection.find({}, projection=['id', 'handle']):
+            item_handle = item.get('handle')
+            item_id = item.get('id')
+            if item_handle and item_id:
+                id_to_handle[item_id] = item_handle
 
     # Now that we have the full mapping, proceed to export record by record.
     for model in models:
@@ -153,9 +162,52 @@ def normalize_attr_value(value):
 
 
 
+class AbstractTagQuantifier:
+    def __init__(self, serializer_class):
+        self.serializer_class = serializer_class
+
+    def __call__(self, *args, **kwargs):
+        return self.serializer_class(*args, **kwargs)
+
+    def validate_values(self, values):
+        try:
+            self._validate_values(values)
+        except ValueError as e:
+            msg = 'Expected {} for {.__name__}, got {}'.format(
+                e, self.serializer_class, len(values))
+            raise ValueError(msg) from None
+
+    def _validate_values(self, values):
+        raise NotImplementedError
+
+
+class One(AbstractTagQuantifier):
+    def _validate_values(self, values):
+        if len(values) != 1:
+            raise ValueError('one value')
+
+
+class MaybeOne(AbstractTagQuantifier):
+    def _validate_values(self, values):
+        if len(values) > 1:
+            raise ValueError('0..1 values')
+
+
+class OneOrMore(AbstractTagQuantifier):
+    def _validate_values(self, values):
+        if len(values) < 1:
+            raise ValueError('1..n values')
+
+
+class MaybeMany(AbstractTagQuantifier):
+    def _validate_values(self, values):
+        # zero is fine, one is fine, many are fine, chill out, man
+        pass
+
+
 def tag_serializer_factory(tags=None, attrs=None, as_text=False, text_from=None):
 
-    class AdHocTagSerializer(BaseTagSerializer):
+    class AdHocTagSerializer(TagSerializer):
         TAGS = tags or {}
         ATTRS = attrs or ()
         AS_TEXT = as_text
@@ -164,7 +216,7 @@ def tag_serializer_factory(tags=None, attrs=None, as_text=False, text_from=None)
     return AdHocTagSerializer
 
 
-class BaseTagSerializer:
+class TagSerializer:
     TAGS = {}
     ATTRS = ()
     AS_TEXT = False
@@ -202,12 +254,16 @@ class BaseTagSerializer:
             # NOTE: subtag == key, but may be different
             values = data.get(subtag)
 
-            # TODO: check for required tags
             if values is None:
-                continue
-
-            if not isinstance(values, list):
+                values = []
+            elif not isinstance(values, list):
                 values = [values]
+
+            if isinstance(Subserializer, AbstractTagQuantifier):
+                Subserializer.validate_values(values)
+
+            if values == []:
+                continue
 
             for value in values:
                 subserializer = Subserializer(subtag, value, self.id_to_handle)
@@ -236,7 +292,7 @@ class BaseTagSerializer:
         return value
 
 
-class TextTagSerializer(BaseTagSerializer):
+class TextTagSerializer(TagSerializer):
     """
     Generates a ``<foo>some text</foo>`` element.
     """
@@ -258,11 +314,24 @@ class EnumTagSerializer(TextTagSerializer):
         return value
 
 
+class UrlTagSerializer(TagSerializer):
+    """
+    <!ELEMENT url EMPTY>
+    <!ATTLIST url
+            priv        (0|1) #IMPLIED
+            type        CDATA #IMPLIED
+            href        CDATA #REQUIRED
+            description CDATA #IMPLIED
+    >
+    """
+    ATTRS = 'priv', 'type', 'href', 'description'
+
+
 class PersonGenderTagSerializer(EnumTagSerializer):
     ALLOWED_VALUES = 'M', 'F', 'U'
 
 
-class PersonSurnameTagSerializer(BaseTagSerializer):
+class PersonSurnameTagSerializer(TagSerializer):
     """
     This tag is weirdly named in GrampsXML.  In fact it's any name other
     than first name or nickname, including patronymic and so on.
@@ -282,7 +351,7 @@ class PersonSurnameTagSerializer(BaseTagSerializer):
     TEXT_FROM = 'text'
 
 
-class RefTagSerializer(BaseTagSerializer):
+class RefTagSerializer(TagSerializer):
     """
     Generates ``<foo hlink="foo" />`` elements.
     """
@@ -312,11 +381,11 @@ class RefTagSerializer(BaseTagSerializer):
         }
 
 
-class AttributeTagSerializer(BaseTagSerializer):
+class AttributeTagSerializer(TagSerializer):
     ATTRS = 'priv', 'type', 'value'
 
 
-class GreedyDictTagSerializer(BaseTagSerializer):
+class GreedyDictTagSerializer(TagSerializer):
     """
     Generates ``<foo a="1" b="2" />`` elements, mapping *all* keys from a list
     of dicts to element attributes.
@@ -344,12 +413,12 @@ class EventRefTagSerializer(RefTagSerializer):
 
 class MediaObjectRefTagSerializer(RefTagSerializer):
     TAGS = {
-        'region': GreedyDictTagSerializer,
+        'region': MaybeOne(GreedyDictTagSerializer),
     }
 
 
 class ChildRefTagSerializer(RefTagSerializer):
-    '''
+    """
     <!-- (None|Birth|Adopted|Stepchild|Sponsored|Foster|Other|Unknown) -->
     <!ELEMENT childref (citationref*,noteref*)>
     <!ATTLIST childref
@@ -358,20 +427,16 @@ class ChildRefTagSerializer(RefTagSerializer):
             mrel  CDATA #IMPLIED
             frel  CDATA #IMPLIED
     >
-
-    <!ELEMENT type (#PCDATA)>
-
-    <!ELEMENT rel EMPTY>
-    <!ATTLIST rel type CDATA #REQUIRED>
-    '''
+    """
     # NOTE: both `mrel` and `frel` are ENUMs, see DTD.
-    ATTRS = 'mrel', 'frel'
+    ATTRS = 'hlink', 'priv', 'mrel', 'frel'
     TAGS = {
-        'rel': tag_serializer_factory(attrs=['type'])
+        'citationref': MaybeMany(RefTagSerializer),
+        'noteref': MaybeMany(RefTagSerializer),
     }
 
 
-class AddressTagSerializer(BaseTagSerializer):
+class AddressTagSerializer(TagSerializer):
     """
     <!ELEMENT address ((daterange|datespan|dateval|datestr)?, street?,
                                        locality?, city?, county?, state?, country?, postal?,
@@ -405,7 +470,7 @@ class AddressTagSerializer(BaseTagSerializer):
     }
 
 
-class LocationTagSerializer(GreedyDictTagSerializer):
+class LocationTagSerializer(TagSerializer):
     """
     <!ATTLIST location
             street   CDATA #IMPLIED
@@ -419,10 +484,11 @@ class LocationTagSerializer(GreedyDictTagSerializer):
             phone    CDATA #IMPLIED
     >
     """
-    pass
+    ATTRS = ('street', 'locality', 'city', 'parish', 'county', 'state',
+             'country', 'postal', 'phone')
 
 
-class PlaceNameTagSerializer(BaseTagSerializer):
+class PlaceNameTagSerializer(TagSerializer):
     """
     <!ELEMENT pname (daterange|datespan|dateval|datestr)?>
 
@@ -440,7 +506,7 @@ class PlaceNameTagSerializer(BaseTagSerializer):
     ATTRS = 'lang', 'value'
 
 
-class PersonNameTagSerializer(BaseTagSerializer):
+class PersonNameTagSerializer(TagSerializer):
     """
     <!ELEMENT name    (first?, call?, surname*, suffix?, title?, nick?, familynick?, group?,
                       (daterange|datespan|dateval|datestr)?, noteref*, citationref*)>
@@ -477,7 +543,23 @@ class PersonNameTagSerializer(BaseTagSerializer):
     }
 
 
-class PersonSerializer(BaseTagSerializer):
+class PersonRefTagSerializer(RefTagSerializer):
+    """
+    <!ELEMENT personref (citationref*, noteref*)>
+    <!ATTLIST personref
+            hlink IDREF #REQUIRED
+            priv  (0|1) #IMPLIED
+            rel   CDATA #REQUIRED
+    >
+    """
+    ATTRS = 'hlink', 'priv', 'rel'
+    TAGS = {
+        'citationref': MaybeMany(RefTagSerializer),
+        'noteref': MaybeMany(RefTagSerializer),
+    }
+
+
+class PersonSerializer(TagSerializer):
     """
     <!ELEMENT people (person)*>
     <!ATTLIST people
@@ -495,34 +577,28 @@ class PersonSerializer(BaseTagSerializer):
 
     <!ELEMENT parentin EMPTY>
     <!ATTLIST parentin hlink IDREF #REQUIRED>
-
-    <!ELEMENT personref (citationref*, noteref*)>
-    <!ATTLIST personref
-            hlink IDREF #REQUIRED
-            priv  (0|1) #IMPLIED
-            rel   CDATA #REQUIRED
-    >
-
     """
+    # TODO: "default" and "home" attrs on the *list* (the `people` tag)
+
     ATTRS = 'id', 'handle', 'priv', 'change'
     TAGS = {
-        'gender': PersonGenderTagSerializer,
-        'name': PersonNameTagSerializer,
-        'eventref': EventRefTagSerializer,
+        'gender': One(PersonGenderTagSerializer),
+        'name': MaybeMany(PersonNameTagSerializer),
+        'eventref': MaybeMany(EventRefTagSerializer),
         #'lds_ord': ... - WTF?
-        'objref': MediaObjectRefTagSerializer,
-        'address': AddressTagSerializer,
-        'attribute': AttributeTagSerializer,
-        'url': GreedyDictTagSerializer,
-        'childof': RefTagSerializer,
-        'parentin': RefTagSerializer,
-        'personref': RefTagSerializer,
-        'citationref': RefTagSerializer,
-        'tagref': RefTagSerializer,
+        'objref': MaybeMany(MediaObjectRefTagSerializer),
+        'address': MaybeMany(AddressTagSerializer),
+        'attribute': MaybeMany(AttributeTagSerializer),
+        'url': MaybeMany(UrlTagSerializer),
+        'childof': MaybeMany(RefTagSerializer),
+        'parentin': MaybeMany(RefTagSerializer),
+        'personref': MaybeMany(PersonRefTagSerializer),
+        'citationref': MaybeMany(RefTagSerializer),
+        'tagref': MaybeMany(RefTagSerializer),
     }
 
 
-class FamilySerializer(BaseTagSerializer):
+class FamilySerializer(TagSerializer):
     """
     <!ELEMENT families (family)*>
 
@@ -534,23 +610,28 @@ class FamilySerializer(BaseTagSerializer):
 
     <!ELEMENT mother EMPTY>
     <!ATTLIST mother hlink IDREF #REQUIRED>
+
+    <!ELEMENT type (#PCDATA)>
+
+    <!ELEMENT rel EMPTY>
+    <!ATTLIST rel type CDATA #REQUIRED>
     """
     ATTRS = 'id', 'handle', 'priv', 'change'
     TAGS = {
-        'rel': GreedyDictTagSerializer,
-        'father': RefTagSerializer,
-        'mother': RefTagSerializer,
-        'eventref': EventRefTagSerializer,
-        'objref': MediaObjectRefTagSerializer,
-        'childref': ChildRefTagSerializer,
-        'attribute': AttributeTagSerializer,
-        'noteref': RefTagSerializer,
-        'citationref': RefTagSerializer,
-        'tagref': RefTagSerializer,
+        'rel': MaybeOne(tag_serializer_factory(attrs=['type'])),
+        'father': MaybeOne(RefTagSerializer),
+        'mother': MaybeOne(RefTagSerializer),
+        'eventref': MaybeMany(EventRefTagSerializer),
+        'objref': MaybeMany(MediaObjectRefTagSerializer),
+        'childref': MaybeMany(ChildRefTagSerializer),
+        'attribute': MaybeMany(AttributeTagSerializer),
+        'noteref': MaybeMany(RefTagSerializer),
+        'citationref': MaybeMany(RefTagSerializer),
+        'tagref': MaybeMany(RefTagSerializer),
     }
 
 
-class EventSerializer(BaseTagSerializer):
+class EventSerializer(TagSerializer):
     """
     <!ELEMENT events (event)*>
 
@@ -560,21 +641,23 @@ class EventSerializer(BaseTagSerializer):
     """
     ATTRS = 'id', 'handle', 'priv', 'change'
     TAGS = {
-        'type': TextTagSerializer,
-        'description': TextTagSerializer,
-        'place': RefTagSerializer,
-        'citationref': RefTagSerializer,
-        'noteref': RefTagSerializer,
-        'objref': MediaObjectRefTagSerializer,
-        'tagref': RefTagSerializer,
+        'type': MaybeOne(TextTagSerializer),
+
+        # TODO
+        # (daterange | datespan | dateval | datestr)?,
+
+        'place': MaybeOne(RefTagSerializer),
+        'cause': MaybeOne(TextTagSerializer),
+        'description': MaybeOne(TextTagSerializer),
+        'attribute': MaybeMany(AttributeTagSerializer),
+        'noteref': MaybeMany(RefTagSerializer),
+        'citationref': MaybeMany(RefTagSerializer),
+        'objref': MaybeMany(MediaObjectRefTagSerializer),
+        'tagref': MaybeMany(RefTagSerializer),
     }
 
-    # TODO
-    # (daterange | datespan | dateval | datestr)?,
-    # \attribute*,
 
-
-class SourceSerializer(BaseTagSerializer):
+class SourceSerializer(TagSerializer):
     """
     <!ELEMENT sources (source)*>
     <!ELEMENT source (stitle?, sauthor?, spubinfo?, sabbrev?,
@@ -585,10 +668,21 @@ class SourceSerializer(BaseTagSerializer):
     <!ELEMENT sabbrev  (#PCDATA)>
     """
     ATTRS = 'id', 'handle', 'priv', 'change'
-    # TODO
+    TAGS = {
+        'stitle': MaybeOne(TextTagSerializer),
+        'sauthor': MaybeOne(TextTagSerializer),
+        'spubinfo': MaybeOne(TextTagSerializer),
+        'sabbrev': MaybeOne(TextTagSerializer),
+        'noteref': MaybeMany(RefTagSerializer),
+        'objref': MaybeMany(MediaObjectRefTagSerializer),
+        'srcattribute': MaybeMany(tag_serializer_factory(attrs=('priv', 'type',
+                                                                'value'))),
+        'reporef': MaybeMany(RefTagSerializer),
+        'tagref': MaybeMany(RefTagSerializer),
+    }
 
 
-class PlaceSerializer(BaseTagSerializer):
+class PlaceSerializer(TagSerializer):
     """
     <!ELEMENT placeobj (ptitle?, pname+, code?, coord?, placeref*, location*,
                         objref*, url*, noteref*, citationref*, tagref*)>
@@ -606,21 +700,21 @@ class PlaceSerializer(BaseTagSerializer):
     """
     ATTRS = 'id', 'handle', 'priv', 'change', 'type'
     TAGS = {
-        'pname': PlaceNameTagSerializer,
-        'ptitle': TextTagSerializer,
-        'code': TextTagSerializer,
-        'coord': GreedyDictTagSerializer,
-        'placeref': RefTagSerializer,
-        'location': LocationTagSerializer,
-        'objref': MediaObjectRefTagSerializer,
-        'url': GreedyDictTagSerializer,
-        'noteref': RefTagSerializer,
-        'citationref': RefTagSerializer,
-        'tagref': RefTagSerializer,
+        'ptitle': MaybeOne(TextTagSerializer),
+        'pname': OneOrMore(PlaceNameTagSerializer),
+        'code': MaybeOne(TextTagSerializer),
+        'coord': MaybeOne(GreedyDictTagSerializer),
+        'placeref': MaybeMany(RefTagSerializer),
+        'location': MaybeMany(LocationTagSerializer),
+        'objref': MaybeMany(MediaObjectRefTagSerializer),
+        'url': MaybeMany(UrlTagSerializer),
+        'noteref': MaybeMany(RefTagSerializer),
+        'citationref': MaybeMany(RefTagSerializer),
+        'tagref': MaybeMany(RefTagSerializer),
     }
 
 
-class MediaObjectSerializer(BaseTagSerializer):
+class MediaObjectSerializer(TagSerializer):
     """
     <!ELEMENT object (file, attribute*, noteref*,
                      (daterange|datespan|dateval|datestr)?, citationref*, tagref*)>
@@ -635,24 +729,44 @@ class MediaObjectSerializer(BaseTagSerializer):
     """
     ATTRS = 'id', 'handle', 'priv', 'change'
     TAGS = {
-        'file': tag_serializer_factory(
-            attrs=('src', 'mime', 'checksum', 'description')),
+        'file': One(tag_serializer_factory(
+            attrs=('src', 'mime', 'checksum', 'description'))),
+        'attribute': MaybeMany(AttributeTagSerializer),
+        'noteref': MaybeMany(RefTagSerializer),
+
+        # TODO: datetime tags
+
+        'citationref': MaybeMany(RefTagSerializer),
+        'tagref': MaybeMany(RefTagSerializer),
     }
 
 
-class RepositorySerializer(BaseTagSerializer):
+class RepositorySerializer(TagSerializer):
+    """
+    <!ELEMENT repositories (repository)*>
+
+    <!ELEMENT repository (rname, type, address*, url*, noteref*, tagref*)>
+    <!ATTLIST repository
+            id        CDATA #IMPLIED
+            handle    ID    #REQUIRED
+            priv      (0|1) #IMPLIED
+            change    CDATA #REQUIRED
+    >
+
+    <!ELEMENT rname   (#PCDATA)>
+    """
     ATTRS = 'id', 'handle', 'priv', 'change'
     TAGS = {
-        'rname': TextTagSerializer,
-        'type': TextTagSerializer,
-        'noteref': RefTagSerializer,
-        'tagref': RefTagSerializer,
-        'url': GreedyDictTagSerializer,
-        'address': AddressTagSerializer,
+        'rname': One(TextTagSerializer),
+        'type': One(TextTagSerializer),
+        'address': MaybeMany(AddressTagSerializer),
+        'url': MaybeMany(UrlTagSerializer),
+        'noteref': MaybeMany(RefTagSerializer),
+        'tagref': MaybeMany(RefTagSerializer),
     }
 
 
-class NoteSerializer(BaseTagSerializer):
+class NoteSerializer(TagSerializer):
     ATTRS = 'id', 'handle', 'priv', 'change', 'type', 'format'
     TAGS = {
         'text': TextTagSerializer,
@@ -666,7 +780,7 @@ class NoteSerializer(BaseTagSerializer):
     }
 
 
-#class TagSerializer(BaseTagSerializer):
+#class TagObjectSerializer(TagSerializer):
 #    """
 #    <!ELEMENT tag EMPTY>
 #    <!ATTLIST tag
@@ -681,8 +795,7 @@ class NoteSerializer(BaseTagSerializer):
 #    ATTRS = 'handle', 'name', 'color', 'priority', 'change'
 
 
-class CitationSerializer(BaseTagSerializer):
-    ATTRS = 'id', 'handle', 'priv', 'change'
+class CitationSerializer(TagSerializer):
     """
     <!ELEMENT citation ((daterange|datespan|dateval|datestr)?, page?, confidence,
                         noteref*, objref*, srcattribute*, sourceref, tagref*)>
@@ -692,43 +805,59 @@ class CitationSerializer(BaseTagSerializer):
             priv      (0|1) #IMPLIED
             change    CDATA #REQUIRED >
     """
-    # TODO
+    ATTRS = 'id', 'handle', 'priv', 'change'
+    TAGS = {
+        # TODO: date tags
+        'page': MaybeOne(TextTagSerializer),
+        'confidence': One(TextTagSerializer),
+        'noteref': MaybeMany(RefTagSerializer),
+        'objref': MaybeMany(MediaObjectRefTagSerializer),
+        'srcattribute': MaybeMany(RefTagSerializer),
+        'sourceref': One(tag_serializer_factory(
+            attrs=('priv', 'type', 'value'))),
+        'tagref': MaybeMany(RefTagSerializer),
+    }
 
 
-# TODO
-"""
-<!ELEMENT bookmarks (bookmark)*>
-<!ELEMENT bookmark EMPTY>
-<!ATTLIST bookmark
-        target (person|family|event|source|citation|place|media|repository|
-                note) #REQUIRED
-        hlink  IDREF #REQUIRED
->
+class BookmarkSerializer(TagSerializer):
+    """
+    <!ELEMENT bookmarks (bookmark)*>
+    <!ELEMENT bookmark EMPTY>
+    <!ATTLIST bookmark
+            target (person|family|event|source|citation|place|media|repository|
+                    note) #REQUIRED
+            hlink  IDREF #REQUIRED
+    >
+    """
+    ATTRS = 'target', 'hlink'
 
-<!--    ************************************************************
-NAME MAPS
--->
-<!ELEMENT namemaps (map)*>
-<!ELEMENT map EMPTY>
-<!ATTLIST map
-        type  CDATA #REQUIRED
-        key   CDATA #REQUIRED
-        value CDATA #REQUIRED
->
 
-<!--    ************************************************************
-NAME FORMATS
--->
+class NameMapSerializer(TagSerializer):
+    """
+    <!ELEMENT namemaps (map)*>
+    <!ELEMENT map EMPTY>
+    <!ATTLIST map
+            type  CDATA #REQUIRED
+            key   CDATA #REQUIRED
+            value CDATA #REQUIRED
+    >
+    """
+    ATTRS = 'type', 'key', 'value'
 
-<!ELEMENT name-formats (format)*>
-<!ELEMENT format EMPTY>
-<!ATTLIST format
-        number  CDATA #REQUIRED
-        name    CDATA #REQUIRED
-        fmt_str CDATA #REQUIRED
-        active  (0|1) #IMPLIED
->
-"""
+
+class NameFormatSerializer(TagSerializer):
+    """
+    <!ELEMENT name-formats (format)*>
+    <!ELEMENT format EMPTY>
+    <!ATTLIST format
+            number  CDATA #REQUIRED
+            name    CDATA #REQUIRED
+            fmt_str CDATA #REQUIRED
+            active  (0|1) #IMPLIED
+    >
+    """
+    ATTRS = 'number', 'name', 'fmt_str', 'active'
+
 
 def make_header_element():
     today = str(datetime.date.today())

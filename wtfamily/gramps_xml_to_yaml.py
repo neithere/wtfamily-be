@@ -115,6 +115,8 @@ SINGLE_VALUE_FIELDS = (
 
     # name formats
     'active',
+    'number',
+    'fmt_str',
 
     # places
     'ptitle',
@@ -141,9 +143,14 @@ SINGLE_VALUE_FIELDS = (
 
     # media objects
     'file',
+
+    # bookmarks
+    'target',
+    'hlink',
 )
 SINGLE_VALUE_FIELDS_PER_ENTITY = {
     'gramps:places': ('name',),
+    'gramps:name-formats': ('name',),
 }
 HLINK_FIELDS = (
     'sourceref',
@@ -213,7 +220,13 @@ def transform(xml_root):
                 handle_to_id[handle] = pk
             entities.append((_strip_namespace_label(entity_name), pk, item))
     for kind, pk, item in entities:
-        item_with_pk_links = _replace_hlinks_with_ids(item, handle_to_id)
+
+        # FIXME hard-coded exception
+        if kind == 'bookmarks':
+            item_with_pk_links = item
+        else:
+            item_with_pk_links = _replace_hlinks_with_ids(item, handle_to_id)
+
         yield kind, pk, item_with_pk_links
 
 
@@ -241,8 +254,20 @@ def _replace_hlinks_with_ids(item, handle_to_id):
     Given a dictionary, replaces `hlink` with `id` using given `handle_to_id`
     mapping.  Descends into lists and recursively works on nested data.
     """
+
     if not isinstance(item, dict):
         return item
+
+    if 'hlink' in item:
+        handle = item['hlink']
+
+        # edge case for deeply nested stuff (our current parser is pretty dumb)
+        if isinstance(handle, list):
+            assert len(handle) == 1
+            handle = handle[0]
+
+        item['id'] = handle_to_id[handle]
+        del item['hlink']
 
     item_with_pk_links = {}
 
@@ -254,20 +279,15 @@ def _replace_hlinks_with_ids(item, handle_to_id):
                     handle = value.pop('hlink')
                     value['id'] = handle_to_id[handle]
             else:
-                fixed_value = []
-                for val in value:
-                    if 'hlink' in val:
-                        handle = val.pop('hlink')
-                        val['id'] = handle_to_id[handle]
-                    fixed_value.append(val)
-                value = fixed_value
-
-            # go deeper, recursively call ourselves
+                value = [_replace_hlinks_with_ids(x, handle_to_id)
+                         for x in value]
+        else:
             if isinstance(value, list):
                 value = [_replace_hlinks_with_ids(x, handle_to_id)
                          for x in value]
 
         item_with_pk_links[field_name] = value
+
     return item_with_pk_links
 
 def _extract_dateval_quality(value):

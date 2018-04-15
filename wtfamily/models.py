@@ -286,16 +286,24 @@ NOTE_SCHEMA = {
     maybe-'style': list,    # TODO strict? it contains stuff like (char range + font info)
     maybe-'format': bool,
 }
+
+# NOTE: this is very special
+BOOKMARK_SCHEMA = {
+    'id': str,
+    'target': one_of(['person', 'family', 'event', 'source', 'citation',
+                      'place', 'media', 'repository']),
+    'hlink': str
+}
+
 NAME_MAP_SCHEMA = {
     'type': str,    # TODO enum
     'key': str,
     'value': str,
 }
 NAME_FORMAT_SCHEMA = {
-    # XXX why all these fields are lists?
-    'name': [str],
-    'fmt_str': [str],
-    'number': [str],    # apparently for sorting
+    'name': str,
+    'fmt_str': str,
+    'number': str,    # apparently for sorting
     'active': bool,
 }
 MEDIA_OBJECT_SCHEMA = {
@@ -335,8 +343,9 @@ extended_schemata = (
     REPOSITORY_SCHEMA,
     # NOTE: these don't have IDs!
     # P.S.: but for some reason now they do, hmm
-#   NAME_FORMAT_SCHEMA,
+    NAME_FORMAT_SCHEMA,
     NAME_MAP_SCHEMA,
+    BOOKMARK_SCHEMA,
 )
 for schema in extended_schemata:
     schema.update(COMMON_SCHEMA)
@@ -1287,6 +1296,11 @@ class Note(Entity):
     @property
     def media(self):
         return self.find_related(MediaObject)
+
+
+class Bookmark(Entity):
+    entity_name = 'bookmarks'
+    schema = BOOKMARK_SCHEMA
 
 
 class NameMap(Entity):

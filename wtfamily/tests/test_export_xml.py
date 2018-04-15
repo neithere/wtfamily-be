@@ -22,7 +22,7 @@ from lxml import etree
 import pytest
 import re
 
-import mongo_to_gramps_xml
+import mongo_to_gramps_xml as m
 
 
 def as_xml(el):
@@ -37,7 +37,7 @@ def trim(value):
 
 
 def test_nested_attributes():
-    class MyTagSerializer(mongo_to_gramps_xml.BaseTagSerializer):
+    class MyTagSerializer(m.TagSerializer):
         ATTRS = 'foo',
 
     data = {
@@ -54,7 +54,7 @@ def test_nested_attributes():
 
 
 def test_list_attributes():
-    class MyTagSerializer(mongo_to_gramps_xml.BaseTagSerializer):
+    class MyTagSerializer(m.TagSerializer):
         ATTRS = 'foo',
 
     data = {
@@ -69,11 +69,11 @@ def test_list_attributes():
 
 
 def test_base_tag_serializer_composition():
-    class MyTagSerializer(mongo_to_gramps_xml.BaseTagSerializer):
+    class MyTagSerializer(m.TagSerializer):
         ATTRS = 'greeting', 'name'
         TAGS = {
-            'foo': mongo_to_gramps_xml.TextTagSerializer,
-            'bar': mongo_to_gramps_xml.GreedyDictTagSerializer,
+            'foo': m.TextTagSerializer,
+            'bar': m.GreedyDictTagSerializer,
         }
 
     data = {
@@ -108,9 +108,93 @@ def test_greedy_dict():
     }
     expected = '<mytag bar="123" foo="hello" quix="" quux="1" quuz="0"/>\n'
 
-    el = mongo_to_gramps_xml.GreedyDictTagSerializer('mytag', data, {}).make_xml()
+    el = m.GreedyDictTagSerializer('mytag', data, {}).make_xml()
 
     assert expected == as_xml(el)
+
+
+def test_quantifier_validator_one():
+    def serialize(data):
+        m.tag_serializer_factory(tags={
+            'foo': m.One(m.TextTagSerializer),
+        })('mytag', data, {}).make_xml()
+
+    # no values
+    with pytest.raises(ValueError) as excinfo:
+        serialize({})
+    assert 'Expected one value for TextTagSerializer, got 0' in str(excinfo)
+
+    # one value
+    serialize({'foo': 'bar'})
+
+    # one value (just wrapped in a list)
+    serialize({'foo': ['bar']})
+
+    # more than one value
+    with pytest.raises(ValueError) as excinfo:
+        serialize({'foo': ['bar', 'quux']})
+    assert 'Expected one value for TextTagSerializer, got 2' in str(excinfo)
+
+
+def test_quantifier_validator_maybe_one():
+    def serialize(data):
+        m.tag_serializer_factory(tags={
+            'foo': m.MaybeOne(m.TextTagSerializer),
+        })('mytag', data, {}).make_xml()
+
+    # no values
+    serialize({})
+
+    # one value
+    serialize({'foo': 'bar'})
+
+    # one value (just wrapped in a list)
+    serialize({'foo': ['bar']})
+
+    # more than one value
+    with pytest.raises(ValueError) as excinfo:
+        serialize({'foo': ['bar', 'quux']})
+    assert 'Expected 0..1 values for TextTagSerializer, got 2' in str(excinfo)
+
+
+def test_quantifier_validator_one_or_more():
+    def serialize(data):
+        m.tag_serializer_factory(tags={
+            'foo': m.OneOrMore(m.TextTagSerializer),
+        })('mytag', data, {}).make_xml()
+
+    # no values
+    with pytest.raises(ValueError) as excinfo:
+        serialize({})
+    assert 'Expected 1..n values for TextTagSerializer, got 0' in str(excinfo)
+
+    # one value
+    serialize({'foo': 'bar'})
+
+    # one value (just wrapped in a list)
+    serialize({'foo': ['bar']})
+
+    # more than one value
+    serialize({'foo': ['bar', 'quux']})
+
+
+def test_quantifier_validator_maybe_many():
+    def serialize(data):
+        m.tag_serializer_factory(tags={
+            'foo': m.MaybeMany(m.TextTagSerializer),
+        })('mytag', data, {}).make_xml()
+
+    # no values
+    serialize({})
+
+    # one value
+    serialize({'foo': 'bar'})
+
+    # one value (just wrapped in a list)
+    serialize({'foo': ['bar']})
+
+    # more than one value
+    serialize({'foo': ['bar', 'quux']})
 
 
 def test_person_name():
@@ -139,7 +223,7 @@ def test_person_name():
     </name>
     ''')
 
-    el = mongo_to_gramps_xml.PersonNameTagSerializer('name', data, {}).make_xml()
+    el = m.PersonNameTagSerializer('name', data, {}).make_xml()
 
     assert expected == as_xml(el)
 
@@ -301,7 +385,7 @@ def test_entity_person():
     </my-person>
     ''')
 
-    el = mongo_to_gramps_xml.PersonSerializer('my-person', data, id_to_handle).make_xml()
+    el = m.PersonSerializer('my-person', data, id_to_handle).make_xml()
     serialized = as_xml(el)
 
     assert expected == serialized
