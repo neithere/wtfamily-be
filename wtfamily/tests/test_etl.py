@@ -20,7 +20,7 @@ import datetime
 import pytest
 from xml.etree import ElementTree
 
-import gramps_xml_to_yaml
+from etl.gramps_xml_to_yaml import transform
 
 
 FIXTURE_EMPTY_STRING = ''
@@ -45,7 +45,7 @@ def test_empty_file():
 
 def test_empty_tree():
     xml_root = ElementTree.fromstring(FIXTURE_EMPTY_TREE)
-    results = gramps_xml_to_yaml.transform(xml_root)
+    results = transform(xml_root)
     results = list(results)
     expected = []
     assert expected == results
@@ -67,7 +67,7 @@ def test_note():
       </notes>
     ''')
     xml_root = ElementTree.fromstring(fixture)
-    results = gramps_xml_to_yaml.transform(xml_root)
+    results = transform(xml_root)
     results = list(results)
     expected = [
         (
@@ -117,7 +117,7 @@ def test_event_simple():
       </events>
     ''')
     xml_root = ElementTree.fromstring(fixture)
-    results = gramps_xml_to_yaml.transform(xml_root)
+    results = transform(xml_root)
     results = list(results)
     expected = [
         (
@@ -176,7 +176,7 @@ def test_event_with_refs():
       </citations>
     ''')
     xml_root = ElementTree.fromstring(fixture)
-    results = gramps_xml_to_yaml.transform(xml_root)
+    results = transform(xml_root)
     results = list(results)
     expected = [
         (
@@ -295,7 +295,7 @@ def test_event_with_more_refs():
 
     ''')
     xml_root = ElementTree.fromstring(fixture)
-    results = gramps_xml_to_yaml.transform(xml_root)
+    results = transform(xml_root)
     results = list(results)
     expected = [
         (
@@ -475,10 +475,23 @@ def test_person():
         <page>Листы 28—29об.</page>
         <confidence>2</confidence>
       </citation>
+      <citation handle="_cddaedd03665299d651197a0fe6" change="1417067154" id="metryka-p127">
+        <dateval val="1690"/>
+        <page>9/127</page>
+        <confidence>2</confidence>
+      </citation>
+      <citation handle="_cdeb94216051f214c757700c346" change="1415073038" id="C0029">
+        <dateval val="2014"/>
+        <page>http://zemaitijospaveldas.eu/lt/left/zemaitija/baznycios/silales-sv-pranciskaus-asyziecio-baznycia/</page>
+        <confidence>2</confidence>
+      </citation>
+      <citation handle="_ce1cdbe42fe524f207c999d4eb1" change="1416499174" id="C0039">
+        <confidence>2</confidence>
+      </citation>
     </citations>
     ''')
     xml_root = ElementTree.fromstring(fixture)
-    results = gramps_xml_to_yaml.transform(xml_root)
+    results = transform(xml_root)
     results = list(results)
     expected = [
         (
@@ -525,7 +538,7 @@ def test_person():
                             { 'text': 'Auzbikowicz' }
                         ],
                         'citationref': [
-                            { 'hlink': '_cddaedd03665299d651197a0fe6' }
+                            { 'id': 'metryka-p127' }
                         ],
                     },
                     {
@@ -536,7 +549,7 @@ def test_person():
                             { 'text': 'Aušbikavičius' }
                         ],
                         'citationref': [
-                            { 'hlink': '_cdeb94216051f214c757700c346' }
+                            { 'id': 'C0029' }
                         ],
                     },
                     {
@@ -547,7 +560,7 @@ def test_person():
                             { 'text': 'Аужбикович' }
                         ],
                         'citationref': [
-                            { 'hlink': '_ce1cdbe42fe524f207c999d4eb1' }
+                            { 'id': 'C0039' }
                         ],
                     },
                     {
@@ -566,7 +579,7 @@ def test_person():
                             }
                         ],
                         'citationref': [
-                            { 'hlink': '_ce35c88075632b9af0ee2dd0d12' }
+                            { 'id': 'C0053' }
                         ],
                     }
                 ],
@@ -614,7 +627,40 @@ def test_person():
                 'page': 'Листы 28—29об.',
                 'change': datetime.datetime(2014, 11, 27, 5, 42, 19),
             }
-        )
-
+        ),
+        (
+            'citations',
+            'metryka-p127',
+            {
+                'id': 'metryka-p127',
+                'handle': '_cddaedd03665299d651197a0fe6',
+                'confidence': '2',
+                'date': { 'value': '1690' },
+                'page': '9/127',
+                'change': datetime.datetime(2014, 11, 27, 5, 45, 54),
+            }
+        ),
+        (
+            'citations',
+            'C0029',
+            {
+                'id': 'C0029',
+                'handle': '_cdeb94216051f214c757700c346',
+                'confidence': '2',
+                'date': { 'value': '2014' },
+                'page': 'http://zemaitijospaveldas.eu/lt/left/zemaitija/baznycios/silales-sv-pranciskaus-asyziecio-baznycia/',
+                'change': datetime.datetime(2014, 11, 4, 3, 50, 38),
+            }
+        ),
+        (
+            'citations',
+            'C0039',
+            {
+                'id': 'C0039',
+                'handle': '_ce1cdbe42fe524f207c999d4eb1',
+                'confidence': '2',
+                'change': datetime.datetime(2014, 11, 20, 15, 59, 34),
+            }
+        ),
     ]
     assert expected == results

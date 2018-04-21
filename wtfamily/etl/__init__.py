@@ -20,8 +20,8 @@ import argh
 from confu import Configurable
 from pymongo import MongoClient
 
-from gramps_xml_to_yaml import extract, transform, load
-from mongo_to_gramps_xml import export_to_xml
+from .gramps_xml_to_yaml import extract, transform, load
+from .mongo_to_gramps_xml import export_to_xml
 
 
 MONGO_DB_NAME = 'wtfamily-from-grampsxml'
