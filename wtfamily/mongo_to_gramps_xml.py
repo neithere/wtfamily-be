@@ -140,8 +140,9 @@ def build_xml(db):
 
         items = model.find()
         for item in items:
-            item_serializer = ItemSerializer(item_tag, item._data, id_to_handle)
-            item_el = item_serializer.make_xml()
+            item_serializer = ItemSerializer()
+            item_el = item_serializer.to_xml(item_tag, item._data,
+                                             id_to_handle)
             group_el.append(item_el)
 
     return tree_el
@@ -168,6 +169,10 @@ class AbstractTagQuantifier:
 
     def __call__(self, *args, **kwargs):
         return self.serializer_class(*args, **kwargs)
+
+    def __repr__(self):
+        return '<{} {}>'.format(self.__class__.__name__,
+                                self.serializer_class.__name__)
 
     def validate_values(self, values):
         try:
@@ -222,20 +227,14 @@ class TagSerializer:
     AS_TEXT = False
     TEXT_FROM = None
 
-    def __init__(self, tag, data, id_to_handle):
+    def __init__(self):
         if self.TAGS and self.AS_TEXT:
             # This is not necessarily so, but very unlikely, especially given
             # the GrampsXML DTD.
             raise ValueError('TAGS and AS_TEXT are mutually exclusive.')
 
-        self.tag = tag
-        self.data = data
-        self.id_to_handle = id_to_handle
-
-    def make_xml(self):
-        data = self.data
-
-        elem = etree.Element(self.tag)
+    def to_xml(self, tag, data, id_to_handle):
+        elem = etree.Element(tag)
 
         for attr in self.ATTRS:
             value = data.get(attr)
@@ -243,7 +242,7 @@ class TagSerializer:
             if value is not None:
                 elem.set(attr, normalize_attr_value(value))
 
-        extra_attrs = self.make_extra_attrs(data)
+        extra_attrs = self.make_extra_attrs(data, id_to_handle)
         if extra_attrs:
             for key in sorted(extra_attrs):
                 elem.set(key, extra_attrs[key])
@@ -266,29 +265,32 @@ class TagSerializer:
                 continue
 
             for value in values:
-                subserializer = Subserializer(subtag, value, self.id_to_handle)
-                subelem = subserializer.make_xml()
+                subserializer = Subserializer()
+                subelem = subserializer.to_xml(subtag, value, id_to_handle)
                 elem.append(subelem)
 
-        if self.AS_TEXT:
-            text_value = self._make_text_value(data)
-        elif self.TEXT_FROM:
-            text_value = self._make_text_value(data.get(self.TEXT_FROM))
-        else:
-            text_value = None
+        try:
+            if self.AS_TEXT:
+                text_value = self._make_text_value(data)
+            elif self.TEXT_FROM:
+                text_value = self._make_text_value(data.get(self.TEXT_FROM))
+            else:
+                text_value = None
+        except Exception as e:
+            raise type(e)('{}: {}'.format(tag, e))
 
         if text_value:
             elem.text = text_value
 
         return elem
 
-    def make_extra_attrs(self, data):
+    def make_extra_attrs(self, data, id_to_handle):
         return None
 
     def _make_text_value(self, value):
         if not isinstance(value, str):
-            raise ValueError('{}: expected string, got {}: {!r}'
-                             .format(self.tag, type(value), value))
+            raise ValueError('expected string, got {}: {!r}'
+                             .format(type(value), value))
         return value
 
 
@@ -355,7 +357,7 @@ class RefTagSerializer(TagSerializer):
     """
     Generates ``<foo hlink="foo" />`` elements.
     """
-    def make_extra_attrs(self, data):
+    def make_extra_attrs(self, data, id_to_handle):
         if not isinstance(data, dict):
             raise ValueError('Expected dict, got "{}"'.format(data))
 
@@ -370,7 +372,7 @@ class RefTagSerializer(TagSerializer):
         # - generate it always internally
         # - use ObjectId
         # - use public ID
-        handle = self.id_to_handle[pk]
+        handle = id_to_handle[pk]
 
         if not isinstance(handle, str):
             raise ValueError('handle: expected string, got {}: "{}"'
@@ -390,16 +392,15 @@ class GreedyDictTagSerializer(TagSerializer):
     Generates ``<foo a="1" b="2" />`` elements, mapping *all* keys from a list
     of dicts to element attributes.
     """
-    def make_xml(self):
-        raw_value = self.data
+    def to_xml(self, tag, data, id_to_handle):
 
-        if not isinstance(raw_value, dict):
-            raise ValueError('Expected dict, got "{}"'.format(raw_value))
+        if not isinstance(data, dict):
+            raise ValueError('Expected dict, got "{}"'.format(data))
 
         value = dict((k, normalize_attr_value(v))
-                     for k, v in raw_value.items())
+                     for k, v in data.items())
 
-        return etree.Element(self.tag, value)
+        return etree.Element(tag, value)
 
 
 # TODO: transform (WTFamily has a different inner structure)

@@ -47,7 +47,7 @@ def test_nested_attributes():
     }
 
     with pytest.raises(ValueError) as excinfo:
-        MyTagSerializer('mytag', data, {}).make_xml()
+        MyTagSerializer().to_xml('mytag', data, {})
 
     err_msg = 'Deep structures must be serialized as tags, not attributes'
     assert err_msg in str(excinfo.value)
@@ -62,7 +62,7 @@ def test_list_attributes():
     }
 
     with pytest.raises(ValueError) as excinfo:
-        MyTagSerializer('mytag', data, {}).make_xml()
+        MyTagSerializer().to_xml('mytag', data, {})
 
     err_msg = 'Deep structures must be serialized as tags, not attributes'
     assert err_msg in str(excinfo.value)
@@ -93,7 +93,7 @@ def test_base_tag_serializer_composition():
     </mytag>
     ''')
 
-    el = MyTagSerializer('mytag', data, {}).make_xml()
+    el = MyTagSerializer().to_xml('mytag', data, {})
 
     assert expected == as_xml(el)
 
@@ -108,7 +108,7 @@ def test_greedy_dict():
     }
     expected = '<mytag bar="123" foo="hello" quix="" quux="1" quuz="0"/>\n'
 
-    el = m.GreedyDictTagSerializer('mytag', data, {}).make_xml()
+    el = m.GreedyDictTagSerializer().to_xml('mytag', data, {})
 
     assert expected == as_xml(el)
 
@@ -117,7 +117,7 @@ def test_quantifier_validator_one():
     def serialize(data):
         m.tag_serializer_factory(tags={
             'foo': m.One(m.TextTagSerializer),
-        })('mytag', data, {}).make_xml()
+        })().to_xml('mytag', data, {})
 
     # no values
     with pytest.raises(ValueError) as excinfo:
@@ -140,7 +140,7 @@ def test_quantifier_validator_maybe_one():
     def serialize(data):
         m.tag_serializer_factory(tags={
             'foo': m.MaybeOne(m.TextTagSerializer),
-        })('mytag', data, {}).make_xml()
+        })().to_xml('mytag', data, {})
 
     # no values
     serialize({})
@@ -161,7 +161,7 @@ def test_quantifier_validator_one_or_more():
     def serialize(data):
         m.tag_serializer_factory(tags={
             'foo': m.OneOrMore(m.TextTagSerializer),
-        })('mytag', data, {}).make_xml()
+        })().to_xml('mytag', data, {})
 
     # no values
     with pytest.raises(ValueError) as excinfo:
@@ -182,7 +182,7 @@ def test_quantifier_validator_maybe_many():
     def serialize(data):
         m.tag_serializer_factory(tags={
             'foo': m.MaybeMany(m.TextTagSerializer),
-        })('mytag', data, {}).make_xml()
+        })().to_xml('mytag', data, {})
 
     # no values
     serialize({})
@@ -223,7 +223,7 @@ def test_person_name():
     </name>
     ''')
 
-    el = m.PersonNameTagSerializer('name', data, {}).make_xml()
+    el = m.PersonNameTagSerializer().to_xml('name', data, {})
 
     assert expected == as_xml(el)
 
@@ -385,7 +385,7 @@ def test_entity_person():
     </my-person>
     ''')
 
-    el = m.PersonSerializer('my-person', data, id_to_handle).make_xml()
+    el = m.PersonSerializer().to_xml('my-person', data, id_to_handle)
     serialized = as_xml(el)
 
     assert expected == serialized
