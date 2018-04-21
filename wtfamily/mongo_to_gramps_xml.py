@@ -167,7 +167,7 @@ def normalize_attr_value(value):
 
 
 
-class AbstractTagQuantifier:
+class AbstractTagCardinality:
     SINGLE_VALUE = False
 
     def __init__(self, serializer_class):
@@ -192,7 +192,7 @@ class AbstractTagQuantifier:
         raise NotImplementedError
 
 
-class One(AbstractTagQuantifier):
+class One(AbstractTagCardinality):
     SINGLE_VALUE = True
 
     def _validate_values(self, values):
@@ -200,7 +200,7 @@ class One(AbstractTagQuantifier):
             raise ValueError('one value')
 
 
-class MaybeOne(AbstractTagQuantifier):
+class MaybeOne(AbstractTagCardinality):
     SINGLE_VALUE = True
 
     def _validate_values(self, values):
@@ -208,13 +208,13 @@ class MaybeOne(AbstractTagQuantifier):
             raise ValueError('0..1 values')
 
 
-class OneOrMore(AbstractTagQuantifier):
+class OneOrMore(AbstractTagCardinality):
     def _validate_values(self, values):
         if len(values) < 1:
             raise ValueError('1..n values')
 
 
-class MaybeMany(AbstractTagQuantifier):
+class MaybeMany(AbstractTagCardinality):
     def _validate_values(self, values):
         # zero is fine, one is fine, many are fine, chill out, man
         pass
@@ -226,7 +226,7 @@ def tag_serializer_factory(tags=None, attrs=None, as_text=False, text_from=None)
         TAGS = tags or {}
         ATTRS = attrs or ()
         AS_TEXT = as_text
-        TEXT_FROM = text_from
+        TEXT_UNDER_KEY = text_from
 
     return AdHocTagSerializer
 
@@ -235,7 +235,7 @@ class TagSerializer:
     TAGS = {}
     ATTRS = ()
     AS_TEXT = False
-    TEXT_FROM = None
+    TEXT_UNDER_KEY = None
 
     def __init__(self):
         if self.TAGS and self.AS_TEXT:
@@ -254,6 +254,12 @@ class TagSerializer:
 
             data[attr] = el.get(attr)
 
+        if self.AS_TEXT:
+            return el.text
+
+        if self.TEXT_UNDER_KEY:
+            data[self.TEXT_UNDER_KEY] = el.text
+
         for nested_el in el:
             nested_tag = nested_el.tag
 
@@ -266,7 +272,7 @@ class TagSerializer:
             print('using {} for {}'.format(Serializer, nested_tag))
 
             is_list = True
-            if isinstance(Serializer, AbstractTagQuantifier):
+            if isinstance(Serializer, AbstractTagCardinality):
                 if Serializer.SINGLE_VALUE:
                     is_list = False
 
@@ -304,7 +310,7 @@ class TagSerializer:
             elif not isinstance(values, list):
                 values = [values]
 
-            if isinstance(Subserializer, AbstractTagQuantifier):
+            if isinstance(Subserializer, AbstractTagCardinality):
                 Subserializer.validate_values(values)
 
             if values == []:
@@ -318,8 +324,8 @@ class TagSerializer:
         try:
             if self.AS_TEXT:
                 text_value = self._make_text_value(data)
-            elif self.TEXT_FROM:
-                text_value = self._make_text_value(data.get(self.TEXT_FROM))
+            elif self.TEXT_UNDER_KEY:
+                text_value = self._make_text_value(data.get(self.TEXT_UNDER_KEY))
             else:
                 text_value = None
         except Exception as e:
@@ -345,6 +351,9 @@ class TextTagSerializer(TagSerializer):
     Generates a ``<foo>some text</foo>`` element.
     """
     AS_TEXT = True
+
+    def from_xml(self, el):
+        return el.text
 
 
 class EnumTagSerializer(TextTagSerializer):
@@ -396,7 +405,7 @@ class PersonSurnameTagSerializer(TagSerializer):
     """
     # TODO: enum attr "derivation"
     ATTRS = 'prefix', 'prim', 'derivation', 'connector'
-    TEXT_FROM = 'text'
+    TEXT_UNDER_KEY = 'text'
 
 
 class RefTagSerializer(TagSerializer):
