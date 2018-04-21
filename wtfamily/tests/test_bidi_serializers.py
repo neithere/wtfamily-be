@@ -122,7 +122,7 @@ def test_list_of_strings():
         }
 
     data = {
-        'visitors': [
+        'visitor': [
             'Viking One',
             'Viking Two',
             'Mrs Bun',

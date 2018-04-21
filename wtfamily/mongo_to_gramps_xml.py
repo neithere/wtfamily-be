@@ -299,27 +299,23 @@ class TagSerializer:
             for key in sorted(extra_attrs):
                 elem.set(key, extra_attrs[key])
 
-
-        for subtag, Subserializer in self.TAGS.items():
+        for nested_tag, Serializer in self.TAGS.items():
 
             # NOTE: subtag == key, but may be different
-            values = data.get(subtag)
+            values = data.get(nested_tag)
 
             if values is None:
                 values = []
             elif not isinstance(values, list):
                 values = [values]
 
-            if isinstance(Subserializer, AbstractTagCardinality):
-                Subserializer.validate_values(values)
-
-            if values == []:
-                continue
+            if isinstance(Serializer, AbstractTagCardinality):
+                Serializer.validate_values(values)
 
             for value in values:
-                subserializer = Subserializer()
-                subelem = subserializer.to_xml(subtag, value, id_to_handle)
-                elem.append(subelem)
+                serializer = Serializer()
+                nested_elem = serializer.to_xml(nested_tag, value, id_to_handle)
+                elem.append(nested_elem)
 
         try:
             if self.AS_TEXT:
