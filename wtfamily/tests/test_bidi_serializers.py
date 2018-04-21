@@ -20,7 +20,7 @@
 from lxml import etree
 import re
 
-import mongo_to_gramps_xml as m
+import etl.serializers as m
 
 
 def as_xml(el):
