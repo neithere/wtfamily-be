@@ -71,6 +71,10 @@ ATTR_VALUE_NORMALIZERS_BY_TYPE = {
 }
 
 
+def _debug(*args):
+    sys.stderr.write(' '.join(str(x) for x in args) + '\n')
+
+
 def export_to_xml(db):
     declaration = (
         '<?xml version="1.0" encoding="UTF-8"?>\n'
@@ -164,6 +168,8 @@ def normalize_attr_value(value):
 
 
 class AbstractTagQuantifier:
+    SINGLE_VALUE = False
+
     def __init__(self, serializer_class):
         self.serializer_class = serializer_class
 
@@ -187,12 +193,16 @@ class AbstractTagQuantifier:
 
 
 class One(AbstractTagQuantifier):
+    SINGLE_VALUE = True
+
     def _validate_values(self, values):
         if len(values) != 1:
             raise ValueError('one value')
 
 
 class MaybeOne(AbstractTagQuantifier):
+    SINGLE_VALUE = True
+
     def _validate_values(self, values):
         if len(values) > 1:
             raise ValueError('0..1 values')
@@ -232,6 +242,42 @@ class TagSerializer:
             # This is not necessarily so, but very unlikely, especially given
             # the GrampsXML DTD.
             raise ValueError('TAGS and AS_TEXT are mutually exclusive.')
+
+    def from_xml(self, el):
+        data = {}
+
+        for attr in el.attrib:
+            if attr not in self.ATTRS:
+                _debug('{}: unexpected attr {}'.format(el.tag, attr))
+
+                continue
+
+            data[attr] = el.get(attr)
+
+        for nested_el in el:
+            nested_tag = nested_el.tag
+
+            if nested_tag not in self.TAGS:
+                _debug('{}: unexpected nested tag {}'.format(el.tag, nested_tag))
+
+                continue
+
+            Serializer = self.TAGS[nested_tag]
+            print('using {} for {}'.format(Serializer, nested_tag))
+
+            is_list = True
+            if isinstance(Serializer, AbstractTagQuantifier):
+                if Serializer.SINGLE_VALUE:
+                    is_list = False
+
+            value = Serializer().from_xml(nested_el)
+
+            if is_list:
+                data.setdefault(nested_tag, []).append(value)
+            else:
+                data[nested_tag] = value
+
+        return data
 
     def to_xml(self, tag, data, id_to_handle):
         elem = etree.Element(tag)
