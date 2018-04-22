@@ -59,9 +59,19 @@ class WTFamilyETL(Configurable):
 
     def import_gramps_xml_new(self, path=None, db_name=MONGO_DB_NAME,
                               replace=False):
+
+        if db_name in self.mongo_client.database_names():
+            if replace or argh.confirm('DROP and replace existing DB "{}"'
+                                       .format(db_name)):
+                self.mongo_client.drop_database(db_name)
+            else:
+                yield 'Not replacing the existing database.'
+                return
+        else:
+            yield 'Importing into a new DB "{}"'.format(db_name)
+
         db = self.mongo_client[db_name]
 
-        # TODO: respect --replace switch
         return import_from_xml(path or self.gramps_xml_path, db)
 
     def export_gramps_xml(self, path=None, db_name=MONGO_DB_NAME,

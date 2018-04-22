@@ -51,11 +51,14 @@ maybe = OptionalKey()
 
 
 COMMON_SCHEMA = {
-    'id': str,
     maybe-'_id': ObjectId,      # specific to MongoDB storage backend
     maybe-'handle': str,        # Gramps-specific internal ID
     maybe-'change': datetime.datetime,   # last changed timestamp
     maybe-'priv': False,        # is this a private record?
+}
+COMMON_SCHEMA_WITH_ID = {
+    'id': str,
+    **COMMON_SCHEMA
 }
 ID_OR_HLINK = one_of(['id', 'hlink'])
 
@@ -77,7 +80,6 @@ LIST_OF_URLS = [
         maybe-'description': str,
     },
 ]
-ADDRESS = Anything()    # TODO it's a complex type
 
 GRAMPS_DATESTR = {
     'val': str,
@@ -101,7 +103,7 @@ GRAMPS_DATERANGE = {
 GRAMPS_DATE_SCHEMA = one_of([GRAMPS_DATEVAL, GRAMPS_DATESPAN, GRAMPS_DATERANGE,
                              GRAMPS_DATESTR])
 
-DATE_SCHEMA = {
+UNIFIED_DATE_SCHEMA = {
     maybe-'modifier': one_of(['span', 'range', 'before', 'after', 'about']),
     maybe-'value': IsA(str) | {
         'start': str,
@@ -109,6 +111,19 @@ DATE_SCHEMA = {
     },
     maybe-'quality': str,    # TODO: strict enum
     maybe-'type': one_of(['before', 'after', 'about']),
+}
+GRAMPS_DATE_SCHEMA_MIXIN = {
+    maybe-'daterange': dict,
+    maybe-'datespan': dict,
+    maybe-'dateval': dict,
+    maybe-'datestr': dict,
+}
+MIXED_DATE_SCHEMA_MIXIN = {
+    # unified date format
+    maybe-'date': UNIFIED_DATE_SCHEMA,
+
+    # Gramps-like date format
+    **GRAMPS_DATE_SCHEMA_MIXIN
 }
 
 ATTRIBUTE = {
@@ -119,17 +134,16 @@ ATTRIBUTE = {
 
 GRAMPS_REF_SCHEMA = {
     ID_OR_HLINK: str,
-    maybe-'dateval': [ GRAMPS_DATEVAL ],
-    maybe-'datespan': [ GRAMPS_DATESPAN ],
-    maybe-'daterange': [ GRAMPS_DATERANGE ],
+    **MIXED_DATE_SCHEMA_MIXIN,
 }
 REF_SCHEMA = {
     #ID_OR_HLINK: str,
-    maybe-'dateval': [DATE_SCHEMA],
 
     'id': str,
     # TODO: REMOVE THIS?
     maybe-'hlink': str,
+
+    **MIXED_DATE_SCHEMA_MIXIN,
 }
 OBJREF_SCHEMA = {
     ID_OR_HLINK: str,
@@ -149,6 +163,24 @@ URL_SCHEMA = {
     'href': str,
     'type': str,    # TODO enum
     maybe-'description': str,
+}
+ADDRESS_SCHEMA = {
+    # attrs
+    maybe-'priv': bool,
+
+    # tags
+    maybe-'street': str,
+    maybe-'locality': str,
+    maybe-'city': str,
+    maybe-'county': str,
+    maybe-'state': str,
+    maybe-'country': str,
+    maybe-'postal': str,
+    maybe-'phone': str,
+    maybe-'noteref': [REF_SCHEMA],
+    maybe-'citationref': [REF_SCHEMA],
+
+    **MIXED_DATE_SCHEMA_MIXIN,
 }
 
 FAMILY_SCHEMA = {
@@ -189,11 +221,8 @@ PLACE_SCHEMA = {
         {
             'value': str,
             maybe-'lang': str,
-            maybe-'date': [ DATE_SCHEMA ],
-            # TODO: remove these:
-            maybe-'dateval': [ GRAMPS_DATEVAL ],
-            maybe-'datespan': [ GRAMPS_DATESPAN ],
-            maybe-'daterange': [ GRAMPS_DATERANGE ],
+
+            **MIXED_DATE_SCHEMA_MIXIN,
         },
     ],
     maybe-'coord': {'long': str, 'lat': str},
@@ -229,8 +258,9 @@ PERSON_NAME_SCHEMA = {
     maybe-'priv': bool,
     maybe-'alt': bool,
     maybe-'group': str,    # group as...
-    maybe-'date': DATE_SCHEMA,
     maybe-'group': str,    # an individual namemap
+
+    **MIXED_DATE_SCHEMA_MIXIN,
 }
 PERSON_SCHEMA = {
     'name': [
@@ -242,11 +272,11 @@ PERSON_SCHEMA = {
     maybe-'parentin': LIST_OF_IDS,  # families
 
     maybe-'url': LIST_OF_URLS,
-    maybe-'address': [ ADDRESS ],
+    maybe-'address': [ ADDRESS_SCHEMA ],
 
     maybe-'change': datetime.datetime,
 
-    maybe-'objref': [OBJREF_SCHEMA],
+    maybe-'objref': [ OBJREF_SCHEMA ],
     maybe-'eventref': [
         {
             ID_OR_HLINK: str,
@@ -278,20 +308,21 @@ CITATION_SCHEMA = {
     'sourceref': REF_SCHEMA,
     maybe-'noteref': [REF_SCHEMA],
     maybe-'objref': [OBJREF_SCHEMA],
-    maybe-'date': DATE_SCHEMA,
     maybe-'page': str,
     maybe-'confidence': str,
+
+    **MIXED_DATE_SCHEMA_MIXIN,
 }
 EVENT_SCHEMA = {
     'type': str,    # TODO enum
-    maybe-'date': DATE_SCHEMA,
     maybe-'place': REF_SCHEMA,
     maybe-'description': str,
     maybe-'citationref': [REF_SCHEMA],
     maybe-'noteref': [REF_SCHEMA],
     maybe-'objref': [OBJREF_SCHEMA],
-    maybe-'datestr': [GRAMPS_DATESTR],    # TODO get rid of this
     maybe-'attribute': [ATTRIBUTE],
+
+    **MIXED_DATE_SCHEMA_MIXIN
 }
 NOTE_SCHEMA = {
     'text': str,
@@ -302,7 +333,6 @@ NOTE_SCHEMA = {
 
 # NOTE: this is very special
 BOOKMARK_SCHEMA = {
-    'id': str,
     'target': one_of(['person', 'family', 'event', 'source', 'citation',
                       'place', 'media', 'repository']),
     'hlink': str
@@ -326,25 +356,19 @@ MEDIA_OBJECT_SCHEMA = {
         'mime': str,
         'src': str,
     },
-    maybe-'date': DATE_SCHEMA,
     maybe-'citationref': [REF_SCHEMA],
+
+    **MIXED_DATE_SCHEMA_MIXIN,
 }
 REPOSITORY_SCHEMA = {
     'rname': str,
     'type': str,
-    maybe-'url': [URL_SCHEMA],
-    maybe-'address': [
-        {
-            'state': list,   # TODO strict
-            'city': list,    # TODO strict
-            'dateval': [GRAMPS_DATEVAL],
-            'text': str,
-        },
-    ],
+    maybe-'url': [ URL_SCHEMA ],
+    maybe-'address': [ ADDRESS_SCHEMA ],
 }
 
 
-extended_schemata = (
+extended_schemata_with_ids = (
     FAMILY_SCHEMA,
     PLACE_SCHEMA,
     EVENT_SCHEMA,
@@ -354,12 +378,16 @@ extended_schemata = (
     NOTE_SCHEMA,
     MEDIA_OBJECT_SCHEMA,
     REPOSITORY_SCHEMA,
-    # NOTE: these don't have IDs!
-    # P.S.: but for some reason now they do, hmm
+)
+extended_schemata = (
     NAME_FORMAT_SCHEMA,
     NAME_MAP_SCHEMA,
     BOOKMARK_SCHEMA,
 )
+
+for schema in extended_schemata_with_ids:
+    schema.update(COMMON_SCHEMA_WITH_ID)
+
 for schema in extended_schemata:
     schema.update(COMMON_SCHEMA)
 

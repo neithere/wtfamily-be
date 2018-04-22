@@ -98,6 +98,9 @@ class AbstractTagCardinality:
     SINGLE_VALUE = False
 
     def __init__(self, serializer_class):
+        if isinstance(serializer_class, dict):
+            serializer_class = tag_serializer_factory(**serializer_class)
+
         self.serializer_class = serializer_class
 
     def __call__(self, *args, **kwargs):

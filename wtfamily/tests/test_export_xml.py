@@ -22,7 +22,8 @@ from lxml import etree
 import pytest
 import re
 
-import etl.serializers as m
+import etl.serializers as s
+from etl.serializers import generic
 
 
 def as_xml(el):
@@ -37,7 +38,8 @@ def trim(value):
 
 
 def test_nested_attributes():
-    class MyTagSerializer(m.TagSerializer):
+
+    class MyTagSerializer(s.TagSerializer):
         ATTRS = 'foo',
 
     data = {
@@ -54,7 +56,7 @@ def test_nested_attributes():
 
 
 def test_list_attributes():
-    class MyTagSerializer(m.TagSerializer):
+    class MyTagSerializer(s.TagSerializer):
         ATTRS = 'foo',
 
     data = {
@@ -69,11 +71,16 @@ def test_list_attributes():
 
 
 def test_base_tag_serializer_composition():
-    class MyTagSerializer(m.TagSerializer):
+    class MyTagSerializer(s.TagSerializer):
         ATTRS = 'greeting', 'name'
         TAGS = {
-            'foo': m.TextTagSerializer,
-            'bar': m.GreedyDictTagSerializer,
+            'foo': s.TextTagSerializer,
+            'bar': s.One({
+                'attrs': {
+                    'one': int,
+                    'two': int,
+                }
+            }),
         }
 
     data = {
@@ -108,15 +115,15 @@ def test_greedy_dict():
     }
     expected = '<mytag bar="123" foo="hello" quix="" quux="1" quuz="0"/>\n'
 
-    el = m.GreedyDictTagSerializer().to_xml('mytag', data, {})
+    el = generic.GreedyDictTagSerializer().to_xml('mytag', data, {})
 
     assert expected == as_xml(el)
 
 
-def test_quantifier_validator_one():
+def test_cardinality_validator_one():
     def serialize(data):
-        m.tag_serializer_factory(tags={
-            'foo': m.One(m.TextTagSerializer),
+        s.tag_serializer_factory(tags={
+            'foo': s.One(s.TextTagSerializer),
         })().to_xml('mytag', data, {})
 
     # no values
@@ -136,10 +143,10 @@ def test_quantifier_validator_one():
     assert 'Expected one value for TextTagSerializer, got 2' in str(excinfo)
 
 
-def test_quantifier_validator_maybe_one():
+def test_cardinality_validator_maybe_one():
     def serialize(data):
-        m.tag_serializer_factory(tags={
-            'foo': m.MaybeOne(m.TextTagSerializer),
+        s.tag_serializer_factory(tags={
+            'foo': s.MaybeOne(s.TextTagSerializer),
         })().to_xml('mytag', data, {})
 
     # no values
@@ -157,10 +164,10 @@ def test_quantifier_validator_maybe_one():
     assert 'Expected 0..1 values for TextTagSerializer, got 2' in str(excinfo)
 
 
-def test_quantifier_validator_one_or_more():
+def test_cardinality_validator_one_or_more():
     def serialize(data):
-        m.tag_serializer_factory(tags={
-            'foo': m.OneOrMore(m.TextTagSerializer),
+        s.tag_serializer_factory(tags={
+            'foo': s.OneOrMore(s.TextTagSerializer),
         })().to_xml('mytag', data, {})
 
     # no values
@@ -178,10 +185,10 @@ def test_quantifier_validator_one_or_more():
     serialize({'foo': ['bar', 'quux']})
 
 
-def test_quantifier_validator_maybe_many():
+def test_cardinality_validator_maybe_many():
     def serialize(data):
-        m.tag_serializer_factory(tags={
-            'foo': m.MaybeMany(m.TextTagSerializer),
+        s.tag_serializer_factory(tags={
+            'foo': s.MaybeMany(s.TextTagSerializer),
         })().to_xml('mytag', data, {})
 
     # no values
@@ -223,7 +230,7 @@ def test_person_name():
     </name>
     ''')
 
-    el = m.PersonNameTagSerializer().to_xml('name', data, {})
+    el = s.PersonNameTagSerializer().to_xml('name', data, {})
 
     assert expected == as_xml(el)
 
@@ -385,7 +392,7 @@ def test_entity_person():
     </my-person>
     ''')
 
-    el = m.PersonSerializer().to_xml('my-person', data, id_to_handle)
+    el = s.PersonSerializer().to_xml('my-person', data, id_to_handle)
     serialized = as_xml(el)
 
     assert expected == serialized
