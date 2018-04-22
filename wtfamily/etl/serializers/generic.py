@@ -24,6 +24,8 @@ Extract, Transform, Load: Generic Serializers
 Mapping of XML to native Python data.
 """
 import datetime
+import sys
+
 from lxml import etree
 
 
@@ -31,33 +33,65 @@ def _debug(*args):
     sys.stderr.write(' '.join(str(x) for x in args) + '\n')
 
 
-def _reject_to_serialize_dict_as_attr(value):
+def _reject_to_serialize_deep_struct_as_attr(value):
     raise ValueError('Deep structures must be serialized '
                      'as tags, not attributes: {}'.format(value))
 
 
-ATTR_VALUE_NORMALIZERS_BY_TYPE = {
+# from Python to XML
+ATTR_VALUE_SERIALIZERS_BY_TYPE = {
     str: str,
     int: str,
     bool: lambda x: str(int(x)),
     datetime.datetime: lambda x: str(int(x.timestamp())),
-    dict: _reject_to_serialize_dict_as_attr,
-    list: _reject_to_serialize_dict_as_attr
+    dict: _reject_to_serialize_deep_struct_as_attr,
+    list: _reject_to_serialize_deep_struct_as_attr,
+}
+
+# from XML to Python
+# (requires explicit type declaration)
+ATTR_VALUE_NORMALIZERS_BY_TYPE = {
+    None: str,  # default
+    str: str,
+    int: int,
+    bool: lambda x: bool(int(x)),
+    datetime.datetime: lambda x: datetime.datetime.fromtimestamp(int(x)),
+    dict: _reject_to_serialize_deep_struct_as_attr,
+    list: _reject_to_serialize_deep_struct_as_attr,
 }
 
 
-def normalize_attr_value(value):
+def serialize_attr_value(value):
+    """
+    Converts given value from a Python type to string for XML.
+    """
     if value is None:
         return ''
 
     value_type = type(value)
-    normalizer = ATTR_VALUE_NORMALIZERS_BY_TYPE.get(value_type)
+    serializer = ATTR_VALUE_SERIALIZERS_BY_TYPE.get(value_type)
+
+    if serializer:
+        return serializer(value)
+    else:
+        raise ValueError('Serializer not found for {} attribute "{}"'
+                         .format(type(value).__name__, value))
+
+
+def normalize_attr_value(value, target_type=None):
+    """
+    Converts given value from XML (string) to a Python type.
+    """
+    if value is None:
+        return ''
+
+    normalizer = ATTR_VALUE_NORMALIZERS_BY_TYPE.get(target_type)
 
     if normalizer:
         return normalizer(value)
     else:
-        raise ValueError('Normalizer not found for {} attribute "{}"'
-                         .format(type(value).__name__, value))
+        raise ValueError('Normalizer not found for {} attribute "{}" ({})'
+                         .format(type(value).__name__, value, target_type))
 
 
 class AbstractTagCardinality:
@@ -136,7 +170,7 @@ class TagSerializer:
             # the GrampsXML DTD.
             raise ValueError('TAGS and AS_TEXT are mutually exclusive.')
 
-    def from_xml(self, el):
+    def from_xml(self, el, handle_to_id=None):
         data = {}
 
         for attr in el.attrib:
@@ -145,7 +179,21 @@ class TagSerializer:
 
                 continue
 
-            data[attr] = el.get(attr)
+            target_type = None
+            if isinstance(self.ATTRS, dict):
+                target_type = self.ATTRS[attr]
+
+            value = el.get(attr)
+            data[attr] = normalize_attr_value(value, target_type)
+
+        try:
+            extra_attrs = self.normalize_extra_attrs(data, handle_to_id)
+        except Exception as e:
+            print('{}: failed to normalize extra attrs'.format(el.tag))
+            raise e
+
+        if extra_attrs:
+            data.update(extra_attrs)
 
         if self.AS_TEXT:
             return el.text
@@ -154,7 +202,9 @@ class TagSerializer:
             data[self.TEXT_UNDER_KEY] = el.text
 
         for nested_el in el:
-            nested_tag = nested_el.tag
+            # Use the local name instead of the qualified one,
+            # i.e. "{http://gramps-project.org/xml/1.7.1/}name" → "name"
+            nested_tag = etree.QName(nested_el.tag).localname
 
             if nested_tag not in self.TAGS:
                 _debug('{}: unexpected nested tag {}'.format(el.tag, nested_tag))
@@ -168,7 +218,7 @@ class TagSerializer:
                 if Serializer.SINGLE_VALUE:
                     is_list = False
 
-            value = Serializer().from_xml(nested_el)
+            value = Serializer().from_xml(nested_el, handle_to_id=handle_to_id)
 
             if is_list:
                 data.setdefault(nested_tag, []).append(value)
@@ -184,9 +234,9 @@ class TagSerializer:
             value = data.get(attr)
 
             if value is not None:
-                elem.set(attr, normalize_attr_value(value))
+                elem.set(attr, serialize_attr_value(value))
 
-        extra_attrs = self.make_extra_attrs(data, id_to_handle)
+        extra_attrs = self.serialize_extra_attrs(data, id_to_handle)
         if extra_attrs:
             for key in sorted(extra_attrs):
                 elem.set(key, extra_attrs[key])
@@ -224,7 +274,10 @@ class TagSerializer:
 
         return elem
 
-    def make_extra_attrs(self, data, id_to_handle):
+    def normalize_extra_attrs(self, data, handle_to_id):
+        return None
+
+    def serialize_extra_attrs(self, data, id_to_handle):
         return None
 
     def _make_text_value(self, value):
@@ -240,7 +293,7 @@ class TextTagSerializer(TagSerializer):
     """
     AS_TEXT = True
 
-    def from_xml(self, el):
+    def from_xml(self, el, handle_to_id=None):
         return el.text
 
 
@@ -268,7 +321,7 @@ class GreedyDictTagSerializer(TagSerializer):
         if not isinstance(data, dict):
             raise ValueError('Expected dict, got "{}"'.format(data))
 
-        value = dict((k, normalize_attr_value(v))
+        value = dict((k, serialize_attr_value(v))
                      for k, v in data.items())
 
         return etree.Element(tag, value)

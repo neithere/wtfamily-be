@@ -124,20 +124,25 @@ GRAMPS_REF_SCHEMA = {
     maybe-'daterange': [ GRAMPS_DATERANGE ],
 }
 REF_SCHEMA = {
-    ID_OR_HLINK: str,
+    #ID_OR_HLINK: str,
     maybe-'dateval': [DATE_SCHEMA],
+
+    'id': str,
+    # TODO: REMOVE THIS?
+    maybe-'hlink': str,
 }
 OBJREF_SCHEMA = {
     ID_OR_HLINK: str,
-    maybe-'region': [
-        {
-            'corner1_y': str,
-            'corner2_y': str,
-            'corner1_x': str,
-            'corner2_x': str,
-        },
-    ],
+    maybe-'region': {
+        'corner1_y': int,
+        'corner2_y': int,
+        'corner1_x': int,
+        'corner2_x': int,
+    },
     maybe-'noteref': [ REF_SCHEMA ],
+
+    # TODO: REMOVE THIS?
+    maybe-'hlink': str,
 }
 
 URL_SCHEMA = {
@@ -149,7 +154,9 @@ URL_SCHEMA = {
 FAMILY_SCHEMA = {
     maybe-'father': REF_SCHEMA,
     maybe-'mother': REF_SCHEMA,
-    maybe-'rel': [dict],    # TODO: strict, more concrete
+    maybe-'rel': {
+        'type': str
+    },
     maybe-'citationref': [REF_SCHEMA],
     maybe-'noteref': [REF_SCHEMA],
     maybe-'childref': [
@@ -159,12 +166,18 @@ FAMILY_SCHEMA = {
             maybe-'frel': str,    # TODO enum
             maybe-'mrel': str,    # TODO enum
             maybe-'noteref': [REF_SCHEMA],
+
+            # TODO: REMOVE THIS?
+            'hlink': str,
         }
     ],
     maybe-'eventref': [
         {
             'id': str,
             'role': str,
+
+            # TODO: REMOVE THIS?
+            'hlink': str,
         }
     ],
     maybe-'attribute': [ATTRIBUTE],
@@ -272,7 +285,7 @@ CITATION_SCHEMA = {
 EVENT_SCHEMA = {
     'type': str,    # TODO enum
     maybe-'date': DATE_SCHEMA,
-    maybe-'place': [REF_SCHEMA],
+    maybe-'place': REF_SCHEMA,
     maybe-'description': str,
     maybe-'citationref': [REF_SCHEMA],
     maybe-'noteref': [REF_SCHEMA],
@@ -479,7 +492,14 @@ class Entity:
     @classmethod
     def find(cls, conditions=None):
         for item in cls._get_collection().find(conditions):
-            yield cls(item)
+            try:
+                yield cls(item)
+            except ValidationError as e:
+                import sys
+                import pprint
+                sys.stderr.write('ERROR in {.__name__}:\n{}\n'
+                                 .format(cls, pprint.pformat(item)))
+                raise e
 
     @classmethod
     def find_one(cls, conditions=None):
@@ -563,6 +583,12 @@ class Entity:
 
     def matches_query(self, query):
         raise NotImplementedError
+
+    def save(self):
+        self.validate()
+        self._get_collection().insert_one(self._data)
+        #self._get_collection().replace_one({id: self.id}, self._data,
+        #                                   upsert=True)
 
 
 class Family(Entity):

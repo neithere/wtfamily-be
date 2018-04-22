@@ -83,8 +83,6 @@ def build_xml(db):
     # monkey-patch to avoid the Flask app context/globals nonsense
     Entity._get_database = lambda: db
 
-    models = (Person, Family, Event, Citation, Source, Place, Repository,
-              MediaObject, Note, Bookmark, NameMap, NameFormat)
     model_to_tag = {
         Person: ('people', 'person', s.PersonSerializer),
         Family: ('families', 'family', s.FamilySerializer),
@@ -100,6 +98,8 @@ def build_xml(db):
         NameMap: ('namemaps', 'map', s.NameMapSerializer),
         NameFormat: ('name-formats', 'format', s.NameFormatSerializer),
     }
+    models = (Person, Family, Event, Citation, Source, Place, Repository,
+              MediaObject, Note, Bookmark, NameMap, NameFormat)
 
     # Gather the mappings of IDs to internal Gramps IDs ("handles").
     # This requires a full iteration over all potentially referenced entities

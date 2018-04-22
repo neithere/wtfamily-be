@@ -22,6 +22,7 @@ from pymongo import MongoClient
 
 from .gramps_xml_to_yaml import extract, transform, load
 from .mongo_to_gramps_xml import export_to_xml
+from .gramps_xml_to_mongo import import_from_xml
 
 
 MONGO_DB_NAME = 'wtfamily-from-grampsxml'
@@ -56,6 +57,13 @@ class WTFamilyETL(Configurable):
             # Also there's `handle`, the internal Gramps ID.
             db[entity_name].insert(dict(data, id=pk))
 
+    def import_gramps_xml_new(self, path=None, db_name=MONGO_DB_NAME,
+                              replace=False):
+        db = self.mongo_client[db_name]
+
+        # TODO: respect --replace switch
+        return import_from_xml(path or self.gramps_xml_path, db)
+
     def export_gramps_xml(self, path=None, db_name=MONGO_DB_NAME,
                           replace=False):
         db = self.mongo_client[db_name]
@@ -68,5 +76,6 @@ class WTFamilyETL(Configurable):
     def commands(self):
         return [
             self.import_gramps_xml,
+            self.import_gramps_xml_new,
             self.export_gramps_xml
         ]
