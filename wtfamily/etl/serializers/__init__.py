@@ -741,8 +741,10 @@ class NoteStyleSerializer(TagSerializer):
     }
     TAGS = {
         'range': OneOrMore({
-            'start': int,
-            'end': int,
+            'attrs': {
+                'start': int,
+                'end': int,
+            }
         })
     }
 

@@ -35,7 +35,9 @@ def trim(value):
 
 def test_basic_text():
     class CafeSerializer(m.TagSerializer):
-        ATTRS = 'place',
+        ATTRS = {
+            'place': str
+        }
         TAGS = {
             'visitor': m.MaybeOne(m.TextTagSerializer),
             'dish': m.OneOrMore(m.TextTagSerializer),
@@ -69,10 +71,14 @@ def test_basic_text():
 
 def test_nested_text_under_key():
     class PlaceSerializer(m.TagSerializer):
-        ATTRS = 'name',
+        ATTRS = {
+            'name': str
+        }
 
     class DishSerializer(m.TagSerializer):
-        ATTRS = 'base',
+        ATTRS = {
+            'base': str
+        }
         TEXT_UNDER_KEY = 'text'
 
     class CafeSerializer(m.TagSerializer):
