@@ -104,10 +104,7 @@ def transform(xml_root_el):
         print('  * {}'.format(model.__name__))
         group_tag, item_tag, ItemSerializer = model_to_tag[model]
         search_expr = '{}/{}'.format(_qn(group_tag), _qn(item_tag))
-        # print(search_expr)
         elems = xml_root_el.findall(search_expr)
-
-        #elems = elems[:2]   # TODO remove DEBUG
 
         for elem in elems:
             serializer = ItemSerializer()

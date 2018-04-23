@@ -57,8 +57,8 @@ class WTFamilyETL(Configurable):
             # Also there's `handle`, the internal Gramps ID.
             db[entity_name].insert(dict(data, id=pk))
 
-    def import_gramps_xml_new(self, path=None, db_name=MONGO_DB_NAME,
-                              replace=False):
+    def import_gramps_xml(self, path=None, db_name=MONGO_DB_NAME,
+                          replace=False):
 
         if db_name in self.mongo_client.database_names():
             if replace or argh.confirm('DROP and replace existing DB "{}"'
