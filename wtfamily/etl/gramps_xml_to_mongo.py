@@ -32,7 +32,7 @@ from models import (Entity, Person, Family, Event, Citation, Source, Place,
                     Repository, MediaObject, Note, Bookmark, NameMap,
                     NameFormat)
 
-import etl.serializers as s
+import etl.translators as s
 
 
 WTFAMILY_APP_NAME = 'WTFamily'
@@ -71,19 +71,19 @@ def _is_plain_xml_file(path):
 def transform(xml_root_el):
     # NOTE: this largerly mirrors/copies the import code; can we unify them?
     model_to_tag = {
-        Person: ('people', 'person', s.PersonSerializer),
-        Family: ('families', 'family', s.FamilySerializer),
-        Event: ('events', 'event', s.EventSerializer),
-        Source: ('sources', 'source', s.SourceSerializer),
-        Place: ('places', 'placeobj', s.PlaceSerializer),
-        MediaObject: ('objects', 'object', s.MediaObjectSerializer),
-        Repository: ('repositories', 'repository', s.RepositorySerializer),
-        Note: ('notes', 'note', s.NoteSerializer),
-        # TODO: Tag: ('tags', 'tag', s.TagSerializer),
-        Citation: ('citations', 'citation', s.CitationSerializer),
-        Bookmark: ('bookmarks', 'bookmark', s.BookmarkSerializer),
-        NameMap: ('namemaps', 'map', s.NameMapSerializer),
-        NameFormat: ('name-formats', 'format', s.NameFormatSerializer),
+        Person: ('people', 'person', s.PersonTranslator),
+        Family: ('families', 'family', s.FamilyTranslator),
+        Event: ('events', 'event', s.EventTranslator),
+        Source: ('sources', 'source', s.SourceTranslator),
+        Place: ('places', 'placeobj', s.PlaceTranslator),
+        MediaObject: ('objects', 'object', s.MediaObjectTranslator),
+        Repository: ('repositories', 'repository', s.RepositoryTranslator),
+        Note: ('notes', 'note', s.NoteTranslator),
+        # TODO: Tag: ('tags', 'tag', s.TagTranslator),
+        Citation: ('citations', 'citation', s.CitationTranslator),
+        Bookmark: ('bookmarks', 'bookmark', s.BookmarkTranslator),
+        NameMap: ('namemaps', 'map', s.NameMapTranslator),
+        NameFormat: ('name-formats', 'format', s.NameFormatTranslator),
     }
     models = (Person, Family, NameFormat, Event, Citation, Source, Place,
               Repository, MediaObject, Note, Bookmark, NameMap)
@@ -102,14 +102,14 @@ def transform(xml_root_el):
     # Now that we have the full mapping, proceed to extract and transform tags
     for model in models:
         print('  * {}'.format(model.__name__))
-        group_tag, item_tag, ItemSerializer = model_to_tag[model]
+        group_tag, item_tag, ItemTranslator = model_to_tag[model]
         search_expr = '{}/{}'.format(_qn(group_tag), _qn(item_tag))
         elems = xml_root_el.findall(search_expr)
 
         for elem in elems:
-            serializer = ItemSerializer()
+            translator = ItemTranslator()
             try:
-                data = serializer.from_xml(elem, handle_to_id=handle_to_id)
+                data = translator.from_xml(elem, handle_to_id=handle_to_id)
             except Exception as e:
                 tag_ln = etree.QName(elem.tag).localname
                 print('=====================================================')

@@ -21,7 +21,7 @@
 from lxml import etree
 import re
 
-import etl.serializers as s
+import etl.translators as s
 
 
 def as_xml(el):
@@ -78,7 +78,7 @@ def test_n_tags_to_one_key():
                 }
             }
 
-    class BrainSpecialistConverter(s.TagSerializer):
+    class BrainSpecialistConverter(s.TagTranslator):
         CONTRIBUTORS = DoctorContributor,
 
     converter = BrainSpecialistConverter()
@@ -138,7 +138,7 @@ def test_one_tag_to_n_keys():
                 'complaint_verb': verb,
             }
 
-    class GumbyPatientConverter(s.TagSerializer):
+    class GumbyPatientConverter(s.TagTranslator):
         CONTRIBUTORS = GumbyPatientContributor,
 
     converter = GumbyPatientConverter()

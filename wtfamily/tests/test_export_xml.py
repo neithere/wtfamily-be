@@ -22,8 +22,8 @@ from lxml import etree
 import pytest
 import re
 
-import etl.serializers as s
-from etl.serializers import generic
+import etl.translators as s
+from etl.translators import generic
 
 
 def as_xml(el):
@@ -39,7 +39,7 @@ def trim(value):
 
 def test_nested_attributes():
 
-    class MyTagSerializer(s.TagSerializer):
+    class MyTagTranslator(s.TagTranslator):
         ATTRS = 'foo',
 
     data = {
@@ -49,14 +49,14 @@ def test_nested_attributes():
     }
 
     with pytest.raises(ValueError) as excinfo:
-        MyTagSerializer().to_xml('mytag', data, {})
+        MyTagTranslator().to_xml('mytag', data, {})
 
     err_msg = 'Deep structures must be serialized as tags, not attributes'
     assert err_msg in str(excinfo.value)
 
 
 def test_list_attributes():
-    class MyTagSerializer(s.TagSerializer):
+    class MyTagTranslator(s.TagTranslator):
         ATTRS = 'foo',
 
     data = {
@@ -64,17 +64,17 @@ def test_list_attributes():
     }
 
     with pytest.raises(ValueError) as excinfo:
-        MyTagSerializer().to_xml('mytag', data, {})
+        MyTagTranslator().to_xml('mytag', data, {})
 
     err_msg = 'Deep structures must be serialized as tags, not attributes'
     assert err_msg in str(excinfo.value)
 
 
-def test_base_tag_serializer_composition():
-    class MyTagSerializer(s.TagSerializer):
+def test_base_tag_translator_composition():
+    class MyTagTranslator(s.TagTranslator):
         ATTRS = 'greeting', 'name'
         TAGS = {
-            'foo': s.TextTagSerializer,
+            'foo': s.TextTagTranslator,
             'bar': s.One({
                 'attrs': {
                     'one': int,
@@ -100,7 +100,7 @@ def test_base_tag_serializer_composition():
     </mytag>
     ''')
 
-    el = MyTagSerializer().to_xml('mytag', data, {})
+    el = MyTagTranslator().to_xml('mytag', data, {})
 
     assert expected == as_xml(el)
 
@@ -115,21 +115,21 @@ def test_greedy_dict():
     }
     expected = '<mytag bar="123" foo="hello" quix="" quux="1" quuz="0"/>\n'
 
-    el = generic.GreedyDictTagSerializer().to_xml('mytag', data, {})
+    el = generic.GreedyDictTagTranslator().to_xml('mytag', data, {})
 
     assert expected == as_xml(el)
 
 
 def test_cardinality_validator_one():
     def serialize(data):
-        s.tag_serializer_factory(tags={
-            'foo': s.One(s.TextTagSerializer),
+        s.tag_translator_factory(tags={
+            'foo': s.One(s.TextTagTranslator),
         })().to_xml('mytag', data, {})
 
     # no values
     with pytest.raises(ValueError) as excinfo:
         serialize({})
-    assert 'Expected one value for TextTagSerializer, got 0' in str(excinfo)
+    assert 'Expected one value for TextTagTranslator, got 0' in str(excinfo)
 
     # one value
     serialize({'foo': 'bar'})
@@ -140,13 +140,13 @@ def test_cardinality_validator_one():
     # more than one value
     with pytest.raises(ValueError) as excinfo:
         serialize({'foo': ['bar', 'quux']})
-    assert 'Expected one value for TextTagSerializer, got 2' in str(excinfo)
+    assert 'Expected one value for TextTagTranslator, got 2' in str(excinfo)
 
 
 def test_cardinality_validator_maybe_one():
     def serialize(data):
-        s.tag_serializer_factory(tags={
-            'foo': s.MaybeOne(s.TextTagSerializer),
+        s.tag_translator_factory(tags={
+            'foo': s.MaybeOne(s.TextTagTranslator),
         })().to_xml('mytag', data, {})
 
     # no values
@@ -161,19 +161,19 @@ def test_cardinality_validator_maybe_one():
     # more than one value
     with pytest.raises(ValueError) as excinfo:
         serialize({'foo': ['bar', 'quux']})
-    assert 'Expected 0..1 values for TextTagSerializer, got 2' in str(excinfo)
+    assert 'Expected 0..1 values for TextTagTranslator, got 2' in str(excinfo)
 
 
 def test_cardinality_validator_one_or_more():
     def serialize(data):
-        s.tag_serializer_factory(tags={
-            'foo': s.OneOrMore(s.TextTagSerializer),
+        s.tag_translator_factory(tags={
+            'foo': s.OneOrMore(s.TextTagTranslator),
         })().to_xml('mytag', data, {})
 
     # no values
     with pytest.raises(ValueError) as excinfo:
         serialize({})
-    assert 'Expected 1..n values for TextTagSerializer, got 0' in str(excinfo)
+    assert 'Expected 1..n values for TextTagTranslator, got 0' in str(excinfo)
 
     # one value
     serialize({'foo': 'bar'})
@@ -187,8 +187,8 @@ def test_cardinality_validator_one_or_more():
 
 def test_cardinality_validator_maybe_many():
     def serialize(data):
-        s.tag_serializer_factory(tags={
-            'foo': s.MaybeMany(s.TextTagSerializer),
+        s.tag_translator_factory(tags={
+            'foo': s.MaybeMany(s.TextTagTranslator),
         })().to_xml('mytag', data, {})
 
     # no values
@@ -230,7 +230,7 @@ def test_person_name():
     </name>
     ''')
 
-    el = s.PersonNameTagSerializer().to_xml('name', data, {})
+    el = s.PersonNameTagTranslator().to_xml('name', data, {})
 
     assert expected == as_xml(el)
 
@@ -390,7 +390,7 @@ def test_entity_person():
     </my-person>
     ''')
 
-    el = s.PersonSerializer().to_xml('my-person', data, id_to_handle)
+    el = s.PersonTranslator().to_xml('my-person', data, id_to_handle)
     serialized = as_xml(el)
 
     assert expected == serialized

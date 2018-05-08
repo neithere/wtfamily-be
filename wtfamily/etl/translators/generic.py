@@ -18,7 +18,7 @@
 #    You should have received a copy of the GNU Lesser General Public License
 #    along with WTFamily.  If not, see <http://gnu.org/licenses/>.
 """
-Extract, Transform, Load: Generic Serializers
+Extract, Transform, Load: Generic Translators
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Mapping of XML to native Python data.
@@ -97,25 +97,25 @@ def normalize_attr_value(value, target_type=None):
 class AbstractTagCardinality:
     SINGLE_VALUE = False
 
-    def __init__(self, serializer_class):
-        if isinstance(serializer_class, dict):
-            serializer_class = tag_serializer_factory(**serializer_class)
+    def __init__(self, translator_class):
+        if isinstance(translator_class, dict):
+            translator_class = tag_translator_factory(**translator_class)
 
-        self.serializer_class = serializer_class
+        self.translator_class = translator_class
 
     def __call__(self, *args, **kwargs):
-        return self.serializer_class(*args, **kwargs)
+        return self.translator_class(*args, **kwargs)
 
     def __repr__(self):
         return '<{} {}>'.format(self.__class__.__name__,
-                                self.serializer_class.__name__)
+                                self.translator_class.__name__)
 
     def validate_values(self, values):
         try:
             self._validate_values(values)
         except ValueError as e:
             msg = 'Expected {} for {.__name__}, got {}'.format(
-                e, self.serializer_class, len(values))
+                e, self.translator_class, len(values))
             raise ValueError(msg) from None
 
     def _validate_values(self, values):
@@ -150,20 +150,20 @@ class MaybeMany(AbstractTagCardinality):
         pass
 
 
-def tag_serializer_factory(tags=None, attrs=None, contributors=None,
+def tag_translator_factory(tags=None, attrs=None, contributors=None,
                            as_text=False):
 
-    class AdHocTagSerializer(TagSerializer):
+    class AdHocTagTranslator(TagTranslator):
         TAGS = tags or {}
         ATTRS = attrs or ()
         AS_TEXT = as_text
         CONTRIBUTORS = contributors or ()
 
-    return AdHocTagSerializer
+    return AdHocTagTranslator
 
 
 # TODO: rename to TagTranslator?
-class TagSerializer:
+class TagTranslator:
     TAGS = {}
     ATTRS = ()
     AS_TEXT = False
@@ -217,16 +217,17 @@ class TagSerializer:
 
                 continue
 
-            Serializer = self.TAGS[nested_tag]
-            serializer = Serializer()
+            Translator = self.TAGS[nested_tag]
+            translator = Translator()
 
             is_list = True
-            if isinstance(Serializer, AbstractTagCardinality):
-                if Serializer.SINGLE_VALUE:
+            if isinstance(Translator, AbstractTagCardinality):
+                if Translator.SINGLE_VALUE:
                     is_list = False
 
+            #key = translator.KEY or nested_tag
             key = nested_tag
-            value = serializer.from_xml(nested_el, handle_to_id=handle_to_id)
+            value = translator.from_xml(nested_el, handle_to_id=handle_to_id)
 
             if is_list:
                 data.setdefault(key, []).append(value)
@@ -254,7 +255,7 @@ class TagSerializer:
             for key in sorted(extra_attrs):
                 el.set(key, extra_attrs[key])
 
-        for nested_tag, Serializer in self.TAGS.items():
+        for nested_tag, Translator in self.TAGS.items():
 
             # NOTE: subtag == key, but may be different
             values = data.get(nested_tag)
@@ -264,12 +265,12 @@ class TagSerializer:
             elif not isinstance(values, list):
                 values = [values]
 
-            if isinstance(Serializer, AbstractTagCardinality):
-                Serializer.validate_values(values)
+            if isinstance(Translator, AbstractTagCardinality):
+                Translator.validate_values(values)
 
             for value in values:
-                serializer = Serializer()
-                nested_el = serializer.to_xml(nested_tag, value, id_to_handle)
+                translator = Translator()
+                nested_el = translator.to_xml(nested_tag, value, id_to_handle)
                 el.append(nested_el)
 
         try:
@@ -307,7 +308,7 @@ class TagSerializer:
         return value
 
 
-class TextTagSerializer(TagSerializer):
+class TextTagTranslator(TagTranslator):
     """
     Generates a ``<foo>some text</foo>`` element.
     """
@@ -317,7 +318,7 @@ class TextTagSerializer(TagSerializer):
         return el.text
 
 
-class EnumTagSerializer(TextTagSerializer):
+class EnumTagTranslator(TextTagTranslator):
     """
     Generates a ``<foo>some text</foo>`` element where `some text` belongs
     to a pre-defined set of values.
@@ -332,7 +333,7 @@ class EnumTagSerializer(TextTagSerializer):
         return value
 
 
-class GreedyDictTagSerializer(TagSerializer):
+class GreedyDictTagTranslator(TagTranslator):
     """
     Generates ``<foo a="1" b="2" />`` elements, mapping *all* keys from a list
     of dicts to element attributes.

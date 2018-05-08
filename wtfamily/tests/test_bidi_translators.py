@@ -21,7 +21,7 @@
 from lxml import etree
 import re
 
-import etl.serializers as s
+import etl.translators as s
 
 
 def as_xml(el):
@@ -44,13 +44,13 @@ def trim(value):
 
 
 def test_basic_text():
-    class CafeSerializer(s.TagSerializer):
+    class CafeTranslator(s.TagTranslator):
         ATTRS = {
             'place': str
         }
         TAGS = {
-            'visitor': s.MaybeOne(s.TextTagSerializer),
-            'dish': s.OneOrMore(s.TextTagSerializer),
+            'visitor': s.MaybeOne(s.TextTagTranslator),
+            'dish': s.OneOrMore(s.TextTagTranslator),
         }
 
     data = {
@@ -68,33 +68,33 @@ def test_basic_text():
     </green-midget-cafe>
     ''')
 
-    serializer = CafeSerializer()
+    translator = CafeTranslator()
 
     # data → XML
-    serialized_xml = as_xml(serializer.to_xml('green-midget-cafe', data, {}))
+    serialized_xml = as_xml(translator.to_xml('green-midget-cafe', data, {}))
     assert serialized_xml == xml
 
     # XML → data
-    deserialized_from_xml = serializer.from_xml(etree.fromstring(xml))
+    deserialized_from_xml = translator.from_xml(etree.fromstring(xml))
     assert deserialized_from_xml == data
 
 
 def test_nested_text_under_key():
-    class PlaceSerializer(s.TagSerializer):
+    class PlaceTranslator(s.TagTranslator):
         ATTRS = {
             'name': str
         }
 
-    class DishSerializer(s.TagSerializer):
+    class DishTranslator(s.TagTranslator):
         ATTRS = {
             'base': str
         }
         TEXT_UNDER_KEY = 'text'
 
-    class CafeSerializer(s.TagSerializer):
+    class CafeTranslator(s.TagTranslator):
         TAGS = {
-            'place': s.One(PlaceSerializer),
-            'dish': s.OneOrMore(DishSerializer),
+            'place': s.One(PlaceTranslator),
+            'dish': s.OneOrMore(DishTranslator),
         }
 
     data = {
@@ -120,21 +120,21 @@ def test_nested_text_under_key():
     </green-midget-cafe>
     ''')
 
-    serializer = CafeSerializer()
+    translator = CafeTranslator()
 
     # data → XML
-    serialized_xml = as_xml(serializer.to_xml('green-midget-cafe', data, {}))
+    serialized_xml = as_xml(translator.to_xml('green-midget-cafe', data, {}))
     assert serialized_xml == xml
 
     # XML → data
-    deserialized_from_xml = serializer.from_xml(etree.fromstring(xml))
+    deserialized_from_xml = translator.from_xml(etree.fromstring(xml))
     assert deserialized_from_xml == data
 
 
 def test_list_of_strings():
-    class CafeSerializer(s.TagSerializer):
+    class CafeTranslator(s.TagTranslator):
         TAGS = {
-            'visitor': s.OneOrMore(s.TextTagSerializer)
+            'visitor': s.OneOrMore(s.TextTagTranslator)
         }
 
     data = {
@@ -154,14 +154,14 @@ def test_list_of_strings():
     </green-midget-cafe>
     ''')
 
-    serializer = CafeSerializer()
+    translator = CafeTranslator()
 
     # data → XML
-    serialized_xml = as_xml(serializer.to_xml('green-midget-cafe', data, {}))
+    serialized_xml = as_xml(translator.to_xml('green-midget-cafe', data, {}))
     assert serialized_xml == xml
 
     # XML → data
-    deserialized_from_xml = serializer.from_xml(etree.fromstring(xml))
+    deserialized_from_xml = translator.from_xml(etree.fromstring(xml))
     assert deserialized_from_xml == data
 
 
@@ -172,13 +172,13 @@ class TestMappingMultipleTagsToOneKey:
     """
 
     tag = 'my-tag'
-    serializer = s.tag_serializer_factory(
+    translator = s.tag_translator_factory(
         tags={
             # TODO: MaybeOne(EitherOf(...))
-            #'daterange': s.MaybeOne(s.DateRangeTagSerializer),
-            #'datespan': s.MaybeOne(s.DateSpanTagSerializer),
-            #'dateval': s.MaybeOne(s.DateValTagSerializer),
-            #'datestr': s.MaybeOne(s.DateStrTagSerializer),
+            #'daterange': s.MaybeOne(s.DateRangeTagTranslator),
+            #'datespan': s.MaybeOne(s.DateSpanTagTranslator),
+            #'dateval': s.MaybeOne(s.DateValTagTranslator),
+            #'datestr': s.MaybeOne(s.DateStrTagTranslator),
         },
         contributors=(
             s.DateContributor,
@@ -193,10 +193,10 @@ class TestMappingMultipleTagsToOneKey:
         return tmpl.format(tag=self.tag, body=xml_string.strip())
 
     def _to_xml(self, data):
-        return as_xml(self.serializer().to_xml(self.tag, data, {}))
+        return as_xml(self.translator().to_xml(self.tag, data, {}))
 
     def _from_xml(self, xml_string):
-        return self.serializer().from_xml(etree.fromstring(xml_string), {})
+        return self.translator().from_xml(etree.fromstring(xml_string), {})
 
     def test_datestr(self):
         xml = self._wrap_xml('<datestr val="в детстве"/>')

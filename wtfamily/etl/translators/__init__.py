@@ -18,7 +18,7 @@
 #    You should have received a copy of the GNU Lesser General Public License
 #    along with WTFamily.  If not, see <http://gnu.org/licenses/>.
 """
-Extract, Transform, Load: Serializers
+Extract, Transform, Load: Translators
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 GrampsXML (`lxml.Element`) to WTFamily (native Python data structures).
@@ -34,13 +34,13 @@ from .generic import (
     MaybeOne,
     MaybeMany,
 
-    # tag serializers
-    TagSerializer,
-    TextTagSerializer,
-    EnumTagSerializer,
+    # tag translators
+    TagTranslator,
+    TextTagTranslator,
+    EnumTagTranslator,
 
     # functions
-    tag_serializer_factory,
+    tag_translator_factory,
     _debug
 )
 
@@ -174,7 +174,7 @@ class DateContributor:
         return [etree.Element(tag, **kwargs)]
 
 
-class UrlTagSerializer(TagSerializer):
+class UrlTagTranslator(TagTranslator):
     """
     <!ELEMENT url EMPTY>
     <!ATTLIST url
@@ -187,11 +187,11 @@ class UrlTagSerializer(TagSerializer):
     ATTRS = 'priv', 'type', 'href', 'description'
 
 
-class PersonGenderTagSerializer(EnumTagSerializer):
+class PersonGenderTagTranslator(EnumTagTranslator):
     ALLOWED_VALUES = 'M', 'F', 'U'
 
 
-class PersonSurnameTagSerializer(TagSerializer):
+class PersonSurnameTagTranslator(TagTranslator):
     """
     This tag is weirdly named in GrampsXML.  In fact it's any name other
     than first name or nickname, including patronymic and so on.
@@ -216,7 +216,7 @@ class PersonSurnameTagSerializer(TagSerializer):
     TEXT_UNDER_KEY = 'text'
 
 
-class RefTagSerializer(TagSerializer):
+class RefTagTranslator(TagTranslator):
     """
     Parses/generates ``<foo hlink="foo" />`` elements.
 
@@ -284,7 +284,7 @@ class RefTagSerializer(TagSerializer):
         }
 
 
-class AttributeTagSerializer(TagSerializer):
+class AttributeTagTranslator(TagTranslator):
     """
     <!ELEMENT attribute (citationref*, noteref*)>
     <!ATTLIST attribute
@@ -299,12 +299,12 @@ class AttributeTagSerializer(TagSerializer):
         'value': str,
     }
     TAGS = {
-        'citationref': MaybeMany(RefTagSerializer),
-        'noteref': MaybeMany(RefTagSerializer),
+        'citationref': MaybeMany(RefTagTranslator),
+        'noteref': MaybeMany(RefTagTranslator),
     }
 
 
-class EventRefTagSerializer(RefTagSerializer):
+class EventRefTagTranslator(RefTagTranslator):
     """
     <!ELEMENT eventref (attribute*, noteref*)>
     <!ATTLIST eventref
@@ -318,12 +318,12 @@ class EventRefTagSerializer(RefTagSerializer):
         'role': str,
     }
     TAGS = {
-        'attribute': MaybeMany(AttributeTagSerializer),
-        'noteref': MaybeMany(RefTagSerializer),
+        'attribute': MaybeMany(AttributeTagTranslator),
+        'noteref': MaybeMany(RefTagTranslator),
     }
 
 
-class MediaObjectRefTagSerializer(RefTagSerializer):
+class MediaObjectRefTagTranslator(RefTagTranslator):
     """
     <!ELEMENT objref (region?, attribute*, citationref*, noteref*)>
     <!ATTLIST objref
@@ -335,7 +335,7 @@ class MediaObjectRefTagSerializer(RefTagSerializer):
         'hlink': str,
     }
     TAGS = {
-        'region': MaybeOne(tag_serializer_factory(attrs={
+        'region': MaybeOne(tag_translator_factory(attrs={
             'corner1_x': int,
             'corner1_y': int,
             'corner2_x': int,
@@ -344,7 +344,7 @@ class MediaObjectRefTagSerializer(RefTagSerializer):
     }
 
 
-class ChildRefTagSerializer(RefTagSerializer):
+class ChildRefTagTranslator(RefTagTranslator):
     """
     <!-- (None|Birth|Adopted|Stepchild|Sponsored|Foster|Other|Unknown) -->
     <!ELEMENT childref (citationref*,noteref*)>
@@ -358,12 +358,12 @@ class ChildRefTagSerializer(RefTagSerializer):
     # NOTE: both `mrel` and `frel` are ENUMs, see DTD.
     ATTRS = 'hlink', 'priv', 'mrel', 'frel'
     TAGS = {
-        'citationref': MaybeMany(RefTagSerializer),
-        'noteref': MaybeMany(RefTagSerializer),
+        'citationref': MaybeMany(RefTagTranslator),
+        'noteref': MaybeMany(RefTagTranslator),
     }
 
 
-#class DateRangeTagSerializer(TagSerializer):
+#class DateRangeTagTranslator(TagTranslator):
 #    """
 #    <!ELEMENT daterange EMPTY>
 #    <!ATTLIST daterange
@@ -385,7 +385,7 @@ class ChildRefTagSerializer(RefTagSerializer):
 #    }
 #
 #
-#class DateSpanTagSerializer(TagSerializer):
+#class DateSpanTagTranslator(TagTranslator):
 #    """
 #    <!ELEMENT datespan EMPTY>
 #    <!ATTLIST datespan
@@ -408,7 +408,7 @@ class ChildRefTagSerializer(RefTagSerializer):
 #
 #
 ## TODO: transform (WTFamily has a different inner structure)
-#class DateValTagSerializer(TagSerializer):
+#class DateValTagTranslator(TagTranslator):
 #    """
 #    <!ELEMENT dateval EMPTY>
 #    <!ATTLIST dateval
@@ -430,7 +430,7 @@ class ChildRefTagSerializer(RefTagSerializer):
 #    }
 #
 #
-#class DateStrTagSerializer(TagSerializer):
+#class DateStrTagTranslator(TagTranslator):
 #    """
 #    <!ELEMENT datestr EMPTY>
 #    <!ATTLIST datestr val CDATA #REQUIRED>
@@ -461,7 +461,7 @@ class ChildRefTagSerializer(RefTagSerializer):
 #        }
 
 
-class AddressTagSerializer(TagSerializer):
+class AddressTagTranslator(TagTranslator):
     """
     <!ELEMENT address ((daterange|datespan|dateval|datestr)?, street?,
                                        locality?, city?, county?, state?, country?, postal?,
@@ -480,27 +480,27 @@ class AddressTagSerializer(TagSerializer):
     TAGS = {
         ## TODO: MaybeOne(EitherOf(...))
         ## TODO: 'dateval': DateValExtractor(key='date'),
-        #'daterange': MaybeOne(DateRangeTagSerializer),
-        #'datespan': MaybeOne(DateSpanTagSerializer),
-        #'dateval': MaybeOne(DateValTagSerializer),
-        #'datestr': MaybeOne(DateStrTagSerializer),
+        #'daterange': MaybeOne(DateRangeTagTranslator),
+        #'datespan': MaybeOne(DateSpanTagTranslator),
+        #'dateval': MaybeOne(DateValTagTranslator),
+        #'datestr': MaybeOne(DateStrTagTranslator),
 
-        'street': MaybeOne(TextTagSerializer),
-        'locality': MaybeOne(TextTagSerializer),
-        'city': MaybeOne(TextTagSerializer),
-        'county': MaybeOne(TextTagSerializer),
-        'state': MaybeOne(TextTagSerializer),
-        'country': MaybeOne(TextTagSerializer),
-        'postal': MaybeOne(TextTagSerializer),
-        'phone': MaybeOne(TextTagSerializer),
+        'street': MaybeOne(TextTagTranslator),
+        'locality': MaybeOne(TextTagTranslator),
+        'city': MaybeOne(TextTagTranslator),
+        'county': MaybeOne(TextTagTranslator),
+        'state': MaybeOne(TextTagTranslator),
+        'country': MaybeOne(TextTagTranslator),
+        'postal': MaybeOne(TextTagTranslator),
+        'phone': MaybeOne(TextTagTranslator),
 
-        'noteref': MaybeMany(RefTagSerializer),
-        'citationref': MaybeMany(RefTagSerializer),
+        'noteref': MaybeMany(RefTagTranslator),
+        'citationref': MaybeMany(RefTagTranslator),
     }
     CONTRIBUTORS = DateContributor,
 
 
-class LocationTagSerializer(TagSerializer):
+class LocationTagTranslator(TagTranslator):
     """
     <!ATTLIST location
             street   CDATA #IMPLIED
@@ -518,7 +518,7 @@ class LocationTagSerializer(TagSerializer):
              'country', 'postal', 'phone')
 
 
-class PlaceNameTagSerializer(TagSerializer):
+class PlaceNameTagTranslator(TagTranslator):
     """
     <!ELEMENT pname (daterange|datespan|dateval|datestr)?>
 
@@ -529,16 +529,16 @@ class PlaceNameTagSerializer(TagSerializer):
     """
     TAGS = {
         ## TODO: MaybeOne(EitherOf(...))
-        #'daterange': MaybeOne(DateRangeTagSerializer),
-        #'datespan': MaybeOne(DateSpanTagSerializer),
-        #'dateval': MaybeOne(DateValTagSerializer),
-        #'datestr': MaybeOne(DateStrTagSerializer),
+        #'daterange': MaybeOne(DateRangeTagTranslator),
+        #'datespan': MaybeOne(DateSpanTagTranslator),
+        #'dateval': MaybeOne(DateValTagTranslator),
+        #'datestr': MaybeOne(DateStrTagTranslator),
     }
     ATTRS = 'lang', 'value'
     CONTRIBUTORS = DateContributor,
 
 
-class PersonNameTagSerializer(TagSerializer):
+class PersonNameTagTranslator(TagTranslator):
     """
     <!ELEMENT name    (first?, call?, surname*, suffix?, title?, nick?, familynick?, group?,
                       (daterange|datespan|dateval|datestr)?, noteref*, citationref*)>
@@ -570,28 +570,28 @@ class PersonNameTagSerializer(TagSerializer):
         'display': str,
     }
     TAGS = {
-        'first': MaybeOne(TextTagSerializer),
-        'call': MaybeOne(TextTagSerializer),
-        'surname': MaybeMany(PersonSurnameTagSerializer),
-        'suffix': MaybeOne(TextTagSerializer),
-        'title': MaybeOne(TextTagSerializer),
-        'nick': MaybeOne(TextTagSerializer),
-        'familynick': MaybeOne(TextTagSerializer),
-        'group': MaybeOne(TextTagSerializer),
+        'first': MaybeOne(TextTagTranslator),
+        'call': MaybeOne(TextTagTranslator),
+        'surname': MaybeMany(PersonSurnameTagTranslator),
+        'suffix': MaybeOne(TextTagTranslator),
+        'title': MaybeOne(TextTagTranslator),
+        'nick': MaybeOne(TextTagTranslator),
+        'familynick': MaybeOne(TextTagTranslator),
+        'group': MaybeOne(TextTagTranslator),
 
         ## TODO: MaybeOne(EitherOf(...))
-        #'daterange': MaybeOne(DateRangeTagSerializer),
-        #'datespan': MaybeOne(DateSpanTagSerializer),
-        #'dateval': MaybeOne(DateValTagSerializer),
-        #'datestr': MaybeOne(DateStrTagSerializer),
+        #'daterange': MaybeOne(DateRangeTagTranslator),
+        #'datespan': MaybeOne(DateSpanTagTranslator),
+        #'dateval': MaybeOne(DateValTagTranslator),
+        #'datestr': MaybeOne(DateStrTagTranslator),
 
-        'noteref': MaybeMany(RefTagSerializer),
-        'citationref': MaybeMany(RefTagSerializer),
+        'noteref': MaybeMany(RefTagTranslator),
+        'citationref': MaybeMany(RefTagTranslator),
     }
     CONTRIBUTORS = DateContributor,
 
 
-class PersonRefTagSerializer(RefTagSerializer):
+class PersonRefTagTranslator(RefTagTranslator):
     """
     <!ELEMENT personref (citationref*, noteref*)>
     <!ATTLIST personref
@@ -606,12 +606,12 @@ class PersonRefTagSerializer(RefTagSerializer):
         'rel': str,
     }
     TAGS = {
-        'citationref': MaybeMany(RefTagSerializer),
-        'noteref': MaybeMany(RefTagSerializer),
+        'citationref': MaybeMany(RefTagTranslator),
+        'noteref': MaybeMany(RefTagTranslator),
     }
 
 
-class PersonSerializer(TagSerializer):
+class PersonTranslator(TagTranslator):
     """
     <!ELEMENT people (person)*>
     <!ATTLIST people
@@ -639,24 +639,24 @@ class PersonSerializer(TagSerializer):
         'change': datetime.datetime,
     }
     TAGS = {
-        'gender': One(PersonGenderTagSerializer),
-        'name': MaybeMany(PersonNameTagSerializer),
-        'eventref': MaybeMany(EventRefTagSerializer),
+        'gender': One(PersonGenderTagTranslator),
+        'name': MaybeMany(PersonNameTagTranslator),
+        'eventref': MaybeMany(EventRefTagTranslator),
         #'lds_ord': ... - WTF?
-        'objref': MaybeMany(MediaObjectRefTagSerializer),
-        'address': MaybeMany(AddressTagSerializer),
-        'attribute': MaybeMany(AttributeTagSerializer),
-        'url': MaybeMany(UrlTagSerializer),
-        'childof': MaybeMany(RefTagSerializer),
-        'parentin': MaybeMany(RefTagSerializer),
-        'personref': MaybeMany(PersonRefTagSerializer),
-        'noteref': MaybeMany(RefTagSerializer),
-        'citationref': MaybeMany(RefTagSerializer),
-        'tagref': MaybeMany(RefTagSerializer),
+        'objref': MaybeMany(MediaObjectRefTagTranslator),
+        'address': MaybeMany(AddressTagTranslator),
+        'attribute': MaybeMany(AttributeTagTranslator),
+        'url': MaybeMany(UrlTagTranslator),
+        'childof': MaybeMany(RefTagTranslator),
+        'parentin': MaybeMany(RefTagTranslator),
+        'personref': MaybeMany(PersonRefTagTranslator),
+        'noteref': MaybeMany(RefTagTranslator),
+        'citationref': MaybeMany(RefTagTranslator),
+        'tagref': MaybeMany(RefTagTranslator),
     }
 
 
-class FamilySerializer(TagSerializer):
+class FamilyTranslator(TagTranslator):
     """
     <!ELEMENT families (family)*>
 
@@ -681,20 +681,20 @@ class FamilySerializer(TagSerializer):
         'change': datetime.datetime,
     }
     TAGS = {
-        'rel': MaybeOne(tag_serializer_factory(attrs=['type'])),
-        'father': MaybeOne(RefTagSerializer),
-        'mother': MaybeOne(RefTagSerializer),
-        'eventref': MaybeMany(EventRefTagSerializer),
-        'objref': MaybeMany(MediaObjectRefTagSerializer),
-        'childref': MaybeMany(ChildRefTagSerializer),
-        'attribute': MaybeMany(AttributeTagSerializer),
-        'noteref': MaybeMany(RefTagSerializer),
-        'citationref': MaybeMany(RefTagSerializer),
-        'tagref': MaybeMany(RefTagSerializer),
+        'rel': MaybeOne(tag_translator_factory(attrs=['type'])),
+        'father': MaybeOne(RefTagTranslator),
+        'mother': MaybeOne(RefTagTranslator),
+        'eventref': MaybeMany(EventRefTagTranslator),
+        'objref': MaybeMany(MediaObjectRefTagTranslator),
+        'childref': MaybeMany(ChildRefTagTranslator),
+        'attribute': MaybeMany(AttributeTagTranslator),
+        'noteref': MaybeMany(RefTagTranslator),
+        'citationref': MaybeMany(RefTagTranslator),
+        'tagref': MaybeMany(RefTagTranslator),
     }
 
 
-class EventSerializer(TagSerializer):
+class EventTranslator(TagTranslator):
     """
     <!ELEMENT events (event)*>
 
@@ -709,28 +709,28 @@ class EventSerializer(TagSerializer):
         'change': datetime.datetime,
     }
     TAGS = {
-        'type': MaybeOne(TextTagSerializer),
+        'type': MaybeOne(TextTagTranslator),
 
         ## TODO: MaybeOne(EitherOf(...))
         ## (daterange | datespan | dateval | datestr)?,
-        #'daterange': MaybeOne(DateRangeTagSerializer),
-        #'datespan': MaybeOne(DateSpanTagSerializer),
-        #'dateval': MaybeOne(DateValTagSerializer),
-        #'datestr': MaybeOne(DateStrTagSerializer),
+        #'daterange': MaybeOne(DateRangeTagTranslator),
+        #'datespan': MaybeOne(DateSpanTagTranslator),
+        #'dateval': MaybeOne(DateValTagTranslator),
+        #'datestr': MaybeOne(DateStrTagTranslator),
 
-        'place': MaybeOne(RefTagSerializer),
-        'cause': MaybeOne(TextTagSerializer),
-        'description': MaybeOne(TextTagSerializer),
-        'attribute': MaybeMany(AttributeTagSerializer),
-        'noteref': MaybeMany(RefTagSerializer),
-        'citationref': MaybeMany(RefTagSerializer),
-        'objref': MaybeMany(MediaObjectRefTagSerializer),
-        'tagref': MaybeMany(RefTagSerializer),
+        'place': MaybeOne(RefTagTranslator),
+        'cause': MaybeOne(TextTagTranslator),
+        'description': MaybeOne(TextTagTranslator),
+        'attribute': MaybeMany(AttributeTagTranslator),
+        'noteref': MaybeMany(RefTagTranslator),
+        'citationref': MaybeMany(RefTagTranslator),
+        'objref': MaybeMany(MediaObjectRefTagTranslator),
+        'tagref': MaybeMany(RefTagTranslator),
     }
     CONTRIBUTORS = DateContributor,
 
 
-class SourceSerializer(TagSerializer):
+class SourceTranslator(TagTranslator):
     """
     <!ELEMENT sources (source)*>
     <!ELEMENT source (stitle?, sauthor?, spubinfo?, sabbrev?,
@@ -747,20 +747,20 @@ class SourceSerializer(TagSerializer):
         'change': datetime.datetime,
     }
     TAGS = {
-        'stitle': MaybeOne(TextTagSerializer),
-        'sauthor': MaybeOne(TextTagSerializer),
-        'spubinfo': MaybeOne(TextTagSerializer),
-        'sabbrev': MaybeOne(TextTagSerializer),
-        'noteref': MaybeMany(RefTagSerializer),
-        'objref': MaybeMany(MediaObjectRefTagSerializer),
-        'srcattribute': MaybeMany(tag_serializer_factory(attrs=('priv', 'type',
+        'stitle': MaybeOne(TextTagTranslator),
+        'sauthor': MaybeOne(TextTagTranslator),
+        'spubinfo': MaybeOne(TextTagTranslator),
+        'sabbrev': MaybeOne(TextTagTranslator),
+        'noteref': MaybeMany(RefTagTranslator),
+        'objref': MaybeMany(MediaObjectRefTagTranslator),
+        'srcattribute': MaybeMany(tag_translator_factory(attrs=('priv', 'type',
                                                                 'value'))),
-        'reporef': MaybeMany(RefTagSerializer),
-        'tagref': MaybeMany(RefTagSerializer),
+        'reporef': MaybeMany(RefTagTranslator),
+        'tagref': MaybeMany(RefTagTranslator),
     }
 
 
-class PlaceCoordTagSerializer(TagSerializer):
+class PlaceCoordTagTranslator(TagTranslator):
     """
     <!ELEMENT coord EMPTY>
     <!ATTLIST coord
@@ -774,7 +774,7 @@ class PlaceCoordTagSerializer(TagSerializer):
     }
 
 
-class PlaceSerializer(TagSerializer):
+class PlaceTranslator(TagTranslator):
     """
     <!ELEMENT placeobj (ptitle?, pname+, code?, coord?, placeref*, location*,
                         objref*, url*, noteref*, citationref*, tagref*)>
@@ -792,21 +792,21 @@ class PlaceSerializer(TagSerializer):
         'type': str,
     }
     TAGS = {
-        'ptitle': MaybeOne(TextTagSerializer),
-        'pname': OneOrMore(PlaceNameTagSerializer),
-        'code': MaybeOne(TextTagSerializer),
-        'coord': MaybeOne(PlaceCoordTagSerializer),
-        'placeref': MaybeMany(RefTagSerializer),
-        'location': MaybeMany(LocationTagSerializer),
-        'objref': MaybeMany(MediaObjectRefTagSerializer),
-        'url': MaybeMany(UrlTagSerializer),
-        'noteref': MaybeMany(RefTagSerializer),
-        'citationref': MaybeMany(RefTagSerializer),
-        'tagref': MaybeMany(RefTagSerializer),
+        'ptitle': MaybeOne(TextTagTranslator),
+        'pname': OneOrMore(PlaceNameTagTranslator),
+        'code': MaybeOne(TextTagTranslator),
+        'coord': MaybeOne(PlaceCoordTagTranslator),
+        'placeref': MaybeMany(RefTagTranslator),
+        'location': MaybeMany(LocationTagTranslator),
+        'objref': MaybeMany(MediaObjectRefTagTranslator),
+        'url': MaybeMany(UrlTagTranslator),
+        'noteref': MaybeMany(RefTagTranslator),
+        'citationref': MaybeMany(RefTagTranslator),
+        'tagref': MaybeMany(RefTagTranslator),
     }
 
 
-class MediaObjectSerializer(TagSerializer):
+class MediaObjectTranslator(TagTranslator):
     """
     <!ELEMENT object (file, attribute*, noteref*,
                      (daterange|datespan|dateval|datestr)?, citationref*, tagref*)>
@@ -826,24 +826,24 @@ class MediaObjectSerializer(TagSerializer):
         'change': datetime.datetime,
     }
     TAGS = {
-        'file': One(tag_serializer_factory(
+        'file': One(tag_translator_factory(
             attrs=('src', 'mime', 'checksum', 'description'))),
-        'attribute': MaybeMany(AttributeTagSerializer),
-        'noteref': MaybeMany(RefTagSerializer),
+        'attribute': MaybeMany(AttributeTagTranslator),
+        'noteref': MaybeMany(RefTagTranslator),
 
         ## TODO: MaybeOne(EitherOf(...))
-        #'daterange': MaybeOne(DateRangeTagSerializer),
-        #'datespan': MaybeOne(DateSpanTagSerializer),
-        #'dateval': MaybeOne(DateValTagSerializer),
-        #'datestr': MaybeOne(DateStrTagSerializer),
+        #'daterange': MaybeOne(DateRangeTagTranslator),
+        #'datespan': MaybeOne(DateSpanTagTranslator),
+        #'dateval': MaybeOne(DateValTagTranslator),
+        #'datestr': MaybeOne(DateStrTagTranslator),
 
-        'citationref': MaybeMany(RefTagSerializer),
-        'tagref': MaybeMany(RefTagSerializer),
+        'citationref': MaybeMany(RefTagTranslator),
+        'tagref': MaybeMany(RefTagTranslator),
     }
     CONTRIBUTORS = DateContributor,
 
 
-class RepositorySerializer(TagSerializer):
+class RepositoryTranslator(TagTranslator):
     """
     <!ELEMENT repositories (repository)*>
 
@@ -864,16 +864,16 @@ class RepositorySerializer(TagSerializer):
         'change': datetime.datetime,
     }
     TAGS = {
-        'rname': One(TextTagSerializer),
-        'type': One(TextTagSerializer),
-        'address': MaybeMany(AddressTagSerializer),
-        'url': MaybeMany(UrlTagSerializer),
-        'noteref': MaybeMany(RefTagSerializer),
-        'tagref': MaybeMany(RefTagSerializer),
+        'rname': One(TextTagTranslator),
+        'type': One(TextTagTranslator),
+        'address': MaybeMany(AddressTagTranslator),
+        'url': MaybeMany(UrlTagTranslator),
+        'noteref': MaybeMany(RefTagTranslator),
+        'tagref': MaybeMany(RefTagTranslator),
     }
 
 
-class NoteStyleSerializer(TagSerializer):
+class NoteStyleTranslator(TagTranslator):
     """
     <!ELEMENT style (range+)>
     <!ATTLIST style
@@ -902,7 +902,7 @@ class NoteStyleSerializer(TagSerializer):
     }
 
 
-class NoteSerializer(TagSerializer):
+class NoteTranslator(TagTranslator):
     """
     <!ELEMENT note (text, style*, tagref*)>
     <!ATTLIST note
@@ -923,13 +923,13 @@ class NoteSerializer(TagSerializer):
         'format': bool,
     }
     TAGS = {
-        'text': One(TextTagSerializer),
-        'tagref': MaybeMany(RefTagSerializer),
-        'style': MaybeMany(NoteStyleSerializer),
+        'text': One(TextTagTranslator),
+        'tagref': MaybeMany(RefTagTranslator),
+        'style': MaybeMany(NoteStyleTranslator),
     }
 
 
-#class TagObjectSerializer(TagSerializer):
+#class TagObjectTranslator(TagTranslator):
 #    """
 #    <!ELEMENT tag EMPTY>
 #    <!ATTLIST tag
@@ -944,7 +944,7 @@ class NoteSerializer(TagSerializer):
 #    ATTRS = 'handle', 'name', 'color', 'priority', 'change'
 
 
-class CitationSerializer(TagSerializer):
+class CitationTranslator(TagTranslator):
     """
     <!ELEMENT citation ((daterange|datespan|dateval|datestr)?, page?, confidence,
                         noteref*, objref*, srcattribute*, sourceref, tagref*)>
@@ -962,23 +962,23 @@ class CitationSerializer(TagSerializer):
     }
     TAGS = {
         ## TODO: MaybeOne(EitherOf(...))
-        #'daterange': MaybeOne(DateRangeTagSerializer),
-        #'datespan': MaybeOne(DateSpanTagSerializer),
-        #'dateval': MaybeOne(DateValTagSerializer),
-        #'datestr': MaybeOne(DateStrTagSerializer),
+        #'daterange': MaybeOne(DateRangeTagTranslator),
+        #'datespan': MaybeOne(DateSpanTagTranslator),
+        #'dateval': MaybeOne(DateValTagTranslator),
+        #'datestr': MaybeOne(DateStrTagTranslator),
 
-        'page': MaybeOne(TextTagSerializer),
-        'confidence': One(TextTagSerializer),
-        'noteref': MaybeMany(RefTagSerializer),
-        'objref': MaybeMany(MediaObjectRefTagSerializer),
-        'srcattribute': MaybeMany(AttributeTagSerializer),
-        'sourceref': One(RefTagSerializer),
-        'tagref': MaybeMany(RefTagSerializer),
+        'page': MaybeOne(TextTagTranslator),
+        'confidence': One(TextTagTranslator),
+        'noteref': MaybeMany(RefTagTranslator),
+        'objref': MaybeMany(MediaObjectRefTagTranslator),
+        'srcattribute': MaybeMany(AttributeTagTranslator),
+        'sourceref': One(RefTagTranslator),
+        'tagref': MaybeMany(RefTagTranslator),
     }
     CONTRIBUTORS = DateContributor,
 
 
-class BookmarkSerializer(TagSerializer):
+class BookmarkTranslator(TagTranslator):
     """
     <!ELEMENT bookmarks (bookmark)*>
     <!ELEMENT bookmark EMPTY>
@@ -994,7 +994,7 @@ class BookmarkSerializer(TagSerializer):
     }
 
 
-class NameMapSerializer(TagSerializer):
+class NameMapTranslator(TagTranslator):
     """
     <!ELEMENT namemaps (map)*>
     <!ELEMENT map EMPTY>
@@ -1011,7 +1011,7 @@ class NameMapSerializer(TagSerializer):
     }
 
 
-class NameFormatSerializer(TagSerializer):
+class NameFormatTranslator(TagTranslator):
     """
     <!ELEMENT name-formats (format)*>
     <!ELEMENT format EMPTY>

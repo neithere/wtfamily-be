@@ -50,7 +50,7 @@ from models import (Entity, Person, Family, Event, Citation, Source, Place,
                     Repository, MediaObject, Note, Bookmark, NameMap,
                     NameFormat)
 
-import etl.serializers as s
+import etl.translators as s
 
 
 WTFAMILY_APP_NAME = 'WTFamily'
@@ -84,19 +84,19 @@ def build_xml(db):
     Entity._get_database = lambda: db
 
     model_to_tag = {
-        Person: ('people', 'person', s.PersonSerializer),
-        Family: ('families', 'family', s.FamilySerializer),
-        Event: ('events', 'event', s.EventSerializer),
-        Source: ('sources', 'source', s.SourceSerializer),
-        Place: ('places', 'placeobj', s.PlaceSerializer),
-        MediaObject: ('objects', 'object', s.MediaObjectSerializer),
-        Repository: ('repositories', 'repository', s.RepositorySerializer),
-        Note: ('notes', 'note', s.NoteSerializer),
-        # TODO: Tag: ('tags', 'tag', s.TagSerializer),
-        Citation: ('citations', 'citation', s.CitationSerializer),
-        Bookmark: ('bookmarks', 'bookmark', s.BookmarkSerializer),
-        NameMap: ('namemaps', 'map', s.NameMapSerializer),
-        NameFormat: ('name-formats', 'format', s.NameFormatSerializer),
+        Person: ('people', 'person', s.PersonTranslator),
+        Family: ('families', 'family', s.FamilyTranslator),
+        Event: ('events', 'event', s.EventTranslator),
+        Source: ('sources', 'source', s.SourceTranslator),
+        Place: ('places', 'placeobj', s.PlaceTranslator),
+        MediaObject: ('objects', 'object', s.MediaObjectTranslator),
+        Repository: ('repositories', 'repository', s.RepositoryTranslator),
+        Note: ('notes', 'note', s.NoteTranslator),
+        # TODO: Tag: ('tags', 'tag', s.TagTranslator),
+        Citation: ('citations', 'citation', s.CitationTranslator),
+        Bookmark: ('bookmarks', 'bookmark', s.BookmarkTranslator),
+        NameMap: ('namemaps', 'map', s.NameMapTranslator),
+        NameFormat: ('name-formats', 'format', s.NameFormatTranslator),
     }
     models = (Person, Family, Event, Citation, Source, Place, Repository,
               MediaObject, Note, Bookmark, NameMap, NameFormat)
@@ -116,21 +116,21 @@ def build_xml(db):
     # Now that we have the full mapping, proceed to export record by record.
     for model in models:
 
-        # XXX debug stuff, remove once all serializers are ready.
+        # XXX debug stuff, remove once all translators are ready.
         if model not in model_to_tag:
-            sys.stderr.write('ERROR: Model {.__name__} has no serializer '
+            sys.stderr.write('ERROR: Model {.__name__} has no translator '
                              'defined.\n'.format(model))
             continue
 
-        group_tag, item_tag, ItemSerializer = model_to_tag[model]
+        group_tag, item_tag, ItemTranslator = model_to_tag[model]
 
         group_el = etree.SubElement(tree_el, group_tag)
 
         items = model.find()
 
         for item in items:
-            item_serializer = ItemSerializer()
-            item_el = item_serializer.to_xml(item_tag, item._data,
+            item_translator = ItemTranslator()
+            item_el = item_translator.to_xml(item_tag, item._data,
                                              id_to_handle)
             group_el.append(item_el)
 
