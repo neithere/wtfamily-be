@@ -45,6 +45,135 @@ from .generic import (
 )
 
 
+def _get_child(el, child_tag):
+    for child_el in el.getchildren():
+        if child_el.tag == child_tag:
+            return child_el
+
+
+def _dict_from_keys(src_data, verbatim_keys, renamed_keys=None):
+    data = {}
+
+    for k in verbatim_keys:
+        data[k] = src_data.get(k)
+
+    if renamed_keys:
+        for k, new_name in renamed_keys.items():
+            data[new_name] = src_data.get(k)
+
+    return data
+
+
+def _filter_dict(**kwargs):
+    data = {}
+    for k in kwargs:
+        v = kwargs[k]
+        if v:
+            data[k] = v
+    return data
+
+
+class DateContributor:
+    """
+    <!ELEMENT daterange EMPTY>
+    <!ATTLIST daterange
+            start     CDATA                  #REQUIRED
+            stop      CDATA                  #REQUIRED
+            quality   (estimated|calculated) #IMPLIED
+            cformat   CDATA                  #IMPLIED
+            dualdated (0|1)                  #IMPLIED
+            newyear   CDATA                  #IMPLIED
+    >
+
+    <!ELEMENT datespan EMPTY>
+    <!ATTLIST datespan
+            start     CDATA                  #REQUIRED
+            stop      CDATA                  #REQUIRED
+            quality   (estimated|calculated) #IMPLIED
+            cformat   CDATA                  #IMPLIED
+            dualdated (0|1)                  #IMPLIED
+            newyear   CDATA                  #IMPLIED
+    >
+
+    <!ELEMENT dateval EMPTY>
+    <!ATTLIST dateval
+            val       CDATA                  #REQUIRED
+            type      (before|after|about)   #IMPLIED
+            quality   (estimated|calculated) #IMPLIED
+            cformat   CDATA                  #IMPLIED
+            dualdated (0|1)                  #IMPLIED
+            newyear   CDATA                  #IMPLIED
+    >
+
+    <!ELEMENT datestr EMPTY>
+    <!ATTLIST datestr val CDATA #REQUIRED>
+    """
+
+    # TODO:
+    # - cformat
+    # - dualdated
+    # - newyear
+
+    MOD_TEXTONLY = 'textonly'
+    MOD_RANGE = 'range'
+    MOD_SPAN = 'span'
+
+    @classmethod
+    def from_xml(cls, el):
+        datestr_el = _get_child(el, 'datestr')
+        dateval_el = _get_child(el, 'dateval')
+        daterange_el = _get_child(el, 'daterange')
+        datespan_el = _get_child(el, 'datespan')
+
+        # can't say just `foo or bar` because Element.__bool__ is deprecated :(
+        elems = datestr_el, dateval_el, daterange_el, datespan_el
+        active_el = [x for x in elems if x is not None][0]
+
+        date = _dict_from_keys(active_el.attrib,
+                               verbatim_keys=['start', 'stop', 'quality'],
+                               renamed_keys={'val': 'value'})
+
+        if datestr_el is not None:
+            modifier = cls.MOD_TEXTONLY
+        elif daterange_el is not None:
+            modifier = cls.MOD_RANGE
+        elif datespan_el is not None:
+            modifier = cls.MOD_SPAN
+        else:
+            modifier = active_el.get('type')
+
+        date = _filter_dict(modifier=modifier, **date)
+
+        return {
+            'date': date,
+        }
+
+    @classmethod
+    def to_xml(cls, data):
+        date_data = data.get('date')
+        if not date_data:
+            return []
+
+        kwargs = _dict_from_keys(date_data,
+                                 verbatim_keys=('quality', 'start', 'stop'),
+                                 renamed_keys={'value': 'val'})
+
+        modifier = date_data.get('modifier')
+
+        if modifier == cls.MOD_RANGE:
+            tag = 'daterange'
+        elif modifier == cls.MOD_SPAN:
+            tag = 'datespan'
+        elif modifier == cls.MOD_TEXTONLY:
+            tag = 'datestr'
+        else:
+            tag = 'dateval'
+            kwargs['type'] = modifier
+
+        kwargs = _filter_dict(**kwargs)
+        return [etree.Element(tag, **kwargs)]
+
+
 class UrlTagSerializer(TagSerializer):
     """
     <!ELEMENT url EMPTY>
@@ -234,82 +363,102 @@ class ChildRefTagSerializer(RefTagSerializer):
     }
 
 
-class DateRangeTagSerializer(TagSerializer):
-    """
-    <!ELEMENT daterange EMPTY>
-    <!ATTLIST daterange
-            start     CDATA                  #REQUIRED
-            stop      CDATA                  #REQUIRED
-            quality   (estimated|calculated) #IMPLIED
-            cformat   CDATA                  #IMPLIED
-            dualdated (0|1)                  #IMPLIED
-            newyear   CDATA                  #IMPLIED
-    >
-    """
-    ATTRS = {
-        'start': str,
-        'stop': str,
-        'quality': str,  # TODO: enum
-        'cformat': str,
-        'dualdated': bool,
-        'newyear': str,
-    }
-
-
-class DateSpanTagSerializer(TagSerializer):
-    """
-    <!ELEMENT datespan EMPTY>
-    <!ATTLIST datespan
-            start     CDATA                  #REQUIRED
-            stop      CDATA                  #REQUIRED
-            quality   (estimated|calculated) #IMPLIED
-            cformat   CDATA                  #IMPLIED
-            dualdated (0|1)                  #IMPLIED
-            newyear   CDATA                  #IMPLIED
-    >
-    """
-    ATTRS = {
-        'start': str,
-        'stop': str,
-        'quality': str,  # TODO: enum
-        'cformat': str,
-        'dualdated': bool,
-        'newyear': str,
-    }
-
-
-# TODO: transform (WTFamily has a different inner structure)
-class DateValTagSerializer(TagSerializer):
-    """
-    <!ELEMENT dateval EMPTY>
-    <!ATTLIST dateval
-            val       CDATA                  #REQUIRED
-            type      (before|after|about)   #IMPLIED
-            quality   (estimated|calculated) #IMPLIED
-            cformat   CDATA                  #IMPLIED
-            dualdated (0|1)                  #IMPLIED
-            newyear   CDATA                  #IMPLIED
-    >
-    """
-    ATTRS = {
-        'val': str,
-        'type': str,  # TODO: enum
-        'quality': str,  # TODO: enum
-        'cformat': str,
-        'dualdated': bool,
-        'newyear': str,
-    }
-
-
-class DateStrTagSerializer(TagSerializer):
-    """
-    <!ELEMENT datestr EMPTY>
-    <!ATTLIST datestr val CDATA #REQUIRED>
-    """
-    ATTRS = {
-        'val': str,
-    }
-    #TEXT_UNDER_ATTR = 'val'
+#class DateRangeTagSerializer(TagSerializer):
+#    """
+#    <!ELEMENT daterange EMPTY>
+#    <!ATTLIST daterange
+#            start     CDATA                  #REQUIRED
+#            stop      CDATA                  #REQUIRED
+#            quality   (estimated|calculated) #IMPLIED
+#            cformat   CDATA                  #IMPLIED
+#            dualdated (0|1)                  #IMPLIED
+#            newyear   CDATA                  #IMPLIED
+#    >
+#    """
+#    ATTRS = {
+#        'start': str,
+#        'stop': str,
+#        'quality': str,  # TODO: enum
+#        'cformat': str,
+#        'dualdated': bool,
+#        'newyear': str,
+#    }
+#
+#
+#class DateSpanTagSerializer(TagSerializer):
+#    """
+#    <!ELEMENT datespan EMPTY>
+#    <!ATTLIST datespan
+#            start     CDATA                  #REQUIRED
+#            stop      CDATA                  #REQUIRED
+#            quality   (estimated|calculated) #IMPLIED
+#            cformat   CDATA                  #IMPLIED
+#            dualdated (0|1)                  #IMPLIED
+#            newyear   CDATA                  #IMPLIED
+#    >
+#    """
+#    ATTRS = {
+#        'start': str,
+#        'stop': str,
+#        'quality': str,  # TODO: enum
+#        'cformat': str,
+#        'dualdated': bool,
+#        'newyear': str,
+#    }
+#
+#
+## TODO: transform (WTFamily has a different inner structure)
+#class DateValTagSerializer(TagSerializer):
+#    """
+#    <!ELEMENT dateval EMPTY>
+#    <!ATTLIST dateval
+#            val       CDATA                  #REQUIRED
+#            type      (before|after|about)   #IMPLIED
+#            quality   (estimated|calculated) #IMPLIED
+#            cformat   CDATA                  #IMPLIED
+#            dualdated (0|1)                  #IMPLIED
+#            newyear   CDATA                  #IMPLIED
+#    >
+#    """
+#    ATTRS = {
+#        'val': str,
+#        'type': str,  # TODO: enum
+#        'quality': str,  # TODO: enum
+#        'cformat': str,
+#        'dualdated': bool,
+#        'newyear': str,
+#    }
+#
+#
+#class DateStrTagSerializer(TagSerializer):
+#    """
+#    <!ELEMENT datestr EMPTY>
+#    <!ATTLIST datestr val CDATA #REQUIRED>
+#    """
+#
+#    # ignored during serialization
+#    ONLY_NORMALIZE = True
+#
+#    # XXX this works, but inside tag scope → useless (we need cross-tag scope)
+#    KEY = 'date'
+#
+#    ATTRS = {
+#        'val': str,
+#    }
+#
+#    def normalize_extra_attrs(self, data, *args):
+#        val = data.pop('val')
+#        return {
+#            # TODO: use constants from models
+#            'modifier': 'textonly',
+#            'value': val
+#        }
+#
+#    def serialize_extra_attrs(self, data, *args):
+#        print('serialize_extra_attrs', data)
+#        return {
+#            'foo': 123,
+#        }
 
 
 class AddressTagSerializer(TagSerializer):
@@ -328,14 +477,13 @@ class AddressTagSerializer(TagSerializer):
         <!ELEMENT postal   (#PCDATA)>
         <!ELEMENT phone    (#PCDATA)>
     """
-    # TODO: this is generic enough to make any ModelSerializer subclass of TagSerializer
     TAGS = {
-        # TODO: MaybeOne(EitherOf(...))
-        # TODO: 'dateval': DateValExtractor(key='date'),
-        'daterange': MaybeOne(DateRangeTagSerializer),
-        'datespan': MaybeOne(DateSpanTagSerializer),
-        'dateval': MaybeOne(DateValTagSerializer),
-        'datestr': MaybeOne(DateStrTagSerializer),
+        ## TODO: MaybeOne(EitherOf(...))
+        ## TODO: 'dateval': DateValExtractor(key='date'),
+        #'daterange': MaybeOne(DateRangeTagSerializer),
+        #'datespan': MaybeOne(DateSpanTagSerializer),
+        #'dateval': MaybeOne(DateValTagSerializer),
+        #'datestr': MaybeOne(DateStrTagSerializer),
 
         'street': MaybeOne(TextTagSerializer),
         'locality': MaybeOne(TextTagSerializer),
@@ -349,6 +497,7 @@ class AddressTagSerializer(TagSerializer):
         'noteref': MaybeMany(RefTagSerializer),
         'citationref': MaybeMany(RefTagSerializer),
     }
+    CONTRIBUTORS = DateContributor,
 
 
 class LocationTagSerializer(TagSerializer):
@@ -379,13 +528,14 @@ class PlaceNameTagSerializer(TagSerializer):
     >
     """
     TAGS = {
-        # TODO: MaybeOne(EitherOf(...))
-        'daterange': MaybeOne(DateRangeTagSerializer),
-        'datespan': MaybeOne(DateSpanTagSerializer),
-        'dateval': MaybeOne(DateValTagSerializer),
-        'datestr': MaybeOne(DateStrTagSerializer),
+        ## TODO: MaybeOne(EitherOf(...))
+        #'daterange': MaybeOne(DateRangeTagSerializer),
+        #'datespan': MaybeOne(DateSpanTagSerializer),
+        #'dateval': MaybeOne(DateValTagSerializer),
+        #'datestr': MaybeOne(DateStrTagSerializer),
     }
     ATTRS = 'lang', 'value'
+    CONTRIBUTORS = DateContributor,
 
 
 class PersonNameTagSerializer(TagSerializer):
@@ -429,15 +579,16 @@ class PersonNameTagSerializer(TagSerializer):
         'familynick': MaybeOne(TextTagSerializer),
         'group': MaybeOne(TextTagSerializer),
 
-        # TODO: MaybeOne(EitherOf(...))
-        'daterange': MaybeOne(DateRangeTagSerializer),
-        'datespan': MaybeOne(DateSpanTagSerializer),
-        'dateval': MaybeOne(DateValTagSerializer),
-        'datestr': MaybeOne(DateStrTagSerializer),
+        ## TODO: MaybeOne(EitherOf(...))
+        #'daterange': MaybeOne(DateRangeTagSerializer),
+        #'datespan': MaybeOne(DateSpanTagSerializer),
+        #'dateval': MaybeOne(DateValTagSerializer),
+        #'datestr': MaybeOne(DateStrTagSerializer),
 
         'noteref': MaybeMany(RefTagSerializer),
         'citationref': MaybeMany(RefTagSerializer),
     }
+    CONTRIBUTORS = DateContributor,
 
 
 class PersonRefTagSerializer(RefTagSerializer):
@@ -560,12 +711,12 @@ class EventSerializer(TagSerializer):
     TAGS = {
         'type': MaybeOne(TextTagSerializer),
 
-        # TODO: MaybeOne(EitherOf(...))
-        # (daterange | datespan | dateval | datestr)?,
-        'daterange': MaybeOne(DateRangeTagSerializer),
-        'datespan': MaybeOne(DateSpanTagSerializer),
-        'dateval': MaybeOne(DateValTagSerializer),
-        'datestr': MaybeOne(DateStrTagSerializer),
+        ## TODO: MaybeOne(EitherOf(...))
+        ## (daterange | datespan | dateval | datestr)?,
+        #'daterange': MaybeOne(DateRangeTagSerializer),
+        #'datespan': MaybeOne(DateSpanTagSerializer),
+        #'dateval': MaybeOne(DateValTagSerializer),
+        #'datestr': MaybeOne(DateStrTagSerializer),
 
         'place': MaybeOne(RefTagSerializer),
         'cause': MaybeOne(TextTagSerializer),
@@ -576,6 +727,7 @@ class EventSerializer(TagSerializer):
         'objref': MaybeMany(MediaObjectRefTagSerializer),
         'tagref': MaybeMany(RefTagSerializer),
     }
+    CONTRIBUTORS = DateContributor,
 
 
 class SourceSerializer(TagSerializer):
@@ -679,15 +831,16 @@ class MediaObjectSerializer(TagSerializer):
         'attribute': MaybeMany(AttributeTagSerializer),
         'noteref': MaybeMany(RefTagSerializer),
 
-        # TODO: MaybeOne(EitherOf(...))
-        'daterange': MaybeOne(DateRangeTagSerializer),
-        'datespan': MaybeOne(DateSpanTagSerializer),
-        'dateval': MaybeOne(DateValTagSerializer),
-        'datestr': MaybeOne(DateStrTagSerializer),
+        ## TODO: MaybeOne(EitherOf(...))
+        #'daterange': MaybeOne(DateRangeTagSerializer),
+        #'datespan': MaybeOne(DateSpanTagSerializer),
+        #'dateval': MaybeOne(DateValTagSerializer),
+        #'datestr': MaybeOne(DateStrTagSerializer),
 
         'citationref': MaybeMany(RefTagSerializer),
         'tagref': MaybeMany(RefTagSerializer),
     }
+    CONTRIBUTORS = DateContributor,
 
 
 class RepositorySerializer(TagSerializer):
@@ -808,11 +961,11 @@ class CitationSerializer(TagSerializer):
         'change': datetime.datetime,
     }
     TAGS = {
-        # TODO: MaybeOne(EitherOf(...))
-        'daterange': MaybeOne(DateRangeTagSerializer),
-        'datespan': MaybeOne(DateSpanTagSerializer),
-        'dateval': MaybeOne(DateValTagSerializer),
-        'datestr': MaybeOne(DateStrTagSerializer),
+        ## TODO: MaybeOne(EitherOf(...))
+        #'daterange': MaybeOne(DateRangeTagSerializer),
+        #'datespan': MaybeOne(DateSpanTagSerializer),
+        #'dateval': MaybeOne(DateValTagSerializer),
+        #'datestr': MaybeOne(DateStrTagSerializer),
 
         'page': MaybeOne(TextTagSerializer),
         'confidence': One(TextTagSerializer),
@@ -822,6 +975,7 @@ class CitationSerializer(TagSerializer):
         'sourceref': One(RefTagSerializer),
         'tagref': MaybeMany(RefTagSerializer),
     }
+    CONTRIBUTORS = DateContributor,
 
 
 class BookmarkSerializer(TagSerializer):

@@ -309,6 +309,12 @@ def _extract_dateval_type(value):
     }
     return mapping[type_]
 
+def _normalize_datestr(value):
+    return {
+        'modifier': DateRepresenter.MOD_TEXTONLY,
+        'value': value['val'],
+    }
+
 def _normalize_dateval(value):
     d = {
         'quality': _extract_dateval_quality(value),
@@ -346,6 +352,7 @@ def _normalize_bool(value):
 
 GLOBAL_FIELD_PROCESSORS = {
     'change': lambda v: datetime.datetime.utcfromtimestamp(int(v)) if v else None,
+    'datestr': _normalize_datestr,
     'dateval': _normalize_dateval,
     'datespan': _normalize_datespan,
     'daterange': _normalize_daterange,

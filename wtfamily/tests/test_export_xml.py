@@ -324,15 +324,13 @@ def test_entity_person():
         ],
         'address': [
             {
-                'dateval': [
-                    { 'val': '1690' }
-                ],
+                'date': {
+                    'value': '1690',
+                },
 
-                # XXX wait what... shouldn't those be single-value fields..?
-                # check DTD. it's about import though, not export.
-                'city': [ 'Аужбики' ],
-                'state': [ 'Поюрский повет' ],
-                'country': [ 'Самогитское княжество' ],
+                'city': 'Аужбики',
+                'state': 'Поюрский повет',
+                'country': 'Самогитское княжество',
 
                 'citationref': [
                     { 'id': 'metryka-p127' }
@@ -379,11 +377,11 @@ def test_entity_person():
         <region corner1_x="48" corner1_y="22" corner2_x="68" corner2_y="54"/>
       </objref>
       <address>
-        <dateval val="1690"/>
         <city>Аужбики</city>
         <state>Поюрский повет</state>
         <country>Самогитское княжество</country>
         <citationref hlink="handle-metryka-p127"/>
+        <dateval val="1690"/>
       </address>
       <childof hlink="handle-F0091"/>
       <childof hlink="handle-F0091a"/>

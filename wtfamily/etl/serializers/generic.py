@@ -150,22 +150,25 @@ class MaybeMany(AbstractTagCardinality):
         pass
 
 
-def tag_serializer_factory(tags=None, attrs=None, as_text=False, text_from=None):
+def tag_serializer_factory(tags=None, attrs=None, contributors=None,
+                           as_text=False):
 
     class AdHocTagSerializer(TagSerializer):
         TAGS = tags or {}
         ATTRS = attrs or ()
         AS_TEXT = as_text
-        TEXT_UNDER_KEY = text_from
+        CONTRIBUTORS = contributors or ()
 
     return AdHocTagSerializer
 
 
+# TODO: rename to TagTranslator?
 class TagSerializer:
     TAGS = {}
     ATTRS = ()
     AS_TEXT = False
     TEXT_UNDER_KEY = None
+    CONTRIBUTORS = ()
 
     def __init__(self):
         if self.TAGS and self.AS_TEXT:
@@ -215,34 +218,41 @@ class TagSerializer:
                 continue
 
             Serializer = self.TAGS[nested_tag]
+            serializer = Serializer()
 
             is_list = True
             if isinstance(Serializer, AbstractTagCardinality):
                 if Serializer.SINGLE_VALUE:
                     is_list = False
 
-            value = Serializer().from_xml(nested_el, handle_to_id=handle_to_id)
+            key = nested_tag
+            value = serializer.from_xml(nested_el, handle_to_id=handle_to_id)
 
             if is_list:
-                data.setdefault(nested_tag, []).append(value)
+                data.setdefault(key, []).append(value)
             else:
-                data[nested_tag] = value
+               data[key] = value
+
+        # let custom classes contribute to our data
+        for Contributor in self.CONTRIBUTORS:
+            contributed_data = Contributor.from_xml(el)
+            data.update(contributed_data)
 
         return data
 
     def to_xml(self, tag, data, id_to_handle):
-        elem = etree.Element(tag)
+        el = etree.Element(tag)
 
         for attr in self.ATTRS:
             value = data.get(attr)
 
             if value is not None:
-                elem.set(attr, serialize_attr_value(value))
+                el.set(attr, serialize_attr_value(value))
 
         extra_attrs = self.serialize_extra_attrs(data, id_to_handle)
         if extra_attrs:
             for key in sorted(extra_attrs):
-                elem.set(key, extra_attrs[key])
+                el.set(key, extra_attrs[key])
 
         for nested_tag, Serializer in self.TAGS.items():
 
@@ -259,8 +269,8 @@ class TagSerializer:
 
             for value in values:
                 serializer = Serializer()
-                nested_elem = serializer.to_xml(nested_tag, value, id_to_handle)
-                elem.append(nested_elem)
+                nested_el = serializer.to_xml(nested_tag, value, id_to_handle)
+                el.append(nested_el)
 
         try:
             if self.AS_TEXT:
@@ -272,10 +282,17 @@ class TagSerializer:
         except Exception as e:
             raise type(e)('{}: {}'.format(tag, e))
 
-        if text_value:
-            elem.text = text_value
+        # let custom classes contribute to our element
+        for Contributor in self.CONTRIBUTORS:
+            contributed_elems = Contributor.to_xml(data)
+            for contributed_el in contributed_elems:
+                if contributed_el is not None:
+                    el.append(contributed_el)
 
-        return elem
+        if text_value:
+            el.text = text_value
+
+        return el
 
     def normalize_extra_attrs(self, data, handle_to_id):
         return None

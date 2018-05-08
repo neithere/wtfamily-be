@@ -16,11 +16,12 @@
 #
 #    You should have received a copy of the GNU Lesser General Public License
 #    along with WTFamily.  If not, see <http://gnu.org/licenses/>.
+
 # NOTE: *not* the built-in library because it lacks pretty_print
 from lxml import etree
 import re
 
-import etl.serializers as m
+import etl.serializers as s
 
 
 def as_xml(el):
@@ -28,19 +29,28 @@ def as_xml(el):
 
 
 def trim(value):
-    lines = value.strip().split('\n')
-    unindented_lines = (re.sub('^    ', '', x) for x in lines)
-    return '\n'.join(unindented_lines) + '\n'
+    lines = value.strip('\n').split('\n')
+    first_xml_line = [x for x in lines if x][0]
+
+    base_indent = ''
+
+    m = re.match('^\s+', first_xml_line)
+    if m:
+        base_indent = m.group()
+
+    regex = re.compile('^{}'.format(base_indent))
+    unindented_lines = (regex.sub('', x) for x in lines if x)
+    return '\n'.join(unindented_lines).strip() + '\n'
 
 
 def test_basic_text():
-    class CafeSerializer(m.TagSerializer):
+    class CafeSerializer(s.TagSerializer):
         ATTRS = {
             'place': str
         }
         TAGS = {
-            'visitor': m.MaybeOne(m.TextTagSerializer),
-            'dish': m.OneOrMore(m.TextTagSerializer),
+            'visitor': s.MaybeOne(s.TextTagSerializer),
+            'dish': s.OneOrMore(s.TextTagSerializer),
         }
 
     data = {
@@ -70,21 +80,21 @@ def test_basic_text():
 
 
 def test_nested_text_under_key():
-    class PlaceSerializer(m.TagSerializer):
+    class PlaceSerializer(s.TagSerializer):
         ATTRS = {
             'name': str
         }
 
-    class DishSerializer(m.TagSerializer):
+    class DishSerializer(s.TagSerializer):
         ATTRS = {
             'base': str
         }
         TEXT_UNDER_KEY = 'text'
 
-    class CafeSerializer(m.TagSerializer):
+    class CafeSerializer(s.TagSerializer):
         TAGS = {
-            'place': m.One(PlaceSerializer),
-            'dish': m.OneOrMore(DishSerializer),
+            'place': s.One(PlaceSerializer),
+            'dish': s.OneOrMore(DishSerializer),
         }
 
     data = {
@@ -122,9 +132,9 @@ def test_nested_text_under_key():
 
 
 def test_list_of_strings():
-    class CafeSerializer(m.TagSerializer):
+    class CafeSerializer(s.TagSerializer):
         TAGS = {
-            'visitor': m.OneOrMore(m.TextTagSerializer)
+            'visitor': s.OneOrMore(s.TextTagSerializer)
         }
 
     data = {
@@ -153,3 +163,101 @@ def test_list_of_strings():
     # XML → data
     deserialized_from_xml = serializer.from_xml(etree.fromstring(xml))
     assert deserialized_from_xml == data
+
+
+class TestMappingMultipleTagsToOneKey:
+    """
+    GrampsXML keeps the date in one of a few tags; WTFamily uses a single key
+    to keep the same information.
+    """
+
+    tag = 'my-tag'
+    serializer = s.tag_serializer_factory(
+        tags={
+            # TODO: MaybeOne(EitherOf(...))
+            #'daterange': s.MaybeOne(s.DateRangeTagSerializer),
+            #'datespan': s.MaybeOne(s.DateSpanTagSerializer),
+            #'dateval': s.MaybeOne(s.DateValTagSerializer),
+            #'datestr': s.MaybeOne(s.DateStrTagSerializer),
+        },
+        contributors=(
+            s.DateContributor,
+        ))
+
+    def _wrap_xml(self, xml_string):
+        tmpl = trim('''
+        <{tag}>
+          {body}
+        </{tag}>
+        ''')
+        return tmpl.format(tag=self.tag, body=xml_string.strip())
+
+    def _to_xml(self, data):
+        return as_xml(self.serializer().to_xml(self.tag, data, {}))
+
+    def _from_xml(self, xml_string):
+        return self.serializer().from_xml(etree.fromstring(xml_string), {})
+
+    def test_datestr(self):
+        xml = self._wrap_xml('<datestr val="в детстве"/>')
+        data = {
+            'date': {
+                'value': 'в детстве',
+                'modifier': 'textonly',
+            }
+        }
+
+        # XML → data
+        assert self._from_xml(xml) == data
+
+        # data → XML
+        assert self._to_xml(data) == xml
+
+    def test_dateval(self):
+        xml = self._wrap_xml('<dateval quality="calculated" type="about" val="1855"/>')
+        data = {
+            'date': {
+                'value': '1855',
+                'modifier': 'about',
+                'quality': 'calculated',
+            }
+        }
+
+        # data → XML
+        assert self._to_xml(data) == xml
+
+        # XML → data
+        assert self._from_xml(xml) == data
+
+    def test_daterange(self):
+        xml = self._wrap_xml('<daterange quality="estimated" start="1790" stop="1810"/>')
+        data = {
+            'date': {
+                'start': '1790',
+                'stop': '1810',
+                'quality': 'estimated',
+                'modifier': 'range',
+            }
+        }
+
+        # data → XML
+        assert self._to_xml(data) == xml
+
+        # XML → data
+        assert self._from_xml(xml) == data
+
+    def test_datespan(self):
+        xml = self._wrap_xml('<datespan start="1864-07-13" stop="1864-08-07"/>')
+        data = {
+            'date': {
+                'start': '1864-07-13',
+                'stop': '1864-08-07',
+                'modifier': 'span',
+            }
+        }
+
+        # data → XML
+        assert self._to_xml(data) == xml
+
+        # XML → data
+        assert self._from_xml(xml) == data
