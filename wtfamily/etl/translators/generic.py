@@ -150,6 +150,10 @@ class MaybeMany(AbstractTagCardinality):
         pass
 
 
+class TagTranslatorContributor:
+    TAG_NAMES = ()
+
+
 def tag_translator_factory(tags=None, attrs=None, contributors=None,
                            as_text=False):
 
@@ -176,8 +180,13 @@ class TagTranslator:
             # the GrampsXML DTD.
             raise ValueError('TAGS and AS_TEXT are mutually exclusive.')
 
+    @property
+    def expected_tags(self):
+        return list(self.TAGS.keys()) + [c.TAG_NAMES for c in self.CONTRIBUTORS]
+
     def from_xml(self, el, handle_to_id=None):
         data = {}
+        attrs = {}
 
         for attr in el.attrib:
             if attr not in self.ATTRS:
@@ -190,16 +199,15 @@ class TagTranslator:
                 target_type = self.ATTRS[attr]
 
             value = el.get(attr)
-            data[attr] = normalize_attr_value(value, target_type)
+            attrs[attr] = normalize_attr_value(value, target_type)
 
         try:
-            extra_attrs = self.normalize_extra_attrs(data, handle_to_id)
+            attrs = self.post_normalize_attrs(attrs, handle_to_id)
         except Exception as e:
             print('{}: failed to normalize extra attrs'.format(el.tag))
             raise e
 
-        if extra_attrs:
-            data.update(extra_attrs)
+        data.update(attrs)
 
         if self.AS_TEXT:
             return el.text
@@ -212,7 +220,7 @@ class TagTranslator:
             # i.e. "{http://gramps-project.org/xml/1.7.1/}name" → "name"
             nested_tag = etree.QName(nested_el.tag).localname
 
-            if nested_tag not in self.TAGS:
+            if nested_tag not in self.expected_tags:
                 _debug('{}: unexpected nested tag {}'.format(el.tag, nested_tag))
 
                 continue
@@ -244,16 +252,13 @@ class TagTranslator:
     def to_xml(self, tag, data, id_to_handle):
         el = etree.Element(tag)
 
-        for attr in self.ATTRS:
-            value = data.get(attr)
+        attrs = self.pre_serialize_attrs(data, id_to_handle)
+
+        for attr in sorted(attrs):
+            value = attrs[attr]
 
             if value is not None:
                 el.set(attr, serialize_attr_value(value))
-
-        extra_attrs = self.serialize_extra_attrs(data, id_to_handle)
-        if extra_attrs:
-            for key in sorted(extra_attrs):
-                el.set(key, extra_attrs[key])
 
         for nested_tag, Translator in self.TAGS.items():
 
@@ -295,11 +300,27 @@ class TagTranslator:
 
         return el
 
-    def normalize_extra_attrs(self, data, handle_to_id):
-        return None
+    def post_normalize_attrs(self, attrs, handle_to_id):
+        """
+        Post-processes normalized tag attributes.
 
-    def serialize_extra_attrs(self, data, id_to_handle):
-        return None
+        :param attrs: Attributes extracted so far (using self.ATTRS).
+        """
+        return attrs
+
+    def pre_serialize_attrs(self, data, id_to_handle):
+        """
+        Pre-processes attributes for the serialized tag.  Returns the
+        attributes dictionary.  Can be used to add and remove attributes.
+
+        :param data: The source data dictionary.
+        """
+        attrs = {}
+
+        for attr in self.ATTRS:
+            attrs[attr] = data.get(attr)
+
+        return attrs
 
     def _make_text_value(self, value):
         if not isinstance(value, str):

@@ -312,14 +312,12 @@ def test_entity_person():
 	'objref': [
             {
                 'id': 'something_scanned',
-                'region': [
-                    {
-                        'corner1_x': '48',
-                        'corner1_y': '22',
-                        'corner2_x': '68',
-                        'corner2_y': '54'
-                    }
-                ],
+                'region': {
+                    'corner1_x': 48,
+                    'corner1_y': 22,
+                    'corner2_x': 68,
+                    'corner2_y': 54
+                }
             },
         ],
         'address': [
@@ -344,13 +342,14 @@ def test_entity_person():
         'metryka-p127'
     )
     id_to_handle = dict((k, 'handle-' + k) for k in ids_in_fixture)
+    handle_to_id = dict(('handle-' + k, k) for k in ids_in_fixture)
 
     expected = trim('''
-    <my-person id="auz_dawid_16xx" handle="_cdeb90490341f84abadc55e8d91" change="1482434357">
+    <my-person change="1482434357" handle="_cdeb90490341f84abadc55e8d91" id="auz_dawid_16xx">
       <gender>M</gender>
       <name type="Birth Name">
         <first>Давид</first>
-        <surname prim="1" derivation="Patronymic">Янович</surname>
+        <surname derivation="Patronymic" prim="1">Янович</surname>
         <surname derivation="Inherited">Авжбикович</surname>
         <citationref hlink="handle-C0053"/>
       </name>
@@ -369,10 +368,10 @@ def test_entity_person():
         <surname>Auzbikowicz</surname>
         <citationref hlink="handle-metryka-p127"/>
       </name>
-      <eventref role="Primary" hlink="handle-E0330"/>
-      <eventref role="Primary" hlink="handle-E0318"/>
-      <eventref role="Primary" hlink="handle-E1202"/>
-      <eventref role="Primary" hlink="handle-E1203"/>
+      <eventref hlink="handle-E0330" role="Primary"/>
+      <eventref hlink="handle-E0318" role="Primary"/>
+      <eventref hlink="handle-E1202" role="Primary"/>
+      <eventref hlink="handle-E1203" role="Primary"/>
       <objref hlink="handle-something_scanned">
         <region corner1_x="48" corner1_y="22" corner2_x="68" corner2_y="54"/>
       </objref>
@@ -390,7 +389,70 @@ def test_entity_person():
     </my-person>
     ''')
 
-    el = s.PersonTranslator().to_xml('my-person', data, id_to_handle)
-    serialized = as_xml(el)
+    translator = s.PersonTranslator()
 
+    # data → XML
+    el = translator.to_xml('my-person', data, id_to_handle)
+    serialized = as_xml(el)
     assert expected == serialized
+
+    # XML → data
+    normalized = translator.from_xml(etree.fromstring(serialized), handle_to_id)
+    assert data == dict(normalized, _id=data['_id'])
+    # XML doesn't have MongoDB's id ^^^^^^^^^^^^^^^ and it's OK
+
+
+def test_event_datespan():
+    xml = trim('''
+    <event handle="_dd3e4a81c567ed55d3c1395cce9" id="E1415">
+      <datespan quality="estimated" start="1894" stop="1896"/>
+    </event>
+    ''')
+
+    data = {
+        'id': 'E1415',
+        'handle': '_dd3e4a81c567ed55d3c1395cce9',
+        'date': {
+            'modifier': 'span',
+            'quality': 'estimated',
+            'start': '1894',
+            'stop': '1896',
+        }
+    }
+
+    t = s.EventTranslator()
+
+    # XML → data
+    normalized = t.from_xml(etree.fromstring(xml), {})
+    assert data == normalized
+
+    # data → XML
+    el = t.to_xml('event', data, {})
+    serialized = as_xml(el)
+    assert xml == serialized
+
+def test_extended_ref_tag_translator():
+
+    class MyRefTagTranslator(s.RefTagTranslator):
+        ATTRS = dict(s.RefTagTranslator.ATTRS, bar=int)
+
+    id_to_handle = {'some-id': 'some-handle'}
+    handle_to_id = {'some-handle': 'some-id'}
+
+    xml = trim('''
+    <foo bar="123" hlink="some-handle"/>
+    ''')
+
+    data = {
+        'bar': 123,
+        'id': 'some-id',
+    }
+
+    translator = MyRefTagTranslator()
+
+    # data → XML
+    el = translator.to_xml('foo', data, id_to_handle)
+    assert xml == as_xml(el)
+
+    # XML → data
+    assert data == translator.from_xml(el, handle_to_id)

@@ -50,7 +50,7 @@ def test_n_tags_to_one_key():
         },
     }
 
-    class DoctorContributor:
+    class DoctorContributor(s.TagTranslatorContributor):
         @classmethod
         def to_xml(cls, data):
             greeting_el = etree.Element('doctor-greeting')
@@ -106,7 +106,7 @@ def test_one_tag_to_n_keys():
         'complaint_verb': 'hurts',
     }
 
-    class GumbyPatientContributor:
+    class GumbyPatientContributor(s.TagTranslatorContributor):
         @classmethod
         def to_xml(cls, data):
             subj_el = etree.Element('subj')

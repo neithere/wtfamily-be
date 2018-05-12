@@ -35,6 +35,7 @@ from .generic import (
     MaybeMany,
 
     # tag translators
+    TagTranslatorContributor,
     TagTranslator,
     TextTagTranslator,
     EnumTagTranslator,
@@ -73,7 +74,7 @@ def _filter_dict(**kwargs):
     return data
 
 
-class DateContributor:
+class DateContributor(TagTranslatorContributor):
     """
     <!ELEMENT daterange EMPTY>
     <!ATTLIST daterange
@@ -108,6 +109,7 @@ class DateContributor:
     <!ELEMENT datestr EMPTY>
     <!ATTLIST datestr val CDATA #REQUIRED>
     """
+    TAG_NAMES = 'datestr', 'dateval', 'daterange', 'datespan'
 
     # TODO:
     # - cformat
@@ -127,9 +129,16 @@ class DateContributor:
 
         # can't say just `foo or bar` because Element.__bool__ is deprecated :(
         elems = datestr_el, dateval_el, daterange_el, datespan_el
-        active_el = [x for x in elems if x is not None][0]
+        present_els = [x for x in elems if x is not None]
 
-        date = _dict_from_keys(active_el.attrib,
+        # we expect exactly one or none
+        # TODO: container should be able to also require exactly one
+        try:
+            present_el = present_els[0]
+        except IndexError as e:
+            return {}
+
+        date = _dict_from_keys(present_el.attrib,
                                verbatim_keys=['start', 'stop', 'quality'],
                                renamed_keys={'val': 'value'})
 
@@ -140,7 +149,7 @@ class DateContributor:
         elif datespan_el is not None:
             modifier = cls.MOD_SPAN
         else:
-            modifier = active_el.get('type')
+            modifier = present_el.get('type')
 
         date = _filter_dict(modifier=modifier, **date)
 
@@ -228,17 +237,19 @@ class RefTagTranslator(TagTranslator):
         'hlink': str,
     }
 
-    def normalize_extra_attrs(self, data, handle_to_id):
+    def post_normalize_attrs(self, attrs, handle_to_id):
         """
         Normalizes GrampsXML → WTFamily, replaces `hlink` with `id` in refs.
         """
-        if not isinstance(data, dict):
-            raise ValueError('Expected dict, got "{}"'.format(data))
+        if not isinstance(attrs, dict):
+            raise ValueError('Expected dict, got "{}"'.format(attrs))
+
+        _attrs = attrs.copy()
 
         try:
-            handle = data['hlink']
+            handle = _attrs.pop('hlink')
         except KeyError as e:
-            _debug(data)
+            _debug(_attrs)
             raise e
 
         item_id = handle_to_id[handle]
@@ -247,21 +258,22 @@ class RefTagTranslator(TagTranslator):
             raise ValueError('ID: expected string, got {}: "{}"'
                              .format(type(item_id), item_id))
 
-        return {
-            'id': item_id,
-        }
+        return dict(_attrs, id=item_id)
 
-    def serialize_extra_attrs(self, data, id_to_handle):
+    def pre_serialize_attrs(self, data, id_to_handle):
         """
         Serializes WTFamily → GrampsXML, replaces `id` with `hlink` in refs.
         """
         if not isinstance(data, dict):
             raise ValueError('Expected dict, got "{}"'.format(data))
 
+        attrs = super(RefTagTranslator, self).pre_serialize_attrs(data,
+                                                                  id_to_handle)
+
         try:
             pk = data['id']
         except KeyError as e:
-            _debug(data)
+            _debug(data, attrs)
             raise e
 
         # `hlink` contains "handle", the internal Gramps ID.
@@ -279,9 +291,7 @@ class RefTagTranslator(TagTranslator):
             raise ValueError('handle: expected string, got {}: "{}"'
                              .format(type(handle), handle))
 
-        return {
-            'hlink': handle,
-        }
+        return dict(attrs, hlink=handle)
 
 
 class AttributeTagTranslator(TagTranslator):
@@ -446,7 +456,7 @@ class ChildRefTagTranslator(RefTagTranslator):
 #        'val': str,
 #    }
 #
-#    def normalize_extra_attrs(self, data, *args):
+#    def post_normalize_attrs(self, data, *args):
 #        val = data.pop('val')
 #        return {
 #            # TODO: use constants from models
@@ -454,8 +464,8 @@ class ChildRefTagTranslator(RefTagTranslator):
 #            'value': val
 #        }
 #
-#    def serialize_extra_attrs(self, data, *args):
-#        print('serialize_extra_attrs', data)
+#    def pre_serialize_attrs(self, data, *args):
+#        print('pre_serialize_attrs', data)
 #        return {
 #            'foo': 123,
 #        }
