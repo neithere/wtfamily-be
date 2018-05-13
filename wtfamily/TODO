@@ -5,51 +5,27 @@ Goals
 -----
 
 - This is a publishing system.  Only displays info, no editing.
+
+  - This is subject to change.
+  - Gramps was intended to be the editor, but it's too hard to use.
+
 - It *may* evolve and eventually get editing capabilities in a distant future.
 - YAML is bad for backend but great for source control purposes.
-- An ETL layer for GRAMPS compatibility and YAML DB may be decoupled from the
-  publishing system at some point.
 
-Storage
--------
+  - Replaced with MongoDB because it was *too* bad for backend.
+  - Regular exports to XML with predictable order of tags and attributes should
+    address the problem of source control.
 
-- [x] Remove hlinks, use IDs.
+- An ETL layer for GrampsXML import/export.
 
-      challenges:
-
-      - forward-looking hlink→ID resolver
-
-        - perhaps as a final step, outside of the converter?
-          it would just register the mappings on an external visitor object)
-
-          - we'll also need to go *into* the items.  They should be flat-ish, i.e.
-            each item is a dictionary where values can be single or multiple.
-            This is defined by schema.
-            So we just iterate the list if the field isn't in SINGLE_VALUE_FIELDS.
-
-            General pattern::
-
-                fooref:
-                - {hlink: x, quux: 1}
-                barref:
-                - {hlink: y, quux: 2}
-
-            Should we just add ID to that?
-
-      - some entities (e.g. namemaps) don't have IDs
-
-        - currently using UUID but not sure if it's ok
-
-- [x] Split items into separate YAML files.
-- [ ] Refactor.
-- [ ] Caching.  (implement as late as possible.)
+  - Compatibility with other formats through Gramps.
 
 Import/Export
 -------------
 
 - [ ] Unify models with validation schemata.
 - [ ] Add ETL option: delete local items not found in imported data
-- [ ] Export to GrampsXML
+- [x] Export to GrampsXML
 - [ ] Export to GEDCOM
 
 Access Control
@@ -72,7 +48,7 @@ Linked Entities Management
 Web interface
 -------------
 
-- [ ] Async UI with RESTful service
+- [x] Async UI with RESTful service
 
   - Strategy for family tree: fetch and cache the whole /family/ list
     (it's lightweight), then fetch individuals via /person/?ids=foo,bar
