@@ -415,8 +415,10 @@ def test_event_datespan():
         'date': {
             'modifier': 'span',
             'quality': 'estimated',
-            'start': '1894',
-            'stop': '1896',
+            'value': {
+                'start': '1894',
+                'stop': '1896',
+            }
         }
     }
 
@@ -430,6 +432,53 @@ def test_event_datespan():
     el = t.to_xml('event', data, {})
     serialized = as_xml(el)
     assert xml == serialized
+
+
+def test_namespaced_event_dateval():
+    """
+    Validates bi-di translation of `dateval` tag in an `event`.
+    It's crucial to check this with a namespace because there was a regression
+    where `DateContributor` would look for tag names without stripping away the
+    namespace, thus finding nothing → dates missing after import.
+    """
+    xml = trim('''
+    <event change="1418684567" handle="_cdda9df5fdd3bee8b0c666170dd" id="E0000" xmlns="http://gramps-project.org/xml/1.7.1/">
+      <citationref hlink="hlink-two"/>
+      <place hlink="hlink-one"/>
+      <type>Birth</type>
+      <dateval val="1946-08-23"/>
+    </event>
+    ''')
+
+    data = {
+        'id': 'E0000',
+        'handle': '_cdda9df5fdd3bee8b0c666170dd',
+        'change': datetime.datetime(2014, 12, 16, 0, 2, 47),
+        'type': 'Birth',
+        'date': {
+            'value': '1946-08-23',
+        },
+        'place': {'id': 'id-one'},
+        'citationref': [
+            {'id': 'id-two'},
+        ],
+    }
+
+    t = s.EventTranslator()
+
+    id_to_handle = {'id-one': 'hlink-one', 'id-two': 'hlink-two'}
+    handle_to_id = {'hlink-one': 'id-one', 'hlink-two': 'id-two'}
+
+    # XML → data
+    normalized = t.from_xml(etree.fromstring(xml), handle_to_id)
+    assert data == normalized
+
+    # data → XML
+    el = t.to_xml('event', data, id_to_handle)
+    serialized = as_xml(el)
+    xml_without_namespace = re.sub(' xmlns="[^"]+"', '', xml)
+    assert xml_without_namespace == serialized
+
 
 def test_extended_ref_tag_translator():
 

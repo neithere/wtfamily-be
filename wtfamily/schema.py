@@ -93,7 +93,8 @@ GRAMPS_DATE_SCHEMA = one_of([GRAMPS_DATEVAL, GRAMPS_DATESPAN, GRAMPS_DATERANGE,
                              GRAMPS_DATESTR])
 
 UNIFIED_DATE_SCHEMA = {
-    maybe-'modifier': one_of(['span', 'range', 'before', 'after', 'about']),
+    maybe-'modifier': one_of(['span', 'range', 'before', 'after', 'about',
+                              'textonly']),
     maybe-'value': IsA(str) | {
         'start': str,
         'stop': str,

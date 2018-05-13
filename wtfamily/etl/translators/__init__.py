@@ -46,9 +46,10 @@ from .generic import (
 )
 
 
-def _get_child(el, child_tag):
+def _get_child(el, wanted_child_tag):
     for child_el in el.getchildren():
-        if child_el.tag == child_tag:
+        child_tag = etree.QName(child_el.tag).localname
+        if child_tag == wanted_child_tag:
             return child_el
 
 
@@ -142,6 +143,15 @@ class DateContributor(TagTranslatorContributor):
                                verbatim_keys=['start', 'stop', 'quality'],
                                renamed_keys={'val': 'value'})
 
+        # Oh noes, our value can be a string or dict.
+        # Probably too complicated, could be flattened in the future.
+        range_keys = 'start', 'stop'
+        if any(date.get(k) for k in range_keys):
+            date['value'] = {}
+            for key in range_keys:
+                if date.get(key):
+                    date['value'][key] = date.pop(key)
+
         if datestr_el is not None:
             modifier = cls.MOD_TEXTONLY
         elif daterange_el is not None:
@@ -162,6 +172,16 @@ class DateContributor(TagTranslatorContributor):
         date_data = data.get('date')
         if not date_data:
             return []
+
+        # Oh noes, our value can be a string or dict.
+        # Probably too complicated, could be flattened in the future.
+        if isinstance(date_data.get('value'), dict):
+            range_keys = 'start', 'stop'
+            for key in range_keys:
+                value = date_data.get('value', {}).get(key)
+                if value:
+                    date_data[key] = value
+            del date_data['value']
 
         kwargs = _dict_from_keys(date_data,
                                  verbatim_keys=('quality', 'start', 'stop'),
