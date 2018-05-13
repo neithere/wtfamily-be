@@ -60,11 +60,11 @@ def test_basic_text():
     }
     xml = trim('''
     <green-midget-cafe place="Bromley">
-      <visitor>Viking</visitor>
       <dish>spam</dish>
       <dish>bacon</dish>
       <dish>sausage</dish>
       <dish>spam</dish>
+      <visitor>Viking</visitor>
     </green-midget-cafe>
     ''')
 
@@ -114,9 +114,9 @@ def test_nested_text_under_key():
     }
     xml = trim('''
     <green-midget-cafe>
-      <place name="Bromley"/>
       <dish base="bacon">spam</dish>
       <dish base="egg">glorious spam!</dish>
+      <place name="Bromley"/>
     </green-midget-cafe>
     ''')
 

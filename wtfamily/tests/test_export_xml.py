@@ -94,9 +94,9 @@ def test_base_tag_translator_composition():
     }
     expected = trim('''
     <mytag greeting="Hello" name="Patsy">
+      <bar one="1" two="2"/>
       <foo>Albatross!</foo>
       <foo>Holy Grail</foo>
-      <bar one="1" two="2"/>
     </mytag>
     ''')
 
@@ -225,7 +225,7 @@ def test_person_name():
     expected = trim('''
     <name type="Birth Name">
       <first>Иван</first>
-      <surname prim="1" derivation="Patronymic">Петрович</surname>
+      <surname derivation="Patronymic" prim="1">Петрович</surname>
       <surname>Сидоров</surname>
     </name>
     ''')
@@ -346,44 +346,44 @@ def test_entity_person():
 
     expected = trim('''
     <my-person change="1482434357" handle="_cdeb90490341f84abadc55e8d91" id="auz_dawid_16xx">
-      <gender>M</gender>
-      <name type="Birth Name">
-        <first>Давид</first>
-        <surname derivation="Patronymic" prim="1">Янович</surname>
-        <surname derivation="Inherited">Авжбикович</surname>
-        <citationref hlink="handle-C0053"/>
-      </name>
-      <name alt="1" type="Also Known As">
-        <first>Dovydas</first>
-        <surname>Aušbikavičius</surname>
-        <citationref hlink="handle-C0029"/>
-      </name>
-      <name alt="1" type="Birth Name">
-        <first>Давид</first>
-        <surname>Аужбикович</surname>
-        <citationref hlink="handle-C0039"/>
-      </name>
-      <name alt="1" type="Birth Name">
-        <first>Dawid</first>
-        <surname>Auzbikowicz</surname>
-        <citationref hlink="handle-metryka-p127"/>
-      </name>
-      <eventref hlink="handle-E0330" role="Primary"/>
-      <eventref hlink="handle-E0318" role="Primary"/>
-      <eventref hlink="handle-E1202" role="Primary"/>
-      <eventref hlink="handle-E1203" role="Primary"/>
-      <objref hlink="handle-something_scanned">
-        <region corner1_x="48" corner1_y="22" corner2_x="68" corner2_y="54"/>
-      </objref>
       <address>
-        <city>Аужбики</city>
-        <state>Поюрский повет</state>
-        <country>Самогитское княжество</country>
         <citationref hlink="handle-metryka-p127"/>
+        <city>Аужбики</city>
+        <country>Самогитское княжество</country>
+        <state>Поюрский повет</state>
         <dateval val="1690"/>
       </address>
       <childof hlink="handle-F0091"/>
       <childof hlink="handle-F0091a"/>
+      <eventref hlink="handle-E0330" role="Primary"/>
+      <eventref hlink="handle-E0318" role="Primary"/>
+      <eventref hlink="handle-E1202" role="Primary"/>
+      <eventref hlink="handle-E1203" role="Primary"/>
+      <gender>M</gender>
+      <name type="Birth Name">
+        <citationref hlink="handle-C0053"/>
+        <first>Давид</first>
+        <surname derivation="Patronymic" prim="1">Янович</surname>
+        <surname derivation="Inherited">Авжбикович</surname>
+      </name>
+      <name alt="1" type="Also Known As">
+        <citationref hlink="handle-C0029"/>
+        <first>Dovydas</first>
+        <surname>Aušbikavičius</surname>
+      </name>
+      <name alt="1" type="Birth Name">
+        <citationref hlink="handle-C0039"/>
+        <first>Давид</first>
+        <surname>Аужбикович</surname>
+      </name>
+      <name alt="1" type="Birth Name">
+        <citationref hlink="handle-metryka-p127"/>
+        <first>Dawid</first>
+        <surname>Auzbikowicz</surname>
+      </name>
+      <objref hlink="handle-something_scanned">
+        <region corner1_x="48" corner1_y="22" corner2_x="68" corner2_y="54"/>
+      </objref>
       <parentin hlink="handle-F0092"/>
       <parentin hlink="handle-F0092a"/>
     </my-person>
