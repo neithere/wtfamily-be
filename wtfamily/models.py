@@ -544,10 +544,15 @@ class Person(Entity):
     def age(self):
         if not self.birth:
             return
-        if self.death:
-            return self.death.year - self.birth.year
-        else:
-            return datetime.date.today().year - self.birth.year
+
+        try:
+            if self.death:
+                return self.death.year - self.birth.year
+            else:
+                return datetime.date.today().year - self.birth.year
+        except TypeError:
+            # probably one of the dates was `datestr` (could not be parsed)
+            return
 
     @property
     def gender(self):
@@ -1203,6 +1208,7 @@ class DateRepresenter:
 
         formats = {
             self.MOD_NONE: '{}',
+            self.MOD_TEXTONLY: '{}',
             self.MOD_SPAN: '{0[start]}..{0[stop]}',
             self.MOD_RANGE: '[{0[start]}-{0[stop]}]',
             self.MOD_BEFORE: '<{}',
@@ -1235,6 +1241,9 @@ class DateRepresenter:
         # FIXME this is extremely rough
         return str(self.year) < str(other.year)
 
+    def _can_be_parsed(self):
+        return self.modifier != self.MOD_TEXTONLY
+
     @property
     def century(self):
         year = str(self.year)
@@ -1245,16 +1254,24 @@ class DateRepresenter:
     @property
     def year(self):
         "Returns earliest known year as string"
+
+        if not self._can_be_parsed():
+            return ''
+
         if isinstance(self.value, str):
             value = self.value
         elif self.modifier in self.COMPOUND_MODIFIERS:
             value = self.value.get('start')
         else:
             return ''
+
         return self._parse_to_year(value)
 
     @property
     def year_formatted(self):
+        if not self._can_be_parsed():
+            return ''
+
         if self.is_compound:
             start, stop = self.boundaries
             # match the structure expected by template
@@ -1293,6 +1310,9 @@ class DateRepresenter:
 
     @property
     def earliest_datetime(self):
+        if not self._can_be_parsed():
+            return ''
+
         if self.is_compound:
             value = self.boundaries[0]
         else:
@@ -1301,6 +1321,9 @@ class DateRepresenter:
 
     @property
     def latest_datetime(self):
+        if not self._can_be_parsed():
+            return ''
+
         if self.is_compound:
             value = self.boundaries[-1]
         else:
