@@ -333,6 +333,37 @@ class EventRefTagTranslator(RefTagTranslator):
     }
 
 
+class PlaceRefTagTranslator(RefTagTranslator):
+    """
+    <!ELEMENT placeref ((daterange|datespan|dateval|datestr)?)>
+    <!ATTLIST placeref
+            hlink IDREF #REQUIRED
+    >
+    """
+    ATTRS = {
+        'hlink': str,
+    }
+    CONTRIBUTORS = DateContributor,
+
+
+class RepoRefTagTranslator(RefTagTranslator):
+    """
+    <!ELEMENT reporef (noteref*)>
+    <!ATTLIST reporef
+            hlink  IDREF #REQUIRED
+            priv   (0|1) #IMPLIED
+            callno CDATA #IMPLIED
+            medium CDATA #IMPLIED
+    >
+    """
+    ATTRS = {
+        'hlink': str,
+        'priv': bool,
+        'callno': str,
+        'medium': str,
+    }
+
+
 class MediaObjectRefTagTranslator(RefTagTranslator):
     """
     <!ELEMENT objref (region?, attribute*, citationref*, noteref*)>
@@ -351,6 +382,9 @@ class MediaObjectRefTagTranslator(RefTagTranslator):
             'corner2_x': int,
             'corner2_y': int,
         })),
+        'attribute': MaybeMany(AttributeTagTranslator),
+        'citationref': MaybeMany(RefTagTranslator),
+        'noteref': MaybeMany(RefTagTranslator),
     }
 
 
@@ -765,7 +799,7 @@ class SourceTranslator(TagTranslator):
         'objref': MaybeMany(MediaObjectRefTagTranslator),
         'srcattribute': MaybeMany(tag_translator_factory(attrs=('priv', 'type',
                                                                 'value'))),
-        'reporef': MaybeMany(RefTagTranslator),
+        'reporef': MaybeMany(RepoRefTagTranslator),
         'tagref': MaybeMany(RefTagTranslator),
     }
 
@@ -806,7 +840,7 @@ class PlaceTranslator(TagTranslator):
         'pname': OneOrMore(PlaceNameTagTranslator),
         'code': MaybeOne(TextTagTranslator),
         'coord': MaybeOne(PlaceCoordTagTranslator),
-        'placeref': MaybeMany(RefTagTranslator),
+        'placeref': MaybeMany(PlaceRefTagTranslator),
         'location': MaybeMany(LocationTagTranslator),
         'objref': MaybeMany(MediaObjectRefTagTranslator),
         'url': MaybeMany(UrlTagTranslator),

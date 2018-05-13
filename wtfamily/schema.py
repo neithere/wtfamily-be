@@ -187,18 +187,12 @@ FAMILY_SCHEMA = {
             maybe-'frel': str,    # TODO enum
             maybe-'mrel': str,    # TODO enum
             maybe-'noteref': [REF_SCHEMA],
-
-            # TODO: REMOVE THIS?
-            'hlink': str,
         }
     ],
     maybe-'eventref': [
         {
             'id': str,
             'role': str,
-
-            # TODO: REMOVE THIS?
-            'hlink': str,
         }
     ],
     maybe-'attribute': [ATTRIBUTE],

@@ -24,6 +24,7 @@ Extract, Transform, Load: Generic Translators
 Mapping of XML to native Python data.
 """
 import datetime
+import itertools
 import sys
 
 from lxml import etree
@@ -181,8 +182,11 @@ class TagTranslator:
             raise ValueError('TAGS and AS_TEXT are mutually exclusive.')
 
     @property
-    def expected_tags(self):
-        return list(self.TAGS.keys()) + [c.TAG_NAMES for c in self.CONTRIBUTORS]
+    def expected_tag_names(self):
+        declared = self.TAGS.keys()
+        contributed = [c.TAG_NAMES for c in self.CONTRIBUTORS]
+
+        return list(itertools.chain(declared, *contributed))
 
     def from_xml(self, el, handle_to_id=None):
         data = {}
@@ -220,9 +224,13 @@ class TagTranslator:
             # i.e. "{http://gramps-project.org/xml/1.7.1/}name" → "name"
             nested_tag = etree.QName(nested_el.tag).localname
 
-            if nested_tag not in self.expected_tags:
-                _debug('{}: unexpected nested tag {}'.format(el.tag, nested_tag))
+            if nested_tag not in self.TAGS:
+                # sanity check
+                if nested_tag not in self.expected_tag_names:
+                    _debug('{}: nested tag {} not in expected {}'
+                           .format(el.tag, nested_tag, self.expected_tag_names))
 
+                # expected to be handled by a TagTranslatorContributor
                 continue
 
             Translator = self.TAGS[nested_tag]
@@ -260,7 +268,8 @@ class TagTranslator:
             if value is not None:
                 el.set(attr, serialize_attr_value(value))
 
-        for nested_tag, Translator in self.TAGS.items():
+        for nested_tag in sorted(self.TAGS):
+            Translator = self.TAGS[nested_tag]
 
             # NOTE: subtag == key, but may be different
             values = data.get(nested_tag)
