@@ -113,6 +113,7 @@ class EventModelAdapter(GenericModelAdapter):
         assert model == cls.model
 
         place_id = request.values.get('place_id')
+        # TODO: rename "proven_by" to "cited_in"
         citation_ids_raw = request.values.get('proven_by', '')
         citation_ids = [x for x in citation_ids_raw.split(',') if x]
 
