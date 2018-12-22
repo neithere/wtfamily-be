@@ -668,14 +668,17 @@ class Event(Entity):
         return '{0.date} {0.type} {0.summary} {0.place}'.format(self)
 
     def get_pretty_data(self):
-        place_refs = _simplified_refs(self._data.get('place'))
+        first_place_ref = _simplified_refs(self._data.get('place'))
+        if isinstance(first_place_ref, list):
+            first_place_ref = first_place_ref[0]
+
         return {
             # TODO use foo_id for IDs
             'type': self.type,
             'date': str(self.date),
             'date_year': str(self.date.year),
             'summary': self.summary,
-            'place_id': place_refs[0] if place_refs else None,
+            'place_id': first_place_ref,
             'citation_ids': _simplified_refs(self._data.get('citationref')),
         }
 
