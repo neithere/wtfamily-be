@@ -29,6 +29,9 @@ import geopy.distance
 from schema import *
 
 
+RELATED_KEY_PREFIX = 'related_'
+
+
 class ObjectNotFound(Exception):
     pass
 
@@ -191,6 +194,85 @@ class Entity:
                 yield obj
 
     @classmethod
+    def aggregate(cls, conditions, *related_models):
+        """
+        TODO: separate aggregation from base query:
+
+            Event.find(id=x).aggregate(Person, Place)
+
+        Prerequisite: all Model.find_* methods return ResultSet instances
+        which provide additional methods.  If that's applicable here...
+
+        A possibly better syntax:
+
+            Event.find(id=x) \
+                .aggregate(Person, field='personref') \
+                .aggregate(Place, local_field='place')
+
+        TODO: custom aliases, e.g.:
+
+              Person.find_one(id=x).aggregate({
+                  parents: {'model': Person, 'localField': ...},
+                  children: {'model': Person, 'localField': ...},
+              })
+
+              # ^^^ this case is actually more complicated because these
+              # relations are established through families, so we need more
+              # items in the pipeline.
+        """
+        pipeline_stages = []
+
+        for related_model in related_models:
+            assert issubclass(related_model, Entity)
+
+            if related_model == cls:
+                continue
+
+            # there can be two cases:
+            # 1) central model references another one → that one gets aggregated;
+            # 2) another model references central one → still gets aggregated.
+
+            local_key = cls.REFERENCES.get(related_model.__name__, 'id')
+            foreign_key = related_model.REFERENCES.get(cls.__name__, 'id')
+
+            if not local_key and not foreign_key:
+                raise Exception('Could not find a reference between {} and {}'
+                                .format(cls.__name__ and related_model.__name__))
+
+            assert local_key != foreign_key, (cls, related_model, local_key, foreign_key)
+
+            lookup = {
+                'from': related_model.entity_name,
+                'as': RELATED_KEY_PREFIX + related_model.entity_name,
+                'localField': local_key,
+                'foreignField': foreign_key
+            }
+
+            pipeline_stages.append({
+                '$match': conditions,
+            })
+            pipeline_stages.append({
+                '$lookup': lookup
+            })
+
+        print(pipeline_stages)
+
+        for item in cls._get_collection().aggregate(pipeline_stages):
+            temp_extracted_keys = {}
+
+            for related_model in related_models:
+                key = RELATED_KEY_PREFIX + related_model.entity_name
+                sub_items = item.pop(key)
+                temp_extracted_keys[key] = [related_model(x) for x in
+                                            sub_items]
+
+            obj = cls(item)
+
+            obj._data = dict(obj._data, **temp_extracted_keys)
+
+            yield obj
+
+    @classmethod
     def count(cls):
         return cls._get_collection().count()
 
@@ -248,6 +330,16 @@ class Entity:
             return data
 
     def get_pretty_data(self):
+        related_keys = [k for k in self._data.keys() if
+                        k.startswith(RELATED_KEY_PREFIX)]
+        related_data = {}
+        for key in related_keys:
+            #related_data[key] = [_strip_objectid(x) for x in self._data[key]]
+            related_data[key] = [x.get_pretty_data() for x in self._data[key]]
+
+        return dict(related_data, **self._get_pretty_data())
+
+    def _get_pretty_data(self):
         raise NotImplementedError
 
     def matches_query(self, query):
@@ -279,7 +371,7 @@ class Family(Entity):
         else:
             return Person.find_one({'id': pk})
 
-    def get_pretty_data(self):
+    def _get_pretty_data(self):
         return {
             # TODO use foo_id for IDs
             'father': self._data.get('father'),
@@ -357,7 +449,7 @@ class Person(Entity):
     def _format_one_name(self, template=NAME_TEMPLATE):
         return self._format_all_names(template)[0]
 
-    def get_pretty_data(self):
+    def _get_pretty_data(self):
         return {
             # TODO use foo_id for IDs
             'group_names': list(self.group_names),
@@ -667,7 +759,7 @@ class Event(Entity):
         #return 'Event {}'.format(self._data)
         return '{0.date} {0.type} {0.summary} {0.place}'.format(self)
 
-    def get_pretty_data(self):
+    def _get_pretty_data(self):
         first_place_ref = _simplified_refs(self._data.get('place'))
         if isinstance(first_place_ref, list):
             first_place_ref = first_place_ref[0]
@@ -732,7 +824,7 @@ class Place(Entity):
     def __repr__(self):
         return '{0.name}'.format(self)
 
-    def get_pretty_data(self):
+    def _get_pretty_data(self):
         return {
             # TODO use foo_id for IDs
             'name': self.name,
@@ -868,7 +960,7 @@ class Source(Entity):
     def __repr__(self):
         return str(self.title)
 
-    def get_pretty_data(self):
+    def _get_pretty_data(self):
         return {
             # TODO use foo_id for IDs
             'title': self.title,
@@ -925,7 +1017,7 @@ class Citation(Entity):
             return self.page
         return str(self.id)
 
-    def get_pretty_data(self):
+    def _get_pretty_data(self):
         return {
             'page': self.page,
             'date': str(self.date),
@@ -980,7 +1072,7 @@ class Note(Entity):
         'MediaObject': 'objref.id',
     }
 
-    def get_pretty_data(self):
+    def _get_pretty_data(self):
         return {
             # TODO use foo_id for IDs
             'text': self.text,
@@ -1017,7 +1109,7 @@ class NameMap(Entity):
     def __repr__(self):
         return '<{} "{}" → "{}">'.format(self.type, self.key, self.value)
 
-    def get_pretty_data(self):
+    def _get_pretty_data(self):
         return {
             'type': self.type,
             'key': self.key,
@@ -1373,3 +1465,14 @@ def _simplified_refs(value):
         return value['id']
     if isinstance(value, list):
         return [x['id'] if isinstance(x, dict) else x for x in value]
+
+## TODO: recursive?
+#def _strip_objectid(value):
+#    assert isinstance(value, dict), value
+#
+#    clean = dict(value)
+#    clean.pop('_id')
+#
+#    print(clean)
+#
+#    return clean

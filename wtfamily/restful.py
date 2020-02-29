@@ -68,6 +68,18 @@ class GenericModelAdapter:
         return dict(obj.get_public_data(protect=protect), id=obj.id)
 
 
+class PlaceModelAdapter(GenericModelAdapter):
+    model = Place
+
+    @classmethod
+    def provide_list(cls, model):
+        assert model == cls.model
+
+        #return super().provide_list(model)
+
+        # TODO: do this only on special request
+        return model.aggregate({}, Event)
+
 class PersonModelAdapter(GenericModelAdapter):
     model = Person
 
@@ -172,7 +184,7 @@ class RESTfulService(Configurable):
             Person: ('people', PersonModelAdapter),
             Event: ('events', EventModelAdapter),
             Family: ('families', GenericModelAdapter),
-            Place: ('places', GenericModelAdapter),
+            Place: ('places', PlaceModelAdapter),
             Source: ('sources', GenericModelAdapter),
             Citation: ('citations', CitationModelAdapter),
             Note: ('notes', GenericModelAdapter),
