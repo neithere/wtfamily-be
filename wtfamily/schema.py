@@ -335,7 +335,7 @@ NAME_FORMAT_SCHEMA = {
 }
 MEDIA_OBJECT_SCHEMA = {
     'file': {
-        'checksum': str,
+        maybe-'checksum': str,
         'description': str,
         'mime': str,
         'src': str,
