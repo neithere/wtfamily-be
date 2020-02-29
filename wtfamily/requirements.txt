@@ -1,0 +1,12 @@
+argh
+babel
+blessings
+cached_property
+git+git://github.com/neithere/confu@master
+flask
+geopy
+lxml
+monk
+pymongo
+pyyaml
+python-dateutil

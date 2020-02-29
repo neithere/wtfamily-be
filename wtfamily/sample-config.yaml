@@ -1,0 +1,6 @@
+database:
+  name: wtfamily-from-grampsxml
+etl:
+  gramps_xml_path: '/tmp/data.gramps'
+web:
+  debug: true
