@@ -6,16 +6,14 @@ LABEL maintainer="Andy Mikhaylenko <neithere@gmail.com>"
 RUN apt-get update \
  && apt-get install -y git
 
-RUN mkdir /usr/src/app
 WORKDIR /usr/src/app
 
 COPY wtfamily/requirements.txt /usr/src/app/
 RUN pip install -r requirements.txt
 
-COPY ./wtfamily ./
+COPY ./wtfamily/sample-config.yaml /etc/wtfamily.yaml
 
-# TODO: use env var WTFAMILY_CONFIG instead
-COPY ./wtfamily/sample-config.yaml ./conf.yaml
+# NOTE: it is expected that the code is mounted to /usr/src/app
 
-# TODO: replace with proper deployment
+# TODO: replace with proper deployment?
 CMD ["python", "app.py", "run", "--host", "0.0.0.0"]

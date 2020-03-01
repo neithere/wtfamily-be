@@ -1,4 +1,5 @@
 database:
+  uri: mongodb://wtfamily:my-wtfamily-pwd@database:27017
   name: wtfamily-from-grampsxml
 etl:
   gramps_xml_path: '/tmp/data.gramps'
