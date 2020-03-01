@@ -65,12 +65,16 @@ def main():
     mongo_client = MongoClient(mongo_uri)
 
     mongo_database = mongo_client[mongo_db_name]
-    webapp = WTFamilyWebApp(conf['web'], {
-        'mongo_db': mongo_database,
-    })
+
     etl = WTFamilyETL(conf['etl'], {
         'mongo_client': mongo_client
     })
+
+    webapp = WTFamilyWebApp(conf['web'], {
+        'mongo_db': mongo_database,
+        'etl': etl
+    })
+
     debug = WTFamilyDebug({
         'mongo_db': mongo_database,
     })

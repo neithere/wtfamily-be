@@ -16,13 +16,18 @@
 #
 #    You should have received a copy of the GNU Lesser General Public License
 #    along with WTFamily.  If not, see <http://gnu.org/licenses/>.
+import datetime
 import functools
 import itertools
+import os.path
 from time import time
 
 from confu import Configurable
-from flask import Blueprint, abort, jsonify, request, render_template
+from flask import Blueprint, Response, abort, jsonify, request, render_template
 from pymongo.database import Database
+from werkzeug.utils import secure_filename
+
+from etl import WTFamilyETL
 
 from models import (
     Person,
@@ -175,6 +180,7 @@ class RESTfulService(Configurable):
     needs = {
         'mongo_db': Database,
         'debug': False,
+        'etl': WTFamilyETL
     }
 
     def make_blueprint(self):
@@ -205,6 +211,9 @@ class RESTfulService(Configurable):
             blueprint.route(url_detail, methods=['GET'])(handler_detail)
 
         blueprint.route('/person_name_groups', methods=['GET'])(self.person_name_group_list)
+
+        blueprint.route('/etl/gramps_xml', methods=['GET', 'POST'])(
+            self.etl_gramps_xml)
 
         return blueprint
 
@@ -255,16 +264,61 @@ class RESTfulService(Configurable):
         print('Generated JSON for surname_list in', (after - before), 'sec')
         return resp
 
+    def etl_gramps_xml(self):
+        """
+        Usage::
+
+          $ curl -F 'file=@data.gramps' http://localhost:5000/r/etl/gramps_xml
+
+        (supposing that you have a file called `data.gramps` in current dir)
+        """
+        is_raw = request.args.get('raw', False)
+
+        if request.method == 'POST':
+            if 'file' not in request.files:
+                return jsonify_with_cors({'error': 'no file part',
+                                          'x':request.files})
+
+            file = request.files['file']
+
+            if not file.filename:
+                return jsonify_with_cors({'error': 'no selected file'})
+
+            filename = secure_filename(file.filename)
+            time_stamp =  datetime.datetime.now().strftime('%Y-%m-%d_%H%M')
+            filename_with_date = '{}-{}'.format(time_stamp, filename)
+            path = os.path.join('/tmp/', filename_with_date)
+            file.save(path)
+
+            output_generator = self.etl.import_gramps_xml(path, replace=True)
+            output = list(output_generator)
+
+            return jsonify_with_cors({
+                'status': 'success',
+                'output': output
+            })
+
+        exported = self.etl.export_gramps_xml()
+
+        if is_raw:
+            return Response(exported, mimetype='text/xml')
+        return jsonify_with_cors({
+            'format': 'xml',
+            'data': '\n'.join(exported)
+        })
+
 
 class RESTfulApp(Configurable):
     needs = {
         'mongo_db': Database,
+        'etl': WTFamilyETL,
         'debug': False,
     }
 
     def make_blueprint(self):
         blueprint = Blueprint('restful_app', __name__)
         blueprint.route('/', methods=['GET'])(self.index)
+
         return blueprint
 
     def index(self):

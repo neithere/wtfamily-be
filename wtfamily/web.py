@@ -28,6 +28,7 @@ from flask import (
 #from werkzeug import LocalProxy
 from pymongo.database import Database
 
+from etl import WTFamilyETL
 from models import (
     Person,
     Event,
@@ -46,6 +47,7 @@ class WTFamilyWebApp(Configurable):
     needs = {
         'mongo_db': Database,
         'debug': False,
+        'etl': WTFamilyETL
     }
 
     @property
@@ -97,6 +99,7 @@ class WTFamilyWebApp(Configurable):
         for cls, prefix in restful_mapping.items():
             _app = cls({
                 'mongo_db': self.mongo_db,
+                'etl': self.etl,
                 'debug': self.debug,
             })
             bp = _app.make_blueprint()
