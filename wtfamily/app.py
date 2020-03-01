@@ -33,12 +33,14 @@ from debug import WTFamilyDebug
 
 APP_NAME = 'WTFamily'
 ENV_CONFIG_VAR = 'WTFAMILY_CONFIG'
+ENV_MONGO_URI_VAR = 'WTFAMILY_DATABASE_URI'
+ENV_MONGO_DB_NAME_VAR = 'WTFAMILY_DATABASE_NAME'
 
 
 def _get_config():
     conf_file_path = os.getenv(ENV_CONFIG_VAR, 'conf.yaml')
     with open(conf_file_path) as f:
-        conf = yaml.load(f)
+        conf = yaml.load(f, Loader=yaml.Loader)
 
     validate({
         'database': dict,
@@ -54,9 +56,15 @@ def main():
 
     conf = _get_config()
 
-    mongo_client = MongoClient()
+    # it's ok if it's empty, default localhost will be used
+    mongo_uri = os.getenv(ENV_MONGO_URI_VAR,
+                          conf['database'].get('uri'))
+    mongo_db_name = os.getenv(ENV_MONGO_DB_NAME_VAR,
+                              conf['database'].get('name'))
 
-    mongo_database = mongo_client[conf['database']['name']]
+    mongo_client = MongoClient(mongo_uri)
+
+    mongo_database = mongo_client[mongo_db_name]
     webapp = WTFamilyWebApp(conf['web'], {
         'mongo_db': mongo_database,
     })
