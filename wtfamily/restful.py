@@ -20,6 +20,7 @@ import datetime
 import functools
 import itertools
 import os.path
+import sys
 from time import time
 
 from confu import Configurable
@@ -49,6 +50,17 @@ def jsonify_with_cors(*args, **kwargs):
     if ALLOW_ANY_HOST:
         resp.headers.add('Access-Control-Allow-Origin', '*')
     return resp
+
+
+def print_json_resp_stats(time_start, resp, purpose):
+    time_end = time()
+    duration = time_end - time_start
+    resp_len_kb = len(resp.response[0]) / 1024
+    marker_slow = 'SLOW' if duration >= 1 else ''
+    marker_big = 'BIG' if resp_len_kb >= 100 else ''
+
+    sys.stderr.write('JSON for {}: {:.1f}kB in {:.2f}s {} {}\n'.format(
+        purpose, resp_len_kb, duration, marker_big, marker_slow))
 
 
 class GenericModelAdapter:
@@ -218,7 +230,7 @@ class RESTfulService(Configurable):
         return blueprint
 
     def _list(self, model, adapter, debug):
-        before = time()
+        time_start = time()
 
         obj_list = adapter.provide_list(model)
 
@@ -226,42 +238,50 @@ class RESTfulService(Configurable):
         pure_data_items = [adapter.prepare_obj(obj, protect) for obj in obj_list]
         resp = jsonify_with_cors(pure_data_items)
 
-        after = time()
-
-        print('Generated JSON for', model.__name__, 'list in', (after - before), 'sec')
-        print('JSON response for', model.__name__, 'is', len(resp.response[0]), 'bytes')
+        purpose = '{} list'.format(model.__name__)
+        print_json_resp_stats(time_start, resp, purpose)
 
         return resp
 
     def _detail(self, model, adapter, debug, id):
-        before = time()
+        time_start = time()
+
         try:
             obj = model.get(id)
         except model.ObjectNotFound:
             abort(404)
+
         protect = not debug
         resp = jsonify_with_cors(adapter.prepare_obj(obj, protect))
-        after = time()
-        print('Generated JSON for', model, 'detail in', (after - before), 'sec')
+
+        purpose = '{} detail'.format(model.__name__)
+        print_json_resp_stats(time_start, resp, purpose)
+
         return resp
 
     @classmethod
     @functools.lru_cache()
     def person_name_group_list(cls):
         "Runs once, caches the response (already in JSON)"
-        before = time()
+
+        time_start = time()
+
         seen_group_names = {}
+
         for p in Person.find():
             group_name = p.group_name
             data = seen_group_names.setdefault(group_name, {})
             #data['count'] = data.get('count', 0) + 1
             data.setdefault('person_ids', []).append(p.id)
+
         group_names = [
             dict({'name': n}, **seen_group_names[n])
             for n in sorted(seen_group_names)]
+
         resp = jsonify_with_cors(group_names)
-        after = time()
-        print('Generated JSON for surname_list in', (after - before), 'sec')
+
+        print_json_resp_stats(time_start, resp, purpose='surname_list')
+
         return resp
 
     def etl_gramps_xml(self):
